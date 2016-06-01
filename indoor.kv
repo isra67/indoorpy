@@ -1,28 +1,37 @@
-#:kivy 1.0
 
 <Indoor>:
     callbuton: btnCall
+    door1buton: btnDoor1
+    door2buton: btnDoor2
 
     orientation: 'vertical'
 
     Label:
         text: 'Wait...'
-        font_size: '48dp'
+        font_size: '56dp'
         on_touch_down: app.dbg('HIIIIIT')
+
+#    Scatter:
+#        pos: self.center_x - 5, 0
+#        size: self.width, self.height
 
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
         height: '48dp'
-#        on_touch_down: app.dbg('HIIIIIT')
 
         Button:
             id: btnCall
-            text: 'Answer call'
-            on_press: app.dbg('1:')
+            text: 'No Call'
+            font_size: '24dp'
+            on_press: root.callback_btn_call()
         Button:
-            text: 'Open door 1'
-            on_press: app.dbg('2:')
+            id: btnDoor1
+            text: 'Open Door 1'
+            font_size: '24dp'
+            on_press: root.callback_btn_door1()
         Button:
-            text: 'Open door 2'
-            on_press: app.dbg('3:')
+            id: btnDoor2
+            text: 'Open Door 2'
+            font_size: '24dp'
+            on_press: root.callback_btn_door2()

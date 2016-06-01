@@ -1,0 +1,28 @@
+#:kivy 1.0
+
+<Indoor>:
+    callbuton: btnCall
+
+    orientation: 'vertical'
+
+    Label:
+        text: 'Wait...'
+        font_size: '48dp'
+        on_touch_down: app.dbg('HIIIIIT')
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '48dp'
+#        on_touch_down: app.dbg('HIIIIIT')
+
+        Button:
+            id: btnCall
+            text: 'Answer call'
+            on_press: app.dbg('1:')
+        Button:
+            text: 'Open door 1'
+            on_press: app.dbg('2:')
+        Button:
+            text: 'Open door 2'
+            on_press: app.dbg('3:')

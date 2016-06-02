@@ -1,15 +1,20 @@
 
 <Indoor>:
-    callbuton: btnCall
+#    callbuton: btnCall
     door1buton: btnDoor1
     door2buton: btnDoor2
+#    main_layout: main_layout
 
-    orientation: 'vertical'
+#    id: main_layout
+
+#    orientation: 'vertical'
 
     Label:
         text: 'Wait...'
         font_size: '56dp'
         on_touch_down: app.dbg('HIIIIIT')
+        pos: 0,40
+        size: self.width,80
 
 #    Scatter:
 #        pos: self.center_x - 5, 0
@@ -19,6 +24,8 @@
         orientation: 'horizontal'
         size_hint_y: None
         height: '48dp'
+        pos_x: '50dp' #self.pos
+        size: self.size
 
         Button:
             id: btnCall

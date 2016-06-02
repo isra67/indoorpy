@@ -11,8 +11,11 @@ kivy.require('1.9.0')
 
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.config import ConfigParser
 
-from kivy.uix.boxlayout import BoxLayout
+#from kivy.uix.boxlayout import BoxLayout
+#from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
 #from kivy.uix.widget import Widget
 
 import logging
@@ -29,15 +32,22 @@ import linphone
 #
 # ###############################################################
 
-PKILL1 = 'pkill -9 omxplayer'
-PKILL2 = 'pkill -9 omxplayer.bin'
-#PLAYVI = '/usr/bin/omxplayer --win "100 10 700 410" --no-osd --no-keys "http://192.168.1.253:8080/stream/video.h264" > /dev/null &'
-PLAYVI = '/usr/bin/omxplayer --win "1 1 799 429" --no-osd --no-keys "http://192.168.1.253:8080/stream/video.h264" > /dev/null &'
+CONFIG_FILE = 'indoorconfig.ini'
 
+CMD_PKILL = '=pkill -9 omxplayer;pkill -9 omxplayer.bin'
+CMD_PLAYVIDEO = '=/usr/bin/omxplayer --win "1 1 799 429" --no-osd --no-keys "http://192.168.1.253:8080/stream/video.h264" > /dev/null &'
 
+BUTTON_CALL_NONE = '=No Call='
+BUTTON_CALL_ANSWER = '=Answer Call='
+BUTTON_CALL_HANGUP = '=HangUp Call='
+
+BUTTON_DOOR_1 = '=Open Door 1='
+BUTTON_DOOR_2 = '=Open Door 2='
+
+COLOR_BUTTON_BASIC = 1,1,1,1
 COLOR_ANSWER_CALL = 1,0,0,1
 COLOR_HANGUP_CALL = 1,1,0,1
-COLOR_NOMORE_CALL = 1,1,1,1
+COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
 
 
 # ###############################################################
@@ -46,24 +56,66 @@ COLOR_NOMORE_CALL = 1,1,1,1
 #
 # ###############################################################
 
-class Indoor(BoxLayout):
+class Indoor(FloatLayout):
 
     def __init__(self, **kwargs):
+        global CMD_PKILL
+        global CMD_PLAYVIDEO
+        global BUTTON_CALL_NONE
+        global BUTTON_CALL_ANSWER
+        global BUTTON_CALL_HANGUP
+        global BUTTON_DOOR_1
+        global BUTTON_DOOR_2
+
         super(Indoor, self).__init__(**kwargs)
+
+        # nacitanie konfiguracie
+        config = ConfigParser()
+        try:
+            config.read('./' + CONFIG_FILE)
+        except:
+            self.dbg('ERROR 1: read config file!')
+
+            try:
+                config.read(dirname(__file__) + '/' + CONFIG_FILE)
+            except:
+                self.dbg('ERROR 2: read config file!')
+
+        try:
+            CMD_PKILL = config.get('command', 'kill_cmd')
+            CMD_PLAYVIDEO = config.get('command', 'play_cmd')
+            BUTTON_CALL_NONE = config.get('gui', 'btn_call_none')
+            BUTTON_CALL_ANSWER = config.get('gui', 'btn_call_answer')
+            BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
+            BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
+            BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
+        except:
+            self.dbg('ERROR: read config file!')
+
+        os.system(CMD_PKILL)
+        os.system(CMD_PLAYVIDEO)
+
+        self.state = linphone.CallState.Idle
+        self.quit = False
 
         self.init_myphone()
 #            username='raspberry', password='pi',\
-#            whitelist=[],\
 #            camera='V4L2: /dev/video0',\
 #            snd_capture='ALSA: USB Device 0x46d:0x825')
         Clock.schedule_interval(self.infinite_loop, .5)
 
         self.callbutton = self.ids.btnCall
-        self.state = linphone.CallState.Idle
+        self.callbutton.text = BUTTON_CALL_NONE
+        self.callbutton.color = COLOR_BUTTON_BASIC
+        self.callbutton.size = 0,0
+        self.callbutton.size_hint = None,None
+        self.callbutton.pos = 100,100
+        self.ids.btnDoor1.text = BUTTON_DOOR_1
+        self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
+        self.ids.btnDoor2.text = BUTTON_DOOR_2
+        self.ids.btnDoor2.color = COLOR_BUTTON_BASIC
 
-    def init_myphone(self, username='', password='', whitelist=[], camera='', snd_capture='', snd_playback=''):
-        self.quit = False
-        self.whitelist = whitelist
+    def init_myphone(self, username='', password='', camera='', snd_capture='', snd_playback=''):
         callbacks = {
             'call_state_changed': self.call_state_changed,
         }
@@ -75,7 +127,7 @@ class Indoor(BoxLayout):
         self.core = linphone.Core.new(callbacks, None, None)
         self.core.max_calls = 1
         self.core.echo_cancellation_enabled = False
-        self.core.video_capture_enabled = False #True
+        self.core.video_capture_enabled = False
         self.core.video_display_enabled = False
         self.core.stun_server = '' # 'stun.linphone.org'
         self.core.firewall_policy = linphone.FirewallPolicy.PolicyUseIce
@@ -100,20 +152,20 @@ class Indoor(BoxLayout):
           else:
             self.core.enable_payload_type(codec, False)
 
-#        self.configure_sip_account(username, password)
+        if username != '' and password != '':
+            self.configure_sip_account(username, password)
 
     def signal_handler(self, signal, frame):
         self.core.terminate_all_calls()
         self.quit = True
 
     def log_handler(self, level, msg):
-#        if not msg == '': print('LEVEL: ',level)
         if level == 'warning' or level == 'error':
             method = getattr(logging, level)
             method(msg)
 
     def call_state_changed(self, core, call, state, message):
-#        print('**** STATE: ',state,' ****')
+#        self.print('**** STATE: ',state,' ****')
         self.corecall = core
         self.call = call
         self.state = state
@@ -121,28 +173,25 @@ class Indoor(BoxLayout):
         self.params = core.create_call_params(call)
 
         if state == linphone.CallState.IncomingReceived:
-#            params = self.params
-#            params = core.create_call_params(call)
-#            core.accept_call_with_params(call, params)
             self.callbutton.color = COLOR_ANSWER_CALL
-            self.callbutton.text = 'Answer Call'
+            self.callbutton.text = BUTTON_CALL_ANSWER
+            self.callbutton.size_hint = 2,1
+            self.callbutton.size = 0,0
+            self.callbutton.pos = 0,0
 
         if state == linphone.CallState.End or state == linphone.CallState.Released or state == linphone.CallState.Error:
             self.callbutton.color = COLOR_NOMORE_CALL
-            self.callbutton.text = 'No Call'
+            self.callbutton.text = BUTTON_CALL_NONE
+            self.callbutton.size_hint = None,None
+            self.callbutton.size = 0,0
+            self.callbutton.pos = 100,100
 
         if state == linphone.CallState.Connected or state == linphone.CallState.StreamsRunning:
             self.callbutton.color = COLOR_HANGUP_CALL
-            self.callbutton.text = 'HangUp Call'
-
-#            if call.remote_address.as_string_uri_only() in self.whitelist:
-#                params = core.create_call_params(call)
-#                core.accept_call_with_params(call, params)
-#            else:
-#                core.decline_call(call, linphone.Reason.Declined)
-#                chat_room = core.get_chat_room_from_uri(self.whitelist[0])
-#                msg = chat_room.create_message(call.remote_address_as_string + ' tried to call')
-#                chat_room.send_chat_message(msg)
+            self.callbutton.text = BUTTON_CALL_HANGUP
+            self.callbutton.size_hint = 2,1
+            self.callbutton.size = 0,0
+            self.callbutton.pos = 0,0
 
     def configure_sip_account(self, username, password):
         # Configure the SIP account
@@ -161,11 +210,10 @@ class Indoor(BoxLayout):
     def on_stop(self):
         self.quit = True
         self.dbg('Bye')
-        os.system(PKILL1)
-        os.system(PKILL2)
+        os.system(CMD_PKILL)
 
     def callback_btn_call(self):
-        self.dbg('CALL')
+        self.dbg(self.callbutton.text)
         if self.state > linphone.CallState.Idle:
             if self.state == linphone.CallState.IncomingReceived:
                 self.corecall.accept_call_with_params(self.call, self.params)
@@ -174,10 +222,10 @@ class Indoor(BoxLayout):
                 self.state = linphone.CallState.Idle
 
     def callback_btn_door1(self):
-        self.dbg('DOOR1')
+        self.dbg(BUTTON_DOOR_1)
 
     def callback_btn_door2(self):
-        self.dbg('DOOR2')
+        self.dbg(BUTTON_DOOR_2)
 
     def dbg(self, info):
         print(info)
@@ -188,9 +236,6 @@ class Indoor(BoxLayout):
 class IndoorApp(App):
     def build(self):
         self.dbg('Hello')
-        os.system(PKILL1)
-        os.system(PKILL2)
-        os.system(PLAYVI)
 
         return Indoor()
 

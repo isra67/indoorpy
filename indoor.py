@@ -24,6 +24,7 @@ import signal
 import time
 
 import linphone
+#from pyomxplayer import OMXPlayer
 
 
 # ###############################################################
@@ -93,7 +94,10 @@ class Indoor(FloatLayout):
             self.dbg('ERROR: read config file!')
 
         os.system(CMD_PKILL)
-        os.system(CMD_PLAYVIDEO)
+##        os.system(CMD_PLAYVIDEO)
+
+#        self.videoplayer = OMXPlayer('http://192.168.1.253:8080/stream/video.h264',["--win", "1 1 799 429", "--no-osd", "--no-keys"])
+#        self.videoplayer.play()
 
         self.state = linphone.CallState.Idle
         self.quit = False
@@ -165,7 +169,7 @@ class Indoor(FloatLayout):
             method(msg)
 
     def call_state_changed(self, core, call, state, message):
-#        self.print('**** STATE: ',state,' ****')
+#        print '**** STATE: ',state,' ****'
         self.corecall = core
         self.call = call
         self.state = state
@@ -227,8 +231,17 @@ class Indoor(FloatLayout):
     def callback_btn_door2(self):
         self.dbg(BUTTON_DOOR_2)
 
+    def callback_restart_player(self):
+        self.dbg(self.ids.rstplayerbutton.text)
+        os.system(CMD_PKILL)
+#        self.videoplayer.play()
+##        os.system(CMD_PLAYVIDEO)
+
+    def callback_set_options(self):
+        self.dbg(self.ids.settingsbutton.text)
+
     def dbg(self, info):
-        print(info)
+        print info
 
 
 # ###############################################################
@@ -236,11 +249,10 @@ class Indoor(FloatLayout):
 class IndoorApp(App):
     def build(self):
         self.dbg('Hello')
-
         return Indoor()
 
     def dbg(self, info):
-        print(info)
+        print info
 
 
 # ###############################################################

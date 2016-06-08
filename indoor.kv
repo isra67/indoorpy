@@ -3,6 +3,9 @@
 #    callbuton: btnCall
     door1buton: btnDoor1
     door2buton: btnDoor2
+    rstplayerbutton: btnRestartPlayer
+    settingsbutton: btnSetOptions
+
 #    main_layout: main_layout
 
 #    id: main_layout
@@ -15,6 +18,26 @@
         on_touch_down: app.dbg('HIIIIIT')
         pos: 0,40
         size: self.width,80
+
+    Button:
+        id: btnRestartPlayer
+        size_hint: None,None
+        height: '48dp'
+        width: '96dp'
+        pos: '10dp', '400dp'
+        text: 'Rst Video'
+        font_size: '12dp'
+        on_press: root.callback_restart_player()
+
+    Button:
+        id: btnSetOptions
+        size_hint: None,None
+        height: '48dp'
+        width: '96dp'
+        pos: '690dp', '200dp'
+        text: 'Settings'
+        font_size: '12dp'
+        on_press: root.callback_set_options()
 
 #    Scatter:
 #        pos: self.center_x - 5, 0

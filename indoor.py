@@ -18,6 +18,7 @@ from kivy.config import ConfigParser
 from kivy.uix.floatlayout import FloatLayout
 #from kivy.uix.widget import Widget
 
+import datetime
 import logging
 import os
 import signal
@@ -96,17 +97,22 @@ class Indoor(FloatLayout):
         os.system(CMD_PKILL)
 ##        os.system(CMD_PLAYVIDEO)
 
-#        self.videoplayer = OMXPlayer('http://192.168.1.253:8080/stream/video.h264',["--win", "1 1 799 429", "--no-osd", "--no-keys"])
-#        self.videoplayer.play()
-
         self.state = linphone.CallState.Idle
         self.quit = False
 
-        self.init_myphone()
+        self.info_state = 0
+
+##        self.init_myphone()
 #            username='raspberry', password='pi',\
 #            camera='V4L2: /dev/video0',\
 #            snd_capture='ALSA: USB Device 0x46d:0x825')
+        self.init_myphone(
+            username='', password='',\
+            camera='',\
+            snd_capture='OSS: /dev/dsp1')
+
         Clock.schedule_interval(self.infinite_loop, .5)
+        Clock.schedule_interval(self.info_state_loop, 10.)
 
         self.callbutton = self.ids.btnCall
         self.callbutton.text = BUTTON_CALL_NONE
@@ -119,7 +125,7 @@ class Indoor(FloatLayout):
         self.ids.btnDoor2.text = BUTTON_DOOR_2
         self.ids.btnDoor2.color = COLOR_BUTTON_BASIC
 
-    def init_myphone(self, username='', password='', camera='', snd_capture='', snd_playback=''):
+    def init_myphone(self,username='',password='',camera='',snd_capture='',snd_playback=''):
         callbacks = {
             'call_state_changed': self.call_state_changed,
         }
@@ -169,7 +175,6 @@ class Indoor(FloatLayout):
             method(msg)
 
     def call_state_changed(self, core, call, state, message):
-#        print '**** STATE: ',state,' ****'
         self.corecall = core
         self.call = call
         self.state = state
@@ -183,14 +188,17 @@ class Indoor(FloatLayout):
             self.callbutton.size = 0,0
             self.callbutton.pos = 0,0
 
-        if state == linphone.CallState.End or state == linphone.CallState.Released or state == linphone.CallState.Error:
+        if state == linphone.CallState.End or \
+           state == linphone.CallState.Released or \
+           state == linphone.CallState.Error:
             self.callbutton.color = COLOR_NOMORE_CALL
             self.callbutton.text = BUTTON_CALL_NONE
             self.callbutton.size_hint = None,None
             self.callbutton.size = 0,0
             self.callbutton.pos = 100,100
 
-        if state == linphone.CallState.Connected or state == linphone.CallState.StreamsRunning:
+        if state == linphone.CallState.Connected or \
+           state == linphone.CallState.StreamsRunning:
             self.callbutton.color = COLOR_HANGUP_CALL
             self.callbutton.text = BUTTON_CALL_HANGUP
             self.callbutton.size_hint = 2,1
@@ -204,17 +212,33 @@ class Indoor(FloatLayout):
         proxy_cfg.server_addr = 'sip:sip.linphone.org;transport=tls'
         proxy_cfg.register_enabled = True
         self.core.add_proxy_config(proxy_cfg)
-        auth_info = self.core.create_auth_info(username, None, password, None, None, 'sip.linphone.org')
+        auth_info = self.core.create_auth_info(username,None,password,None,None,'sip.linphone.org')
         self.core.add_auth_info(auth_info)
+
+    def info_state_loop(self, dt):
+        if self.info_state == 0:
+            self.info_state = 1
+            self.ids.btnDoor1.text = BUTTON_DOOR_1
+            self.ids.btnDoor2.text = BUTTON_DOOR_2
+        elif self.info_state == 1:
+            self.info_state = 2
+            self.ids.btnDoor2.text = datetime.datetime.now().strftime("%H:%M")
+        elif self.info_state == 2:
+            self.info_state = 3
+            self.ids.btnDoor1.text = '(c) Inoteska'
+            self.ids.btnDoor2.text = BUTTON_DOOR_2
+        elif self.info_state == 3:
+            self.info_state = 0
+            self.ids.btnDoor2.text = datetime.datetime.now().strftime("%d.%m.%Y")
 
     def infinite_loop(self, dt):
         if not self.quit:
             self.core.iterate()
 
-    def on_stop(self):
-        self.quit = True
-        self.dbg('Bye')
-        os.system(CMD_PKILL)
+#    def on_stop(self):
+#        self.quit = True
+#        self.dbg('Bye')
+#        os.system(CMD_PKILL)
 
     def callback_btn_call(self):
         self.dbg(self.callbutton.text)
@@ -234,7 +258,6 @@ class Indoor(FloatLayout):
     def callback_restart_player(self):
         self.dbg(self.ids.rstplayerbutton.text)
         os.system(CMD_PKILL)
-#        self.videoplayer.play()
 ##        os.system(CMD_PLAYVIDEO)
 
     def callback_set_options(self):

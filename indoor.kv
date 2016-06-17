@@ -6,16 +6,10 @@
     rstplayerbutton: btnRestartPlayer
     settingsbutton: btnSetOptions
 
-#    main_layout: main_layout
-
-#    id: main_layout
-
-#    orientation: 'vertical'
-
     Label:
         text: 'Wait...'
         font_size: '56dp'
-        on_touch_down: app.dbg('HIIIIIT')
+#        on_touch_down: app.dbg('HIIIIIT')
         pos: 0,40
         size: self.width,80
 
@@ -38,10 +32,6 @@
         text: 'Settings'
         font_size: '12dp'
         on_press: root.callback_set_options()
-
-#    Scatter:
-#        pos: self.center_x - 5, 0
-#        size: self.width, self.height
 
     BoxLayout:
         orientation: 'horizontal'

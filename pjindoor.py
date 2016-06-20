@@ -12,7 +12,7 @@ kivy.require('1.9.0')
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import ConfigParser
-
+from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
 
 import datetime
@@ -38,6 +38,8 @@ BUTTON_CALL_HANGUP = '=HangUp Call='
 
 BUTTON_DOOR_1 = '=Open Door 1='
 BUTTON_DOOR_2 = '=Open Door 2='
+
+SERVER_IP_ADDR = '192.168.1.250'
 
 COLOR_BUTTON_BASIC = 1,1,1,1
 COLOR_ANSWER_CALL = 1,0,0,1
@@ -213,6 +215,7 @@ class Indoor(FloatLayout):
             BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
             BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
             BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
+            SERVER_IP_ADDR = config.get('common', 'server_ip_address')
         except:
             self.dbg('ERROR: read config file!')
 
@@ -298,11 +301,21 @@ class Indoor(FloatLayout):
             else:
                 current_call.hangup()
 
+    def gotResponse(self, req, results):
+#        print 'Relay: ', req, results
+        pass
+
+    def setRelayRQ(self, relay):
+        req = UrlRequest('http://' + SERVER_IP_ADDR + '/cgi-bin/remctrl.sh?id=' + relay,\
+                on_success = self.gotResponse, timeout = 5)
+
     def callback_btn_door1(self):
         self.dbg(BUTTON_DOOR_1)
+        self.setRelayRQ('relay1')
 
     def callback_btn_door2(self):
         self.dbg(BUTTON_DOOR_2)
+        self.setRelayRQ('relay2')
 
     def callback_restart_player(self):
         self.dbg(self.ids.rstplayerbutton.text)

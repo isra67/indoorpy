@@ -9,7 +9,7 @@ pustaj() {
 		cd /root/test_stream/indoor
 
 		## Inoteska Evidence python App
-		/usr/bin/python indoor.py
+		/usr/bin/python pjindoor.py
 		sleep 3
 	done
 }

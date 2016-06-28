@@ -10,7 +10,8 @@ pustaj() {
 
 		## OmxPlayer App
 #		/usr/bin/omxplayer --no-osd --no-keys --win '1 1 799 429' http://192.168.1.253:8080/stream/video.h264 > /dev/null
-		/usr/bin/omxplayer --no-osd --no-keys --live --win '1 1 799 429' http://192.168.1.250:80/video.mjpg > /dev/null
+#		/usr/bin/omxplayer --no-osd --no-keys --live --win '1 1 799 429' http://192.168.1.250:80/video.mjpg > /dev/null
+		/usr/bin/omxplayer --no-osd --layer 1 --no-keys --live --win '1 1 799 429' http://192.168.1.250:80/video.mjpg > /dev/null
 		sleep 15
 	done
 }

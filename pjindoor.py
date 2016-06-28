@@ -24,6 +24,10 @@ import time
 
 import pjsua as pj
 
+#from my_lib import my_screensaver as m_ss
+import my_lib as m_ss
+
+
 # ###############################################################
 #
 # Declarations
@@ -59,6 +63,16 @@ APLAYER = 'aplay'
 APARAMS = '-q -N -f cd -D plughw:1,0'
 RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
 
+SCREENSAVER_FNAME = 'http://www.spruto.tv/get_file/1/38577f19393369cb2c5d785beb3c3ffc/80000/80730/80730.mp4?start=0'
+
+screensaver_process = None
+
+SMALL_VIDEO_CMD = ['setvideopos','150','0','650','429']
+WIDE_VIDEO_CMD = ['setvideopos','0','0','800','429']
+TRANSPARENCY_VIDEO_CMD = ['setalpha']
+
+transparency_value = 0
+transparency_event = None
 
 # ###############################################################
 #
@@ -119,7 +133,7 @@ class MyCallCallback(pj.CallCallback):
 
     # Notification when call state has changed
     def on_state(self):
-        global current_call, main_state, call_button_global
+        global current_call, main_state, call_button_global, screensaver_process
         print "Call with", self.call.info().remote_uri,
         print "is", self.call.info().state_text,
         print "last code =", self.call.info().last_code,
@@ -132,9 +146,14 @@ class MyCallCallback(pj.CallCallback):
 #            print 'Current call is', current_call
 
         if main_state == pj.CallState.EARLY:
-            Clock.schedule_interval(playWAV, 3.)
+            Clock.schedule_interval(playWAV, 3.5)
+            playWAV(3.5)
         else:
             stopWAV()
+
+        if screensaver_process:
+#            m_ss.stop_screensaver(screensaver_process)
+            screensaver_process = None
 
         if main_state == pj.CallState.INCOMING or\
            main_state == pj.CallState.EARLY:
@@ -143,6 +162,7 @@ class MyCallCallback(pj.CallCallback):
             call_button_global.size_hint = 2,1
             call_button_global.size = 0,0
             call_button_global.pos = 0,0
+            m_ss.send_dbus(SMALL_VIDEO_CMD)
 
         if main_state == pj.CallState.DISCONNECTED:
             call_button_global.color = COLOR_NOMORE_CALL
@@ -150,6 +170,7 @@ class MyCallCallback(pj.CallCallback):
             call_button_global.size_hint = None,None
             call_button_global.size = 0,0
             call_button_global.pos = 100,100
+            m_ss.send_dbus(WIDE_VIDEO_CMD)
 
         if main_state == pj.CallState.CONFIRMED:
             call_button_global.color = COLOR_HANGUP_CALL
@@ -195,6 +216,8 @@ class Indoor(FloatLayout):
 
         super(Indoor, self).__init__(**kwargs)
 
+        self.infinite_event = None
+
         # nacitanie konfiguracie
         config = ConfigParser()
         try:
@@ -225,9 +248,11 @@ class Indoor(FloatLayout):
 
         self.info_state = 0
 
+        self.myprocess = None
+
         self.init_myphone()
 
-        Clock.schedule_interval(self.infinite_loop, .5)
+        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
 
         self.callbutton = self.ids.btnCall
@@ -249,8 +274,7 @@ class Indoor(FloatLayout):
         lib = pj.Lib()
 
         try:
-            # Init library with default config and some customized
-            # logging config
+            # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb))
 
             # Create UDP transport which listens to any available port
@@ -272,6 +296,10 @@ class Indoor(FloatLayout):
             lib = None
 
     def info_state_loop(self, dt):
+        global current_call
+
+        if current_call is not None: self.info_state = 0
+
         if self.info_state == 0:
             self.info_state = 1
             self.ids.btnDoor1.text = BUTTON_DOOR_1
@@ -288,12 +316,19 @@ class Indoor(FloatLayout):
             self.ids.btnDoor2.text = datetime.datetime.now().strftime("%d.%m.%Y")
 
     def infinite_loop(self, dt):
-        pass
+        global current_call, main_state, screensaver_process
+        if screensaver_process is None and\
+           current_call is None:
+#            screensaver_process = m_ss.start_screensaver(SCREENSAVER_FNAME,'2')
+            pass
 
     def callback_btn_call(self):
-        global current_call, main_state
+        global current_call, main_state, transparency_value
 
         self.dbg(self.callbutton.text)
+
+        transparency_value = 0
+
         if current_call:
             if main_state == pj.CallState.EARLY:
                 stopWAV()
@@ -310,12 +345,18 @@ class Indoor(FloatLayout):
                 on_success = self.gotResponse, timeout = 5)
 
     def callback_btn_door1(self):
+        global transparency_value
+
         self.dbg(BUTTON_DOOR_1)
         self.setRelayRQ('relay1')
+        transparency_value = 0
 
     def callback_btn_door2(self):
+        global transparency_value
+
         self.dbg(BUTTON_DOOR_2)
         self.setRelayRQ('relay2')
+        transparency_value = 0
 
     def callback_restart_player(self):
         self.dbg(self.ids.rstplayerbutton.text)
@@ -323,6 +364,31 @@ class Indoor(FloatLayout):
 
     def callback_set_options(self):
         self.dbg(self.ids.settingsbutton.text)
+
+    def main_touch(self):
+        global screensaver_process, transparency_value, transparency_event
+
+        if screensaver_process is not None:
+            m_ss.stop_screensaver(screensaver_process)
+            screensaver_process = None
+        Clock.unschedule(self.infinite_event)
+        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
+
+        transparency_value = 128
+        if transparency_event is None:
+            transparency_event = Clock.schedule_interval(self.transparency_loop, .1)
+
+    def transparency_loop(self, dt):
+#        self.dbg('transparency ' + str(transparency_value))
+        global transparency_value, transparency_event
+
+        if transparency_value > 0: transparency_value -= 4
+
+        m_ss.send_dbus(TRANSPARENCY_VIDEO_CMD + [str(255 - transparency_value)])
+
+        if transparency_value == 0:
+            Clock.unschedule(transparency_event)
+            transparency_event = None
 
     def dbg(self, info):
         print info

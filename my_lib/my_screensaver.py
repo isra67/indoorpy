@@ -47,6 +47,6 @@ def send_dbus(args):
     if err:
         res = ''
 
-#    print 'DBUS...', res, err
+    print 'DBUS...', res, err
 
     return res

@@ -12,13 +12,22 @@ kivy.require('1.9.0')
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import ConfigParser
+#from kivy.core.window import Window
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 
+import atexit
 import datetime
-import logging
+#import dbus
+
+#import logging
 import os
 import signal
+import socket
+#from subprocess import Popen, PIPE
+import subprocess
 import sys
 import time
 
@@ -27,8 +36,24 @@ import pjsua as pj
 #from my_lib import my_screensaver as m_ss
 import my_lib as m_ss
 
+procs = []
 
-# ###############################################################
+@atexit.register
+def kill_subprocesses():
+    "tidy up at exit or break"
+    print('destroy lib at exit')
+    try:
+	pj.Lib.destroy()
+    except:
+	pass
+    print('kill subprocesses at exit')
+    for proc in procs:
+	try:
+            proc.kill()
+	except:
+	    pass
+
+###############################################################
 #
 # Declarations
 #
@@ -36,9 +61,9 @@ import my_lib as m_ss
 
 CONFIG_FILE = 'indoorconfig.ini'
 
-BUTTON_CALL_NONE = '=No Call='
 BUTTON_CALL_ANSWER = '=Answer Call='
 BUTTON_CALL_HANGUP = '=HangUp Call='
+BUTTON_DO_CALL = '=Do Call='
 
 BUTTON_DOOR_1 = '=Open Door 1='
 BUTTON_DOOR_2 = '=Open Door 2='
@@ -55,10 +80,9 @@ current_call = None
 acc = None
 
 main_state = 0
-call_button_global = None
+docall_button_global = None
 
-current_play = 0
-
+ring_event = None
 APLAYER = 'aplay'
 APARAMS = '-q -N -f cd -D plughw:1,0'
 RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
@@ -70,6 +94,8 @@ screensaver_process = None
 SMALL_VIDEO_CMD = ['setvideopos','150','0','650','429']
 WIDE_VIDEO_CMD = ['setvideopos','0','0','800','429']
 TRANSPARENCY_VIDEO_CMD = ['setalpha']
+
+DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
 
 transparency_value = 0
 transparency_event = None
@@ -86,16 +112,28 @@ def log_cb(level, str, len):
 
 
 def playWAV(dt):
-    global current_play, RING_WAV
-    current_play = 1
-    os.system(RING_WAV)
+    global RING_WAV
+    try:
+        os.system(RING_WAV)
+    except:
+	pass
 
 
 def stopWAV():
-    global current_play
-    current_play = 0
-    Clock.unschedule(playWAV)
+    global ring_event
+    Clock.unschedule(ring_event)
+    ring_event = None
     os.system('pkill -9 ' + APLAYER)
+
+def send_dbus(dst,args):
+    "send DBUS command to omxplayer"
+    cmd = ' '.join(map(str, ['./dbuscntrl.sh', dst] + args))
+    try:
+        os.system(cmd)
+    except:
+	pass
+
+#    print 'sendDBUS...', cmd
 
 
 # ###############################################################
@@ -133,20 +171,22 @@ class MyCallCallback(pj.CallCallback):
 
     # Notification when call state has changed
     def on_state(self):
-        global current_call, main_state, call_button_global, screensaver_process
+        global current_call, ring_event, transparency_value
+        global main_state, docall_button_global, screensaver_process
         print "Call with", self.call.info().remote_uri,
-        print "is", self.call.info().state_text,
+        print "is", self.call.info().state_text, self.call.info().state,
         print "last code =", self.call.info().last_code,
         print "(" + self.call.info().last_reason + ")"
 
         main_state = self.call.info().state
+        transparency_value = 0
 
-        if self.call.info().state == pj.CallState.DISCONNECTED:
+        if main_state == pj.CallState.DISCONNECTED:
             current_call = None
 #            print 'Current call is', current_call
 
         if main_state == pj.CallState.EARLY:
-            Clock.schedule_interval(playWAV, 3.5)
+            ring_event = Clock.schedule_interval(playWAV, 3.5)
             playWAV(3.5)
         else:
             stopWAV()
@@ -157,28 +197,24 @@ class MyCallCallback(pj.CallCallback):
 
         if main_state == pj.CallState.INCOMING or\
            main_state == pj.CallState.EARLY:
-            call_button_global.color = COLOR_ANSWER_CALL
-            call_button_global.text = BUTTON_CALL_ANSWER
-            call_button_global.size_hint = 2,1
-            call_button_global.size = 0,0
-            call_button_global.pos = 0,0
+            if main_state is not pj.CallState.CALLING:
+		docall_button_global.color = COLOR_ANSWER_CALL
+		docall_button_global.text = BUTTON_CALL_ANSWER
             m_ss.send_dbus(SMALL_VIDEO_CMD)
 
         if main_state == pj.CallState.DISCONNECTED:
-            call_button_global.color = COLOR_NOMORE_CALL
-            call_button_global.text = BUTTON_CALL_NONE
-            call_button_global.size_hint = None,None
-            call_button_global.size = 0,0
-            call_button_global.pos = 100,100
+            docall_button_global.color = COLOR_NOMORE_CALL
+            docall_button_global.text = BUTTON_DO_CALL
             m_ss.send_dbus(WIDE_VIDEO_CMD)
 
         if main_state == pj.CallState.CONFIRMED:
-            call_button_global.color = COLOR_HANGUP_CALL
-            call_button_global.text = BUTTON_CALL_HANGUP
-            call_button_global.size_hint = 2,1
-            call_button_global.size = 0,0
-            call_button_global.pos = 0,0
+            docall_button_global.color = COLOR_HANGUP_CALL
+            docall_button_global.text = BUTTON_CALL_HANGUP
 
+        if main_state == pj.CallState.CALLING:
+	    current_call = self.call
+            docall_button_global.color = COLOR_HANGUP_CALL
+            docall_button_global.text = BUTTON_CALL_HANGUP
 
     # Notification when call's media state has changed.
     def on_media_state(self):
@@ -193,26 +229,24 @@ class MyCallCallback(pj.CallCallback):
 
 
 # Function to make call
-#def make_call(uri):
-#    global acc
-#    try:
-#        print "Making call to", uri
-#        return acc.make_call(uri, cb=MyCallCallback())
-#    except pj.Error, e:
-#        print "Exception: " + str(e)
-#        return None
+def make_call(uri):
+    global acc
+    try:
+        print "Making call to", uri, acc
+	if acc != None:
+	    return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
+	else:
+	    return None
+    except pj.Error, e:
+        print "Exception: " + str(e)
+        return None
 
 
 class Indoor(FloatLayout):
     def __init__(self, **kwargs):
-        global CMD_PKILL
-        global CMD_PLAYVIDEO
-        global BUTTON_CALL_NONE
-        global BUTTON_CALL_ANSWER
-        global BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1
-        global BUTTON_DOOR_2
-        global main_state, call_button_global
+        global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
+        global BUTTON_DOOR_1, BUTTON_DOOR_2
+        global main_state, docall_button_global
 
         super(Indoor, self).__init__(**kwargs)
 
@@ -231,41 +265,67 @@ class Indoor(FloatLayout):
                 self.dbg('ERROR 2: read config file!')
 
         try:
-            CMD_PKILL = config.get('command', 'kill_cmd')
-            CMD_PLAYVIDEO = config.get('command', 'play_cmd')
-            BUTTON_CALL_NONE = config.get('gui', 'btn_call_none')
+            BUTTON_DO_CALL = config.get('gui', 'btn_docall')
             BUTTON_CALL_ANSWER = config.get('gui', 'btn_call_answer')
             BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
             BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
             BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
-            SERVER_IP_ADDR = config.get('common', 'server_ip_address')
+            SERVER_IP_ADDR = config.get('common', 'server_ip_address_1')
         except:
             self.dbg('ERROR: read config file!')
 
-        os.system(CMD_PKILL)
-
         main_state = 0
-
         self.info_state = 0
-
         self.myprocess = None
 
         self.init_myphone()
 
+	self.init_screen(config)
+
+        self.rstTransparency()
+
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
 
-        self.callbutton = self.ids.btnCall
-        call_button_global = self.callbutton
-        self.callbutton.text = BUTTON_CALL_NONE
-        self.callbutton.color = COLOR_BUTTON_BASIC
-        self.callbutton.size = 0,0
-        self.callbutton.size_hint = None,None
-        self.callbutton.pos = 100,100
         self.ids.btnDoor1.text = BUTTON_DOOR_1
         self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
         self.ids.btnDoor2.text = BUTTON_DOOR_2
         self.ids.btnDoor2.color = COLOR_BUTTON_BASIC
+        docall_button_global = self.ids.btnDoCall
+        docall_button_global.text = BUTTON_DO_CALL
+        docall_button_global.color = COLOR_BUTTON_BASIC
+
+    def init_screen(self, cfg):
+	"define app screen"
+	scr_mode = cfg.get('gui', 'screen_mode')
+	if scr_mode == None or scr_mode == '': scr_mode = 0
+
+	if scr_mode == 1:
+	    wrange = 0
+	    wins = ['4,4,796,428']
+	elif scr_mode == 2:
+	    wrange = 2
+	    wins = ['4,4,796,213', '4,218,796,428']
+	elif scr_mode == 3:
+	    wrange = 2
+	    wins = ['4,4,398,428', '402,4,796,428']
+	else:
+	    wrange = 4
+	    wins = ['4,4,398,213', '402,4,796,213', '4,218,398,428', '402,218,796,428']
+
+	print 'scr_mode:', scr_mode, 'wrange:',wrange
+
+	for i in range(0,wrange):
+	    win = wins[i]
+	    vid = cfg.get('common', 'server_stream_'+str(i + 1))
+
+	    plprocess = subprocess.Popen(['omxplayer', '--live', '--no-osd',\
+		'--dbus_name',DBUS_PLAYERNAME + str(i),\
+		'--layer', '1', '--no-keys', '--win', win, vid],\
+		stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE) #, close_fds = True)
+	    procs.append(plprocess)
+	    print i, win, vid, plprocess.pid
+
 
     def init_myphone(self):
         global acc
@@ -276,6 +336,9 @@ class Indoor(FloatLayout):
         try:
             # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb))
+
+	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             # Create UDP transport which listens to any available port
             transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(5060))
@@ -289,6 +352,7 @@ class Indoor(FloatLayout):
             acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 
             my_sip_uri = "sip:" + transport.info().host + ":" + str(transport.info().port)
+            print "\nAccount", acc, "at URI", my_sip_uri, "\n"
 
         except pj.Error, e:
             print "Exception: " + str(e)
@@ -309,7 +373,7 @@ class Indoor(FloatLayout):
             self.ids.btnDoor2.text = datetime.datetime.now().strftime("%H:%M")
         elif self.info_state == 2:
             self.info_state = 3
-            self.ids.btnDoor1.text = '(c) Inoteska'
+            self.ids.btnDoor1.text = BUTTON_DOOR_1 #'(c) Inoteska'
             self.ids.btnDoor2.text = BUTTON_DOOR_2
         elif self.info_state == 3:
             self.info_state = 0
@@ -321,20 +385,45 @@ class Indoor(FloatLayout):
            current_call is None:
 #            screensaver_process = m_ss.start_screensaver(SCREENSAVER_FNAME,'2')
             pass
+        self.ids.txtBasicLabel.text = datetime.datetime.now().strftime("%H:%M\n%d.%m.%Y")
 
-    def callback_btn_call(self):
-        global current_call, main_state, transparency_value
+#	for idx, p in enumerate(procs):
+#	    print "Process", idx, p
+#	    if p.poll() != None:
+#		print "Process", idx, "is dead", len(procs)
+#		procs.pop(idx)
+#		print "Process", idx, "tidy up", len(procs)
+#		break
 
-        self.dbg(self.callbutton.text)
+#    def callback_btn_call(self):
+#        global current_call, main_state
+#
+#        self.dbg(self.callbutton.text)
+#
+#        self.rstTransparency()
+#
+#        if current_call is not None:
+#            if main_state == pj.CallState.EARLY:
+#                stopWAV()
+#                current_call.answer(200)
+#            else:
+#                current_call.hangup()
 
-        transparency_value = 0
+    def callback_btn_docall(self):
+        global current_call#, main_state
 
-        if current_call:
+        self.dbg(BUTTON_DO_CALL)
+
+        self.rstTransparency()
+
+        if current_call is not None:
             if main_state == pj.CallState.EARLY:
                 stopWAV()
                 current_call.answer(200)
             else:
                 current_call.hangup()
+	else:
+	    make_call('sip:' + SERVER_IP_ADDR + ':5060')
 
     def gotResponse(self, req, results):
 #        print 'Relay: ', req, results
@@ -345,28 +434,36 @@ class Indoor(FloatLayout):
                 on_success = self.gotResponse, timeout = 5)
 
     def callback_btn_door1(self):
-        global transparency_value
-
         self.dbg(BUTTON_DOOR_1)
         self.setRelayRQ('relay1')
-        transparency_value = 0
+        self.rstTransparency()
 
     def callback_btn_door2(self):
-        global transparency_value
-
         self.dbg(BUTTON_DOOR_2)
         self.setRelayRQ('relay2')
-        transparency_value = 0
+        self.rstTransparency()
 
-    def callback_restart_player(self):
-        self.dbg(self.ids.rstplayerbutton.text)
-        os.system(CMD_PKILL)
+    def settings_callback(self, instance):
+        print 'LOOK AT ME!'
+        self.rstTransparency()
 
     def callback_set_options(self):
-        self.dbg(self.ids.settingsbutton.text)
+        self.dbg(self.ids.btnSetOptions.text)
+        self.rstTransparency(255)
+
+        popup = Popup(title='Settings',
+            content=Label(text='To do...'),
+            size_hint=(None, None), size=(700, 350))
+        popup.bind(on_dismiss = self.settings_callback)
+        popup.open()
+
+    def callback_set_voice(self, value):
+        self.dbg('Voice: ' + str(value))
+        self.rstTransparency()
 
     def main_touch(self):
         global screensaver_process, transparency_value, transparency_event
+        global current_call
 
         if screensaver_process is not None:
             m_ss.stop_screensaver(screensaver_process)
@@ -374,21 +471,35 @@ class Indoor(FloatLayout):
         Clock.unschedule(self.infinite_event)
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
 
-        transparency_value = 128
+        if current_call is not None:
+            self.rstTransparency()
+            return
+
+#        transparency_value = 200
+        self.rstTransparency(200)
         if transparency_event is None:
-            transparency_event = Clock.schedule_interval(self.transparency_loop, .1)
+            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
 
     def transparency_loop(self, dt):
 #        self.dbg('transparency ' + str(transparency_value))
         global transparency_value, transparency_event
 
-        if transparency_value > 0: transparency_value -= 4
+        if transparency_event is None: return
 
-        m_ss.send_dbus(TRANSPARENCY_VIDEO_CMD + [str(255 - transparency_value)])
+        if transparency_value > 0 and transparency_value < 250:
+            transparency_value -= 8 #4
 
-        if transparency_value == 0:
+        for idx, proc in enumerate(procs):
+            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255 - transparency_value)])
+
+        if transparency_value == 0 and transparency_event is not None:
             Clock.unschedule(transparency_event)
             transparency_event = None
+
+    def rstTransparency(self, val = 0):
+        global transparency_value
+        transparency_value = val
+        self.transparency_loop(0)
 
     def dbg(self, info):
         print info

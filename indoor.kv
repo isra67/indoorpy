@@ -1,56 +1,86 @@
 
 <Indoor>:
+    lblBasic: txtBasicLabel
 #    callbuton: btnCall
     door1buton: btnDoor1
     door2buton: btnDoor2
-    rstplayerbutton: btnRestartPlayer
+    voicePlus: btnVoicePlus
+    voiceMinus: btnVoiceMinus
+#    rstplayerbutton: btnRestartPlayer
     settingsbutton: btnSetOptions
     on_touch_down: root.main_touch()
 
     Label:
+        id: txtBasicLabel
         text: 'Wait...'
         font_size: '56dp'
 #        on_touch_down: app.dbg('HIIIIIT')
         pos: 0,40
         size: self.width,80
+        halign: 'center'
 
-    Button:
-        id: btnRestartPlayer
-        size_hint: None,None
-        height: '48dp'
-        width: '96dp'
-        pos: '10dp', '400dp'
-        text: 'Rst Video'
-        font_size: '12dp'
-        on_press: root.callback_restart_player()
+#    Button:
+#        id: btnRestartPlayer
+#        size_hint: None,None
+#        height: '48dp'
+#        width: '96dp'
+#        pos: '10dp', '400dp'
+#        text: 'Rst Video'
+#        font_size: '12dp'
+#        on_press: root.callback_restart_player()
 
     Button:
         id: btnSetOptions
         size_hint: None,None
-        height: '48dp'
-        width: '96dp'
-        pos: '690dp', '200dp'
+        height: '429dp'
+        width: '149dp'
+        pos: '0dp', '50dp'
         text: 'Settings'
-        font_size: '12dp'
+        font_size: '16dp'
         on_press: root.callback_set_options()
+
+    Button:
+        id: btnVoicePlus
+        size_hint: None,None
+        height: '214dp'
+        width: '149dp'
+        pos: '651dp', '265dp'
+        text: 'Voice +'
+        font_size: '16dp'
+        on_press: root.callback_set_voice(1)
+
+    Button:
+        id: btnVoiceMinus
+        size_hint: None,None
+        height: '214dp'
+        width: '149dp'
+        pos: '651dp', '50dp'
+        text: 'Voice -'
+        font_size: '16dp'
+        on_press: root.callback_set_voice(-1)
 
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
         height: '48dp'
-        pos_x: '50dp' #self.pos
+        pos_x: '50dp'
         size: self.size
 
-        Button:
-            id: btnCall
-            text: 'No Call'
-            font_size: '24dp'
-            on_press: root.callback_btn_call()
+#        Button:
+#            id: btnCall
+#            text: 'No Call'
+#            font_size: '24dp'
+#            on_press: root.callback_btn_call()
         Button:
             id: btnDoor1
             text: 'Open Door 1'
             font_size: '24dp'
             on_press: root.callback_btn_door1()
+        Button:
+            id: btnDoCall
+            text: 'Do Call'
+            font_size: '24dp'
+            on_press: root.callback_btn_docall()
         Button:
             id: btnDoor2
             text: 'Open Door 2'

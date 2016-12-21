@@ -13,7 +13,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import ConfigParser
 from kivy.core.window import Window
-from kivy.graphics import Color, Line
+from kivy.graphics import Color, Rectangle
 from kivy.network.urlrequest import UrlRequest
 #from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
@@ -261,32 +261,33 @@ class BasicDisplay:
 	self.winPosition = [int(i) for i in self.winPosition]
 	self.serverAddr = servaddr
 	self.streamUrl = streamaddr
-	self.playerPosition = self.winPosition
+	self.playerPosition = [i for i in self.winPosition]
 
-	self.playerPosition[0] += 2
-	self.playerPosition[1] += 2
-	self.playerPosition[2] -= 2
-	self.playerPosition[3] -= 2
+	self.delta = 3
+	self.playerPosition[0] += self.delta
+	self.playerPosition[1] += self.delta
+	self.playerPosition[2] -= self.delta
+	self.playerPosition[3] -= self.delta
 	self.playerPosition = [str(i) for i in self.playerPosition]
 
 	self.playerProcess = self.initPlayer()
 	procs.append(self.playerProcess)
 
 	self.color = None
-	self.line = None
+	self.frame = None
 
 	self.printInfo()
+	self.setActive(False)
 
 
     def testTouchArea(self, x, y):
 	"test if touch is in display area"
-	y = 480 - y		# touch position is from bottom to up
+	y = 480 - y                        # touch position is from bottom to up
 	retx = False
 	rety = False
 	if self.winPosition[0] < x and self.winPosition[2] > x : retx = True
 	if self.winPosition[1] < y and self.winPosition[3] > y : rety = True
-	ret = retx and rety
-	return ret
+	return retx and rety
 
 
     def initPlayer(self):
@@ -301,31 +302,23 @@ class BasicDisplay:
 	"add or remove active flag"
 	global mainLayout
 
-	#mainLayout.canvas.clear()
 	if self.color is not None: mainLayout.canvas.remove(self.color)
-	if self.line is not None: mainLayout.canvas.remove(self.line)
+	if self.frame is not None: mainLayout.canvas.remove(self.frame)
 
 	if active:
-#	    print self.screenIndex, active
-	    self.color = Color(.9,.6,.9)
+	    self.color = Color(1.,1.,.0)
 	else:
-	    self.color = Color(0,0,0)
+	    self.color = Color(.5,.0,.0)
 
-	w = self.winPosition[2] - self.winPosition[0] + 2 # width
-	h = self.winPosition[3] - self.winPosition[1] + 2 # height
-	ltx = self.winPosition[0] - 1
-	rtx = ltx + w
-	lbx = ltx
-	rbx = rtx
-	lty = 480 - self.winPosition[1] - 210  # touch position is from bottom to up
-	rty = lty
-	lby = lty + h
-	rby = lby
-#	if active: print ltx, lty, rbx, rby
+	w = self.winPosition[2] - self.winPosition[0] # width
+	h = self.winPosition[3] - self.winPosition[1] # height
+	ltx = self.winPosition[0]
+	lty = 480 - self.winPosition[1] - h           # touch position is from bottom to up
+#	if active: print self.winPosition, self.playerPosition, ltx, lty, w, h
 
-	self.line = Line(points=[ltx, lty, rtx, rty, rbx, rby, lbx, lby, ltx, lty], width = 4)
+	self.frame = Rectangle(pos=(ltx, lty), size=(w, h))
 	mainLayout.canvas.add(self.color)
-	mainLayout.canvas.add(self.line)
+	mainLayout.canvas.add(self.frame)
 
 
     def printInfo(self):
@@ -403,13 +396,13 @@ class Indoor(FloatLayout):
 	    wins = ['0,0,800,430']
 	elif scr_mode == 2:
 	    wrange = 2
-	    wins = ['0,0,800,216', '0,216,800,430']
+	    wins = ['0,0,800,216', '0,214,800,430']
 	elif scr_mode == 3:
 	    wrange = 2
 	    wins = ['0,0,400,430', '400,0,800,430']
 	else:
 	    wrange = 4
-	    wins = ['0,0,400,216', '400,0,800,216', '0,216,400,430', '400,216,800,430']
+	    wins = ['0,0,400,216', '400,0,800,216', '0,214,400,430', '400,214,800,430']
 
 	self.dbg('scr_mode:' + str( scr_mode ) + ' wrange:' + str(wrange))
 
@@ -420,6 +413,8 @@ class Indoor(FloatLayout):
 
 	    displ = BasicDisplay(win,serv,vid)
 	    self.displays.append(displ)
+
+	self.displays[0].setActive()
 
 
     def init_myphone(self):
@@ -551,6 +546,7 @@ class Indoor(FloatLayout):
 
     def on_touch_up(self, touch):
 	"process touch up event"
+	global active_display_index
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 
 	if touch.is_double_tap:

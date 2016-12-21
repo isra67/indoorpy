@@ -246,8 +246,8 @@ class BasicDisplay:
 	self.screenIndex = len(procs)
 	self.winPosition = winpos.split(',')
 	self.winPosition = [int(i) for i in self.winPosition]
-	self.serverAddr = servaddr
-	self.streamUrl = streamaddr
+	self.serverAddr = str(servaddr)
+	self.streamUrl = str(streamaddr)
 	self.playerPosition = [i for i in self.winPosition]
 
 	self.delta = 3
@@ -345,7 +345,6 @@ class Indoor(FloatLayout):
             BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
             BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
             BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
-#            SERVER_IP_ADDR = config.get('common', 'server_ip_address_1')
         except:
             self.dbg('ERROR: read config file!')
 
@@ -480,10 +479,10 @@ class Indoor(FloatLayout):
 
     def callback_btn_docall(self):
 	"make outgoing call"
-        global current_call, active_display_index, docall_button_global #, BUTTON_DO_CALL
+        global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
 
 	target = self.displays[active_display_index].serverAddr
-        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
+#        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
 
         self.rstTransparency()
 
@@ -496,9 +495,10 @@ class Indoor(FloatLayout):
                 current_call.hangup()
 	else:
 	    txt = '--> ' + str(active_display_index + 1)
-	    docall_button_global.text = txt
-	    make_call('sip:' + target + ':5060')
+	    if make_call('sip:' + target + ':5060') is None:
+		txt = txt + ' ERROR'
 
+	    docall_button_global.text = txt
 
 
     def gotResponse(self, req, results):

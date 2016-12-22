@@ -11,14 +11,18 @@ kivy.require('1.9.0')
 
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.config import Config
 from kivy.config import ConfigParser
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.scatter import Scatter
 from kivy.uix.textinput import TextInput
+from kivy.uix.vkeyboard import VKeyboard
 
 import atexit
 import datetime
@@ -323,6 +327,8 @@ class Indoor(FloatLayout):
 
         super(Indoor, self).__init__(**kwargs)
 
+	mainLayout = self
+
         self.infinite_event = None
 
 	self.displays = []
@@ -348,20 +354,18 @@ class Indoor(FloatLayout):
         except:
             self.dbg('ERROR: read config file!')
 
-	mainLayout = self
-
         main_state = 0
         self.info_state = 0
         self.myprocess = None
+
+        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
+        Clock.schedule_interval(self.info_state_loop, 10.)
 
         self.init_myphone()
 
 	self.init_screen(config)
 
         self.rstTransparency()
-
-        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
-        Clock.schedule_interval(self.info_state_loop, 10.)
 
         self.ids.btnDoor1.text = BUTTON_DOOR_1
         self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
@@ -400,7 +404,7 @@ class Indoor(FloatLayout):
 	    displ = BasicDisplay(win,serv,vid)
 	    self.displays.append(displ)
 
-	self.displays[0].setActive()
+	if scr_mode != 1: self.displays[0].setActive()
 
 
     def init_myphone(self):
@@ -466,12 +470,14 @@ class Indoor(FloatLayout):
 
 #        self.ids.txtBasicLabel.text = datetime.datetime.now().strftime("%H:%M\n%d.%m.%Y")
 
+	if len(procs) == 0: return
+
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
 		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead")
 		try:
-		    os.system(CMD_KILL + str(p.pid))
 		    p.kill()
+		    os.system(CMD_KILL + str(p.pid))
 		except:
 		    pass
 		procs[idx] = self.displays[idx].initPlayer()
@@ -480,6 +486,8 @@ class Indoor(FloatLayout):
     def callback_btn_docall(self):
 	"make outgoing call"
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
+
+	if len(procs) == 0: return
 
 	target = self.displays[active_display_index].serverAddr
 #        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
@@ -495,8 +503,7 @@ class Indoor(FloatLayout):
                 current_call.hangup()
 	else:
 	    txt = '--> ' + str(active_display_index + 1)
-	    if make_call('sip:' + target + ':5060') is None:
-		txt = txt + ' ERROR'
+	    if make_call('sip:' + target + ':5060') is None: txt = txt + ' ERROR'
 
 	    docall_button_global.text = txt
 
@@ -510,6 +517,8 @@ class Indoor(FloatLayout):
     def setRelayRQ(self, relay):
 	"send relay request"
         global active_display_index
+
+	if len(procs) == 0: return
 
 	target = self.displays[active_display_index].serverAddr
 
@@ -531,22 +540,65 @@ class Indoor(FloatLayout):
         self.rstTransparency()
 
 
-    def settings_callback(self, instance):
+    def settings_callback(self):
 	"callback after closing settings dialog"
+        global transparency_event, transparency_value
+
+        transparency_value = 16
+#        self.rstTransparency(200)
+        if transparency_event is None:
+            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
+
         print 'LOOK AT ME!'
-        self.rstTransparency()
+
+	try:
+	    os.system('pkill omxplayer')
+	    os.system('pkill dbus-daemon')
+	    os.system('pkill python')
+	except:
+	    pass
+	App.get_running_app().stop()
+#        self.rstTransparency(200)
 
 
     def callback_set_options(self):
 	"start settings"
+	global procs
         self.dbg(self.ids.btnSetOptions.text)
-        self.rstTransparency(255)
 
-        popup = Popup(title='Settings',
-            content=TextInput(text='To do...',focus=True),
-            size_hint=(None, None), size=(700, 350))
-        popup.bind(on_dismiss = self.settings_callback)
-        popup.open()
+	if len(procs) == 0: return
+
+	for idx, p in enumerate(procs):
+	    if p.poll() is not None:
+		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead")
+		try:
+		    p.kill()
+		    os.system(CMD_KILL + str(p.pid))
+		except:
+		    pass
+	procs = []
+	self.displays = []
+
+	try:
+	    os.system('pkill omxplayer')
+	    os.system('pkill dbus-daemon')
+	except:
+	    pass
+
+	self.canvas.clear()
+
+	gl = GridLayout(cols=2, row_force_default=True, row_default_height=80)
+
+	self._keyboard = VKeyboard(layout='azerty')
+	self._keyboard.bind(on_key_down=self._on_keyboard_down)
+        gl.add_widget(Label(text='IP address'))
+        self.ipaddress = TextInput(multiline=False, focus=True)
+	self.ipaddress.text = ''
+        gl.add_widget(self.ipaddress)
+	self.add_widget(gl)
+        self.add_widget(self._keyboard)
+
+        print 'keyboard?', self._keyboard
 
 
     def callback_set_voice(self, value):
@@ -560,13 +612,10 @@ class Indoor(FloatLayout):
 	global active_display_index
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 
+	if len(procs) == 0: return
+
 	if touch.is_double_tap:
 	    self.callback_set_options()
-#	    self.rstTransparency()
-#	    self.hide_video()
-	    self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
-	    self._keyboard.bind(on_key_down=self._on_keyboard_down)
-            print 'keyboard?', self._keyboard
 	    return
 
 	rx = int(round(touch.x))
@@ -586,52 +635,56 @@ class Indoor(FloatLayout):
 	print 'keyboard closed'
         self._keyboard.unbind(on_key_down=self._on_keyboard_down)
         self._keyboard = None
-        self.rstTransparency(200)
+
+	self.settings_callback()
 
 
     def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-	print keyboard, keycode, text, modifiers
-        if keycode[1] == 'w':
-            self.player1.center_y += 10
-        elif keycode[1] == 's':
-            self.player1.center_y -= 10
-        elif keycode[1] == 'up':
-            self.player2.center_y += 10
-        elif keycode[1] == 'down':
-            self.player2.center_y -= 10
+	print 'kbd_down', keyboard, keycode, text, modifiers
+
+	if str(keycode) == str('escape') or keycode[1] == 'layout':
+	    self._keyboard_closed()
+	    print 'ESC'
+	    return False
+	elif str(keycode) == str('backspace'):
+	    print 'BSP'
+	    self.ipaddress.text = self.ipaddress.text[:-1]
+	    return False
+
+	if str(text) in ['0','1','2','3','4','5','6','7','8','9','.']:
+	    self.ipaddress.text += str(text)
         return True
 
 
-    def main_touch(self):
-	"touch on the screen"
-        global transparency_value, transparency_event
-        global current_call
-
-        Clock.unschedule(self.infinite_event)
-        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
-
-        if current_call is not None:
-            self.rstTransparency()
-            return
-
-#        transparency_value = 200
-        self.rstTransparency(200)
-        if transparency_event is None:
-            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
-
-
-    def hide_video(self):
-	"d-bus command to hide video"
-        for idx, proc in enumerate(procs):
-            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)])
-
-
+#    def main_touch(self):
+#	"touch on the screen"
+#        global transparency_event, transparency_value, current_call
+#
+#        Clock.unschedule(self.infinite_event)
+#        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
+#
+#        if current_call is not None:
+#            self.rstTransparency()
+#            return
+#
+##        transparency_value = 200
+#        self.rstTransparency(200)
+#        if transparency_event is None:
+#            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
+#
+#
+#    def hide_video(self):
+#	"d-bus command to hide video"
+#        for idx, proc in enumerate(procs):
+#            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)])
+#
+#
     def transparency_loop(self, dt):
 	"unhide loop"
 #        self.dbg('transparency ' + str(transparency_value))
         global transparency_value, transparency_event
 
-        if transparency_event is None: return
+#        if transparency_event is None: return
 
         if transparency_value > 0 and transparency_value < 250:
             transparency_value -= 8 #4
@@ -661,6 +714,11 @@ class Indoor(FloatLayout):
 class IndoorApp(App):
     def build(self):
         self.dbg('Hello')
+#        Config.set('kivy', 'keyboard_mode','')
+	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
+	    Config.get('kivy', 'keyboard_mode'),
+	    Config.get('kivy', 'keyboard_layout'))
+        self.dbg(lbl)
         return Indoor()
 
     def on_start(self):

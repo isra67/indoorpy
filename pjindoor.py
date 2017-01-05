@@ -14,15 +14,21 @@ from kivy.clock import Clock
 from kivy.config import Config
 from kivy.config import ConfigParser
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle
+#from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Line, Rectangle, Ellipse
+from kivy.lang import Builder
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.scatter import Scatter
+from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.textinput import TextInput
 from kivy.uix.vkeyboard import VKeyboard
+from kivy.uix.widget import Widget
+
+from math import cos, sin, pi
 
 import atexit
 import datetime
@@ -36,24 +42,11 @@ import time
 
 import pjsua as pj
 
-import my_lib as m_ss
+#import my_lib as m_ss
 
-procs = []
 
-@atexit.register
-def kill_subprocesses():
-    "tidy up at exit or break"
-    print('destroy lib at exit')
-    try:
-	pj.Lib.destroy()
-    except:
-	pass
-    print('kill subprocesses at exit')
-    for proc in procs:
-	try:
-            proc.kill()
-	except:
-	    pass
+#Builder.load_file('main1.kv')
+
 
 ###############################################################
 #
@@ -65,6 +58,10 @@ CMD_KILL = 'kill -9 '
 
 CONFIG_FILE = 'indoorconfig.ini'
 
+APP_NAME = '-Indoor-2.0-'
+
+SCREEN_SAVER = 0
+
 BUTTON_CALL_ANSWER = '=Answer Call='
 BUTTON_CALL_HANGUP = '=HangUp Call='
 BUTTON_DO_CALL = '=Do Call='
@@ -72,10 +69,18 @@ BUTTON_DO_CALL = '=Do Call='
 BUTTON_DOOR_1 = '=Open Door 1='
 BUTTON_DOOR_2 = '=Open Door 2='
 
+WAIT_SCR = 'waitscr'
+WATCH_SCR = 'clock'
+CAMERA_SCR = 'camera'
+SETTINGS_SCR = 'settings'
+
 COLOR_BUTTON_BASIC = 1,1,1,1
 COLOR_ANSWER_CALL = 1,0,0,1
 COLOR_HANGUP_CALL = 1,1,0,1
 COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
+
+ACTIVE_DISPLAY_BACKGROUND = Color(1.,1.,.0)
+INACTIVE_DISPLAY_BACKGROUND = Color(.5,.0,.0)
 
 LOG_LEVEL = 3
 current_call = None
@@ -100,11 +105,32 @@ transparency_event = None
 
 mainLayout = None
 
+procs = []
+
+
 # ###############################################################
 #
 # Functions
 #
 # ###############################################################
+
+@atexit.register
+def kill_subprocesses():
+    "tidy up at exit or break"
+    print('destroy lib at exit')
+    try:
+	pj.Lib.destroy()
+    except:
+	pass
+    print('kill subprocesses at exit')
+    for proc in procs:
+	try:
+            proc.kill()
+	except:
+	    pass
+
+
+# ##############################################################################
 
 def playWAV(dt):
     "start play"
@@ -115,6 +141,8 @@ def playWAV(dt):
 	pass
 
 
+# ##############################################################################
+
 def stopWAV():
     "stop play"
     global ring_event
@@ -123,11 +151,18 @@ def stopWAV():
     os.system('pkill -9 ' + APLAYER)
 
 
+# ##############################################################################
+
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
-    cmd = ' '.join(map(str, ['./dbuscntrl.sh', dst] + args))
+#    cmd = ' '.join(map(str, ['./dbuscntrl.sh', dst] + args))
     try:
-        os.system(cmd)
+#        os.system(cmd)
+	proc = subprocess.Popen(['./dbuscntrl.sh', dst] + args)
+	try:
+	    outs, errs = proc.communicate(timeout=2)
+	except TimeoutExpired:
+	    proc.kill()
     except:
 	pass
 
@@ -140,6 +175,84 @@ def send_dbus(dst,args):
 #
 # ###############################################################
 
+class DigiClockWidget(FloatLayout):
+    "Clock class - digital"
+    pass
+
+
+# ##############################################################################
+
+class DigiClock(Label):
+    "Label with date & time"
+    def __init__(self, **kwargs):
+        super(DigiClock, self).__init__(**kwargs)
+        Clock.schedule_interval(self.update, 1)
+
+    def update(self, *args):
+        self.text = datetime.datetime.now().strftime("%d.%m.%Y     %H:%M:%S")
+
+
+# ##############################################################################
+
+class MyClockWidget(FloatLayout):
+    "Clock class - analog"
+    pass
+
+
+# ##############################################################################
+
+class Ticks(Widget):
+    "Analog watches"
+    galleryIndex = 0
+    gallery = []
+    ln = Label()
+
+    def __init__(self, **kwargs):
+        super(Ticks, self).__init__(**kwargs)
+        self.bind(pos = self.update_clock)
+        self.bind(size = self.update_clock)
+
+        self.ln.text = '[color=ff3333] ' + APP_NAME + ' [/color]'
+        self.ln.pos = self.pos
+        self.ln.size = self.size
+        self.ln.font_size = '32sp'
+        self.ln.text_size = self.size
+        self.ln.halign = 'right'
+        self.ln.valign = 'bottom'
+        self.ln.markup = True
+
+        Clock.schedule_interval(self.update_clock, 1)
+
+
+    def update_clock(self, *args):
+        time = datetime.datetime.now()
+        self.canvas.clear()
+
+        self.remove_widget(self.ln)
+        self.ln.pos = self.pos
+        self.ln.size = self.size
+        self.ln.text = '[color=ff3333] ' + APP_NAME + ' [/color]'
+        self.ln.text_size = self.size
+        self.add_widget(self.ln)
+
+        with self.canvas:
+            Color(.1, .1, .6, .15)
+            Ellipse(pos={self.y + 19,self.width / 4}, size={self.width / 2, self.height - 38})
+
+            Color(0.6, 0.6, 0.9)
+            Line(points = [self.center_x, self.center_y, self.center_x+0.7*self.r*sin(pi/30*time.second),
+                self.center_y+0.7*self.r*cos(pi/30*time.second)], width=1, cap="round")
+            Color(0.5, 0.5, 0.8)
+            Line(points = [self.center_x, self.center_y, self.center_x+0.6*self.r*sin(pi/30*time.minute),
+                self.center_y+0.6*self.r*cos(pi/30*time.minute)], width=2, cap="round")
+            Color(0.4, 0.4, 0.7)
+            th = time.hour*60 + time.minute
+            Line(points = [self.center_x, self.center_y, self.center_x+0.5*self.r*sin(pi/360*th),
+            self.center_y+0.5*self.r*cos(pi/360*th)], width=3, cap="round")
+
+
+# ##############################################################################
+
 class MyAccountCallback(pj.AccountCallback):
     "Callback to receive events from account"
     def __init__(self, account=None):
@@ -147,12 +260,13 @@ class MyAccountCallback(pj.AccountCallback):
 
     # Notification on incoming call
     def on_incoming_call(self, call):
-        global current_call
+        global current_call, mainLayout
         if current_call:
             call.answer(486, "Busy")
             return
 
         print "Incoming call from ", call.info().remote_uri
+	mainLayout.findTargetWindow(call.info().remote_uri)
 
         current_call = call
 
@@ -161,8 +275,6 @@ class MyAccountCallback(pj.AccountCallback):
 
         current_call.answer(180)
 
-
-# ##############################################################################
 
 def log_cb(level, str, len):
     "pjSip logging callback"
@@ -177,7 +289,7 @@ class MyCallCallback(pj.CallCallback):
     def on_state(self):
 	"Notification when call state has changed"
         global current_call, ring_event, transparency_value
-        global main_state, docall_button_global
+        global main_state, mainLayout, docall_button_global
         print "Call with", self.call.info().remote_uri,
         print "is", self.call.info().state_text, self.call.info().state,
         print "last code =", self.call.info().last_code,
@@ -188,6 +300,7 @@ class MyCallCallback(pj.CallCallback):
 
         if main_state == pj.CallState.DISCONNECTED:
             current_call = None
+	    mainLayout.setButtons(False)
 #            print 'Current call is', current_call
 
         if main_state == pj.CallState.EARLY:
@@ -196,15 +309,20 @@ class MyCallCallback(pj.CallCallback):
         else:
             stopWAV()
 
+        if main_state == pj.CallState.INCOMING:
+		mainLayout.findTargetWindow(self.call.info().remote_uri)
+
         if main_state == pj.CallState.INCOMING or\
            main_state == pj.CallState.EARLY:
             if main_state is not pj.CallState.CALLING:
 		docall_button_global.color = COLOR_ANSWER_CALL
 		docall_button_global.text = BUTTON_CALL_ANSWER
+#		mainLayout.findTargetWindow(self.call.info().remote_uri)
 
         if main_state == pj.CallState.DISCONNECTED:
             docall_button_global.color = COLOR_NOMORE_CALL
             docall_button_global.text = BUTTON_DO_CALL
+	    mainLayout.startScreenTiming()
 
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
@@ -214,6 +332,7 @@ class MyCallCallback(pj.CallCallback):
 	    current_call = self.call
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
+	    mainLayout.findTargetWindow('') #self.call.info().remote_uri)
 
 
     def on_media_state(self):
@@ -223,9 +342,9 @@ class MyCallCallback(pj.CallCallback):
             call_slot = self.call.info().conf_slot
             pj.Lib.instance().conf_connect(call_slot, 0)
             pj.Lib.instance().conf_connect(0, call_slot)
-            print "Media is now active"
-        else:
-            print "Media is inactive"
+#            print "Media is now active"
+#        else:
+#            print "Media is inactive"
 
 
 def make_call(uri):
@@ -243,6 +362,7 @@ def make_call(uri):
 
 
 # ##############################################################################
+
 class BasicDisplay:
     "basic screen class"
     def __init__(self,winpos,servaddr,streamaddr):
@@ -254,15 +374,14 @@ class BasicDisplay:
 	self.streamUrl = str(streamaddr)
 	self.playerPosition = [i for i in self.winPosition]
 
-	self.delta = 3
-	self.playerPosition[0] += self.delta
-	self.playerPosition[1] += self.delta
-	self.playerPosition[2] -= self.delta
-	self.playerPosition[3] -= self.delta
+	delta = 1
+	self.playerPosition[0] += delta
+	self.playerPosition[1] += delta
+	self.playerPosition[2] -= delta
+	self.playerPosition[3] -= delta
 	self.playerPosition = [str(i) for i in self.playerPosition]
 
-	self.playerProcess = self.initPlayer()
-	procs.append(self.playerProcess)
+	procs.append(self.initPlayer())
 
 	self.color = None
 	self.frame = None
@@ -289,23 +408,25 @@ class BasicDisplay:
 	    stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE) #, close_fds = True)
 
 
-    def setActive(self, active=True):
-	"add or remove active flag"
-	global mainLayout
-
+    def hidePlayer(self):
+	"hide video player area"
 	if self.color is not None: mainLayout.canvas.remove(self.color)
 	if self.frame is not None: mainLayout.canvas.remove(self.frame)
 
+
+    def setActive(self, active=True):
+	"add or remove active flag"
+	self.hidePlayer()
+
 	if active:
-	    self.color = Color(1.,1.,.0)
+	    self.color = ACTIVE_DISPLAY_BACKGROUND
 	else:
-	    self.color = Color(.5,.0,.0)
+	    self.color = INACTIVE_DISPLAY_BACKGROUND
 
 	w = self.winPosition[2] - self.winPosition[0] # width
 	h = self.winPosition[3] - self.winPosition[1] # height
 	ltx = self.winPosition[0]
 	lty = 480 - self.winPosition[1] - h           # touch position is from bottom to up
-#	if active: print self.winPosition, self.playerPosition, ltx, lty, w, h
 
 	self.frame = Rectangle(pos=(ltx, lty), size=(w, h))
 	mainLayout.canvas.add(self.color)
@@ -318,20 +439,25 @@ class BasicDisplay:
 
 
 # ##############################################################################
+
 class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2
+        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER
         global main_state, docall_button_global, mainLayout
 
         super(Indoor, self).__init__(**kwargs)
 
 	mainLayout = self
 
-        self.infinite_event = None
-
 	self.displays = []
+
+        main_state = 0
+        self.info_state = 0
+        self.myprocess = None
+
+	self.scrmngr = self.ids._screen_manager
 
         # nacitanie konfiguracie
         config = ConfigParser()
@@ -346,6 +472,13 @@ class Indoor(FloatLayout):
                 self.dbg('ERROR 2: read config file!')
 
         try:
+	    APP_NAME = config.get('command', 'app_name')
+	    screen_saver = int(config.get('command', 'screen_saver'))
+	    if screen_saver > 0 and screen_saver < 120: SCREEN_SAVER = screen_saver * 60
+        except:
+            self.dbg('ERROR 3: read config file!')
+
+        try:
             BUTTON_DO_CALL = config.get('gui', 'btn_docall')
             BUTTON_CALL_ANSWER = config.get('gui', 'btn_call_answer')
             BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
@@ -354,18 +487,12 @@ class Indoor(FloatLayout):
         except:
             self.dbg('ERROR: read config file!')
 
-        main_state = 0
-        self.info_state = 0
-        self.myprocess = None
-
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
 
         self.init_myphone()
 
 	self.init_screen(config)
-
-        self.rstTransparency()
 
         self.ids.btnDoor1.text = BUTTON_DOOR_1
         self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
@@ -381,22 +508,20 @@ class Indoor(FloatLayout):
 	scr_mode = cfg.get('gui', 'screen_mode')
 	if scr_mode == None or scr_mode == '': scr_mode = 0
 
+	self.scrmngr.current = WAIT_SCR
+
 	if scr_mode == 1:
-	    wrange = 0
-	    wins = ['0,0,800,430']
+	    wins = ['0,0,800,432']
 	elif scr_mode == 2:
-	    wrange = 2
-	    wins = ['0,0,800,216', '0,214,800,430']
+	    wins = ['0,0,800,216', '0,216,800,432']
 	elif scr_mode == 3:
-	    wrange = 2
-	    wins = ['0,0,400,430', '400,0,800,430']
+	    wins = ['0,0,400,432', '400,0,800,432']
 	else:
-	    wrange = 4
-	    wins = ['0,0,400,216', '400,0,800,216', '0,214,400,430', '400,214,800,430']
+	    wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
 
-	self.dbg('scr_mode:' + str( scr_mode ) + ' wrange:' + str(wrange))
+	self.dbg('scr_mode:' + str( scr_mode ) + ' wrange:' + str(len(wins)))
 
-	for i in range(0,wrange):
+	for i in range(0,len(wins)):
 	    win = wins[i]
 	    serv = cfg.get('common', 'server_ip_address_'+str(i + 1))
 	    vid = cfg.get('common', 'server_stream_'+str(i + 1))
@@ -405,6 +530,9 @@ class Indoor(FloatLayout):
 	    self.displays.append(displ)
 
 	if scr_mode != 1: self.displays[0].setActive()
+
+	self.scrmngr.current = CAMERA_SCR
+	self.setButtons(False)
 
 
     def init_myphone(self):
@@ -444,31 +572,29 @@ class Indoor(FloatLayout):
     def info_state_loop(self, dt):
 	"state loop"
         global current_call, docall_button_global, BUTTON_DO_CALL
-
+#
         if current_call is not None: self.info_state = 0
-
+#
         if self.info_state == 0:
             self.info_state = 1
-            self.ids.btnDoor1.text = BUTTON_DOOR_1
-            self.ids.btnDoor2.text = BUTTON_DOOR_2
+#            self.ids.btnDoor1.text = BUTTON_DOOR_1
+#            self.ids.btnDoor2.text = BUTTON_DOOR_2
         elif self.info_state == 1:
             self.info_state = 2
-            self.ids.btnDoor2.text = datetime.datetime.now().strftime("%H:%M")
+#            self.ids.btnDoor2.text = datetime.datetime.now().strftime("%H:%M")
         elif self.info_state == 2:
             self.info_state = 3
-            self.ids.btnDoor1.text = BUTTON_DOOR_1 #'(c) Inoteska'
-            self.ids.btnDoor2.text = BUTTON_DOOR_2
+#            self.ids.btnDoor1.text = BUTTON_DOOR_1 #'(c) Inoteska'
+#            self.ids.btnDoor2.text = BUTTON_DOOR_2
             if current_call is None: docall_button_global.text = BUTTON_DO_CALL
         elif self.info_state == 3:
             self.info_state = 0
-            self.ids.btnDoor1.text = datetime.datetime.now().strftime("%d.%m.%Y")
+#            self.ids.btnDoor1.text = datetime.datetime.now().strftime("%d.%m.%Y")
 
 
     def infinite_loop(self, dt):
 	"main neverendig loop"
         global current_call, main_state
-
-#        self.ids.txtBasicLabel.text = datetime.datetime.now().strftime("%H:%M\n%d.%m.%Y")
 
 	if len(procs) == 0: return
 
@@ -481,6 +607,27 @@ class Indoor(FloatLayout):
 		except:
 		    pass
 		procs[idx] = self.displays[idx].initPlayer()
+
+
+    def startScreenTiming(self):
+	"start screen timer"
+#        self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
+        if SCREEN_SAVER > 0: Clock.schedule_once(self.return2clock, SCREEN_SAVER)
+
+
+    def return2clock(self, *args):
+	"swat screen to CLOCK"
+	global current_call
+
+#        self.dbg('2 clock')
+	if current_call is None:
+            self.scrmngr.current = WATCH_SCR
+
+
+    def finishScreenTiming(self):
+	"finist screen timer"
+#        self.dbg('ScrnLeave')
+        Clock.unschedule(self.return2clock)
 
 
     def callback_btn_docall(self):
@@ -499,13 +646,16 @@ class Indoor(FloatLayout):
             if main_state == pj.CallState.EARLY:
                 stopWAV()
                 current_call.answer(200)
+		self.setButtons(True)
             else:
                 current_call.hangup()
+		self.setButtons(False)
 	else:
 	    txt = '--> ' + str(active_display_index + 1)
 	    if make_call('sip:' + target + ':5060') is None: txt = txt + ' ERROR'
 
 	    docall_button_global.text = txt
+	    self.setButtons(True)
 
 
     def gotResponse(self, req, results):
@@ -542,14 +692,14 @@ class Indoor(FloatLayout):
 
     def settings_callback(self):
 	"callback after closing settings dialog"
-        global transparency_event, transparency_value
+#        global transparency_event, transparency_value
 
-        transparency_value = 16
-#        self.rstTransparency(200)
-        if transparency_event is None:
-            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
+#        transparency_value = 16
+##        self.rstTransparency(200)
+#        if transparency_event is None:
+#            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
 
-        print 'LOOK AT ME!'
+        self.dbg('Save Settings!')
 
 	try:
 	    os.system('pkill omxplayer')
@@ -558,7 +708,6 @@ class Indoor(FloatLayout):
 	except:
 	    pass
 	App.get_running_app().stop()
-#        self.rstTransparency(200)
 
 
     def callback_set_options(self):
@@ -567,6 +716,8 @@ class Indoor(FloatLayout):
         self.dbg(self.ids.btnSetOptions.text)
 
 	if len(procs) == 0: return
+
+	self.hidePlayers()
 
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
@@ -585,7 +736,8 @@ class Indoor(FloatLayout):
 	except:
 	    pass
 
-	self.canvas.clear()
+	self.finishScreenTiming()
+        self.scrmngr.current = SETTINGS_SCR
 
 	gl = GridLayout(cols=2, row_force_default=True, row_default_height=80)
 
@@ -603,8 +755,14 @@ class Indoor(FloatLayout):
 
     def callback_set_voice(self, value):
 	"volume buttons"
-        self.dbg('Voice: ' + str(value))
-        self.rstTransparency()
+	if self.ids.btnScreenClock.text == 'C':
+	    if value == -1:
+		self.callback_set_options()
+	    else:
+#		self.finishScreenTiming()
+		Clock.schedule_once(self.return2clock, .2)
+	else :
+            self.dbg('Voice: ' + str(value))
 
 
     def on_touch_up(self, touch):
@@ -615,8 +773,11 @@ class Indoor(FloatLayout):
 	if len(procs) == 0: return
 
 	if touch.is_double_tap:
+#	    self.finishScreenTiming()
 	    self.callback_set_options()
 	    return
+
+	self.startScreenTiming()
 
 	rx = int(round(touch.x))
 	ry = int(round(touch.y))
@@ -642,7 +803,7 @@ class Indoor(FloatLayout):
     def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
 	print 'kbd_down', keyboard, keycode, text, modifiers
 
-	if str(keycode) == str('escape') or keycode[1] == 'layout':
+	if str(keycode) == str('escape') or keycode == 'layout':
 	    self._keyboard_closed()
 	    print 'ESC'
 	    return False
@@ -673,12 +834,60 @@ class Indoor(FloatLayout):
 #            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
 #
 #
-#    def hide_video(self):
-#	"d-bus command to hide video"
-#        for idx, proc in enumerate(procs):
-#            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)])
-#
-#
+    def showPlayers(self):
+	"d-bus command to show video"
+        self.dbg('show players')
+        for idx, proc in enumerate(procs):
+            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)])
+
+	self.displays[active_display_index].setActive()
+
+
+    def hidePlayers(self):
+	"d-bus command to hide video"
+        self.dbg('hide players')
+        for idx, proc in enumerate(procs):
+	    self.displays[idx].hidePlayer()
+            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)])
+
+    def setButtons(self, visible):
+	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
+
+	if visible:
+#	    self.ids.btnScreenClock.size_hint_x = .01
+#	    self.ids.btnSetOptions.size_hint_x = .01
+#	    self.ids.btnVoicePlus.size_hint_x = .3
+#	    self.ids.btnVoiceMinus.size_hint_x = .3
+	    self.ids.btnScreenClock.text = '+'
+	    self.ids.btnSetOptions.text = '-'
+	else:
+#	    self.ids.btnScreenClock.size_hint_x = .3
+#	    self.ids.btnSetOptions.size_hint_x = .3
+#	    self.ids.btnVoicePlus.size_hint_x = .01
+#	    self.ids.btnVoiceMinus.size_hint_x = .01
+	    self.ids.btnScreenClock.text = 'C'
+	    self.ids.btnSetOptions.text = 'S'
+
+
+    def findTargetWindow(self, addr):
+	"find target window according to calling address"
+	global active_display_index
+        self.dbg('find target window for:' + addr)
+
+	self.scrmngr.current = CAMERA_SCR
+	self.finishScreenTiming()
+
+	if addr != '':
+	    active_display_index = 0
+	    for idx, d in enumerate(self.displays):
+		d.setActive(False)
+		if d.serverAddr in addr:
+		    active_display_index = idx
+
+	    self.dbg('target window:' + str(active_display_index))
+	    self.displays[active_display_index].setActive()
+
+
     def transparency_loop(self, dt):
 	"unhide loop"
 #        self.dbg('transparency ' + str(transparency_value))
@@ -687,19 +896,23 @@ class Indoor(FloatLayout):
 #        if transparency_event is None: return
 
         if transparency_value > 0 and transparency_value < 250:
-            transparency_value -= 8 #4
+            transparency_value -= 8
 
         for idx, proc in enumerate(procs):
             send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255 - transparency_value)])
 
-        if transparency_value == 0 and transparency_event is not None:
+        if transparency_value <= 0 and transparency_event is not None:
             Clock.unschedule(transparency_event)
             transparency_event = None
+	    transparency_value = 0
 
 
     def rstTransparency(self, val = 0):
 	"set transparency"
-        global transparency_value
+#        global transparency_value
+	self.dbg('rstTransparency')
+	return
+
         transparency_value = val
         self.transparency_loop(0)
 
@@ -713,7 +926,7 @@ class Indoor(FloatLayout):
 
 class IndoorApp(App):
     def build(self):
-        self.dbg('Hello')
+        self.dbg('Hello Indoor 2.0')
 #        Config.set('kivy', 'keyboard_mode','')
 	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
 	    Config.get('kivy', 'keyboard_mode'),
@@ -725,7 +938,7 @@ class IndoorApp(App):
         self.dbg('START')
 
     def on_stop(self):
-        print 'STOP'
+        self.dbg('STOP')
 #        lib.destroy()
 
     def dbg(self, info):

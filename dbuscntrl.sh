@@ -54,7 +54,7 @@ setposition)
     ;;
 
 setalpha)
-    dbus-send --print-reply=literal --session --dest=$1 /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.SetAlpha objpath:/not/used int64:$3 >/dev/null
+    dbus-send --print-reply=double --session --dest=$1 /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.SetAlpha objpath:/not/used int64:$3 > /dev/null
     ;;
 
 setvideopos)

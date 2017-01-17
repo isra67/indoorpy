@@ -1,13 +1,10 @@
 #: import smn kivy.uix.screenmanager
 #: import math math
 
-
 <Indoor>:
     lblBasic: txtBasicLabel
     door1buton: btnDoor1
     door2buton: btnDoor2
-#    voicePlus: btnVoicePlus
-#    voiceMinus: btnVoiceMinus
     settingsbutton: btnSetOptions
     scrClockButton: btnScreenClock
 
@@ -20,7 +17,6 @@
             name: 'waitscr'
             id: waitscr
             on_enter: lblresult.text = 'Moment...'
-#            on_pre_leave: root.finishScreenTiming()
             on_touch_down: _screen_manager.current = 'clock'
 
             BoxLayout:
@@ -44,8 +40,7 @@
             name: 'clock'
             id: clock
             on_touch_down: _screen_manager.current = 'camera'
-#            on_enter: root.hidePlayers()
-#            on_pre_leave: root.showPlayers()
+
             BoxLayout:
 #                DigiClockWidget:
                 MyClockWidget:
@@ -55,17 +50,14 @@
             id: camera
             on_enter: root.startScreenTiming()
             on_pre_enter: root.showPlayers()
-#            on_pre_enter: root.read_server_status()
             on_leave: root.finishScreenTiming()
             on_pre_leave: root.hidePlayers()
-#            on_touch_down: _screen_manager.current = 'clock'
 
             FloatLayout:
 	        Label:
 	            id: txtBasicLabel
 	            text: 'Wait...'
 	            font_size: '56dp'
-#		    on_touch_down: app.dbg('HIIIIIT')
 	            pos: 0,40
 	            size: self.width,80
 	            halign: 'center'
@@ -83,29 +75,16 @@
 	                font_size: '24dp'
 	                size_hint: .25, 1
 	                on_press: root.callback_set_voice(1)
-#	                on_press: _screen_manager.current = 'clock'
 	            Button:
 	                id: btnDoor1
 	                text: 'Open Door 1'
 	                font_size: '24dp'
 	                on_press: root.callback_btn_door1()
-#	            Button:
-#	                id: btnVoicePlus
-#	                text: '+'
-#	                font_size: '24dp'
-#	                size_hint: .25,1
-#	                on_press: root.callback_set_voice(1)
 	            Button:
 	                id: btnDoCall
 	                text: 'Do Call'
 	                font_size: '24dp'
 	                on_press: root.callback_btn_docall()
-#	            Button:
-#	                id: btnVoiceMinus
-#	                text: '-'
-#	                font_size: '24dp'
-#	                size_hint: .25,1
-#	                on_press: root.callback_set_voice(-1)
 	            Button:
 	                id: btnDoor2
 	                text: 'Open Door 2'
@@ -117,45 +96,11 @@
 	                font_size: '24dp'
 	                size_hint: .25, 1
 	                on_press: root.callback_set_voice(-1)
-#	                on_press: root.callback_set_options()#_screen_manager.current = 'settings'
 
-
-        Screen:
+        SetScreen:
             name: 'settings'
             id: settings
-#            on_enter: root.startScreenTiming()
-#            on_pre_leave: root.finishScreenTiming()
             on_pre_enter: root.finishScreenTiming()
-
-            BoxLayout:
-                orientation: 'vertical'
-
-                BoxLayout:
-                    Label:
-                        text: 'Settings'
-                        font_size: self.height/3
-                        color: 0.3,0.6,0.9,0.9
-
-                BoxLayout:
-                    DigiClockWidget:
-
-                BoxLayout:
-            	    orientation: 'horizontal'
-#	            size_hint_y: None
-#	            height: '48dp'
-#	            pos_x: '50dp'
-#	            size: self.size
-
-	            Button:
-	                text: 'OK'
-	                font_size: '24dp'
-#	                size_hint: 1,None
-	                on_press: root.settings_callback()
-	            Button:
-	                text: 'Cancel'
-	                font_size: '24dp'
-#	                size_hint: 1,None
-	                on_press: _screen_manager.current = 'clock'
 
 
 #CLOCK:
@@ -186,3 +131,4 @@
     Ticks:
         id: ticks
         r: min(root.size)*0.9/2
+

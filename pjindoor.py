@@ -10,28 +10,32 @@ import kivy
 kivy.require('1.9.0')
 
 from kivy.app import App
+#from kivy.base import runTouchApp
 from kivy.clock import Clock
 from kivy.config import Config
 from kivy.config import ConfigParser
 from kivy.core.window import Window
-#from kivy.graphics import Color, Rectangle
 from kivy.graphics import Color, Line, Rectangle, Ellipse
-from kivy.lang import Builder
+#from kivy.lang import Builder
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.button import Button
+from kivy.uix.checkbox import CheckBox
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.textinput import TextInput
-from kivy.uix.vkeyboard import VKeyboard
+#from kivy.uix.togglebutton import ToggleButton
+#from kivy.uix.vkeyboard import VKeyboard
 from kivy.uix.widget import Widget
 
 from math import cos, sin, pi
 
 import atexit
 import datetime
+import inspect
 
 import os
 import signal
@@ -61,6 +65,7 @@ CONFIG_FILE = 'indoorconfig.ini'
 APP_NAME = '-Indoor-2.0-'
 
 SCREEN_SAVER = 0
+BACK_LIGHT = False
 
 BUTTON_CALL_ANSWER = '=Answer Call='
 BUTTON_CALL_HANGUP = '=HangUp Call='
@@ -132,13 +137,17 @@ def kill_subprocesses():
 
 # ##############################################################################
 
+def whoami():
+    "returns name of function"
+    return inspect.stack()[1][3]
+
+
+# ##############################################################################
+
 def playWAV(dt):
     "start play"
-    global RING_WAV
-    try:
-        os.system(RING_WAV)
-    except:
-	pass
+#    global RING_WAV
+    send_command(RING_WAV)
 
 
 # ##############################################################################
@@ -148,7 +157,7 @@ def stopWAV():
     global ring_event
     Clock.unschedule(ring_event)
     ring_event = None
-    os.system('pkill -9 ' + APLAYER)
+    send_command('pkill -9 ' + APLAYER)
 
 
 # ##############################################################################
@@ -156,17 +165,33 @@ def stopWAV():
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
 #    cmd = ' '.join(map(str, ['./dbuscntrl.sh', dst] + args))
+
+    errs = ''
+    outs = ''
+
     try:
-#        os.system(cmd)
 	proc = subprocess.Popen(['./dbuscntrl.sh', dst] + args)
 	try:
 	    outs, errs = proc.communicate(timeout=2)
 	except TimeoutExpired:
 	    proc.kill()
+	    print whoami(), 'timeout'
     except:
 	pass
 
-#    print 'sendDBUS...', cmd
+    if errs: print whoami(), 'error:', errs
+    if outs: print whoami(), 'out:', outs
+
+
+# ##############################################################################
+
+def send_command(cmd):
+    "send shell command"
+    print whoami(),':', cmd
+    try:
+        os.system(cmd)
+    except:
+	pass
 
 
 # ###############################################################
@@ -197,6 +222,99 @@ class DigiClock(Label):
 class MyClockWidget(FloatLayout):
     "Clock class - analog"
     pass
+
+
+# ##############################################################################
+
+class SetScreen(Screen):
+    "Settings screen"
+
+    def __init__(self, **kwargs):
+	"build init form for basic settings"
+        super(SetScreen, self).__init__(**kwargs)
+
+	self.staticIP = True
+
+	self.labelIpAddr = Label(text='IP address')
+	self.ipAddr = TextInput()
+	self.labelNetMask = Label(text='Network mask')
+	self.netMask = TextInput()
+	self.labelGatewayAddr = Label(text='Gateway')
+	self.gatewayAddr = TextInput()
+
+	self.gl = GridLayout(cols=2, row_force_default=True, row_default_height=40, padding=10)
+	self.gl.cols = 2
+	self.add_widget(self.gl)
+
+	btn = Button(text='Run!')
+        btn.bind(on_press=self.commandRun)
+	self.gl.add_widget(btn)
+
+	btno = Button(text='Back!')
+        btno.bind(on_press=self.commandBack)
+	self.gl.add_widget(btno)
+
+	checkbox = CheckBox(group='IPTYPE', text='Static IP', state='down')
+	checkbox.bind(active=self.on_checkbox_active)
+	self.gl.add_widget(checkbox)
+	self.gl.add_widget(Label(text='STATIC IP ADDRESS'))
+	checkbox2 = CheckBox(group='IPTYPE', text='DHCP')
+#	checkbox2.bind(active=self.on_checkbox_active)
+	self.gl.add_widget(checkbox2)
+	self.gl.add_widget(Label(text='DHCP ADDRESS'))
+
+	self.setStaticIP(None)
+
+#	btn1 = ToggleButton(text='Static IP', group='IP_TYPE')
+#        btn1.bind(on_press=self.staticIP)
+#	btn2 = ToggleButton(text='DHCP', group='IP_TYPE', state='down')
+#        btn2.bind(on_press=self.dhcpIP)
+#	gl.add_widget(btn1)
+#	gl.add_widget(btn2)
+
+
+    def on_checkbox_active(self, checkbox, value):
+	"switch between DHCP/STATIC IP"
+	if value:
+	    self.setStaticIP(None)
+	else:
+	    self.setDhcpIP(None)
+
+
+    def setStaticIP(self, event):
+	"add items to form"
+	print whoami()
+
+	self.gl.add_widget(self.labelIpAddr)
+	self.gl.add_widget(self.ipAddr)
+	self.gl.add_widget(self.labelNetMask)
+	self.gl.add_widget(self.netMask)
+	self.gl.add_widget(self.labelGatewayAddr)
+	self.gl.add_widget(self.gatewayAddr)
+
+
+    def setDhcpIP(self, event):
+	"remove items from form"
+	print whoami()
+
+	self.gl.remove_widget(self.ipAddr)
+	self.gl.remove_widget(self.labelIpAddr)
+	self.gl.remove_widget(self.netMask)
+	self.gl.remove_widget(self.labelNetMask)
+	self.gl.remove_widget(self.gatewayAddr)
+	self.gl.remove_widget(self.labelGatewayAddr)
+
+
+    def commandRun(self, event):
+	"save values"
+	print whoami()
+	mainLayout.settings_callback()
+
+
+    def commandBack(self, event):
+	"cancel form"
+	print whoami()
+	mainLayout.cancel_settings()
 
 
 # ##############################################################################
@@ -374,7 +492,7 @@ class BasicDisplay:
 	self.streamUrl = str(streamaddr)
 	self.playerPosition = [i for i in self.winPosition]
 
-	delta = 1
+	delta = 2 #1
 	self.playerPosition[0] += delta
 	self.playerPosition[1] += delta
 	self.playerPosition[2] -= delta
@@ -385,6 +503,8 @@ class BasicDisplay:
 
 	self.color = None
 	self.frame = None
+#	self.actScreen = mainLayout
+	self.actScreen = mainLayout.ids.camera
 
 	self.printInfo()
 	self.setActive(False)
@@ -402,6 +522,7 @@ class BasicDisplay:
 
     def initPlayer(self):
 	"start video player"
+	print whoami()
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd',\
 	    '--dbus_name',DBUS_PLAYERNAME + str(self.screenIndex),\
 	    '--layer', '1', '--no-keys', '--win', ','.join(self.playerPosition), self.streamUrl],\
@@ -410,12 +531,17 @@ class BasicDisplay:
 
     def hidePlayer(self):
 	"hide video player area"
-	if self.color is not None: mainLayout.canvas.remove(self.color)
-	if self.frame is not None: mainLayout.canvas.remove(self.frame)
+	print whoami()
+	if self.color is not None: self.actScreen.canvas.remove(self.color)
+	if self.frame is not None: self.actScreen.canvas.remove(self.frame)
+
+	self.color = None
+	self.frame = None
 
 
     def setActive(self, active=True):
 	"add or remove active flag"
+	print whoami(), self.screenIndex, active
 	self.hidePlayer()
 
 	if active:
@@ -429,8 +555,8 @@ class BasicDisplay:
 	lty = 480 - self.winPosition[1] - h           # touch position is from bottom to up
 
 	self.frame = Rectangle(pos=(ltx, lty), size=(w, h))
-	mainLayout.canvas.add(self.color)
-	mainLayout.canvas.add(self.frame)
+	self.actScreen.canvas.add(self.color)
+	self.actScreen.canvas.add(self.frame)
 
 
     def printInfo(self):
@@ -479,6 +605,12 @@ class Indoor(FloatLayout):
             self.dbg('ERROR 3: read config file!')
 
         try:
+	    bl = int(config.get('command', 'back_light'))
+	    if bl > 0: BACK_LIGHT = True
+        except:
+            self.dbg('ERROR 4: read config file!')
+
+        try:
             BUTTON_DO_CALL = config.get('gui', 'btn_docall')
             BUTTON_CALL_ANSWER = config.get('gui', 'btn_call_answer')
             BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
@@ -505,6 +637,8 @@ class Indoor(FloatLayout):
 
     def init_screen(self, cfg):
 	"define app screen"
+	print whoami()
+
 	scr_mode = cfg.get('gui', 'screen_mode')
 	if scr_mode == None or scr_mode == '': scr_mode = 0
 
@@ -538,6 +672,8 @@ class Indoor(FloatLayout):
     def init_myphone(self):
 	"sip phone init"
         global acc
+
+	print whoami()
 
         # Create library instance
         lib = pj.Lib()
@@ -594,26 +730,33 @@ class Indoor(FloatLayout):
 
     def infinite_loop(self, dt):
 	"main neverendig loop"
-        global current_call, main_state
+        global procs
 
 	if len(procs) == 0: return
 
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
-		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead")
+		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead\nscreen:" + self.scrmngr.current+'/'+CAMERA_SCR )
 		try:
+#		    send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
+#		    send_command(CMD_KILL + str(p.pid))
 		    p.kill()
-		    os.system(CMD_KILL + str(p.pid))
 		except:
 		    pass
 		procs[idx] = self.displays[idx].initPlayer()
 
+		if self.scrmngr.current not in CAMERA_SCR:
+		    #self.displays[idx].hidePlayer()
+		    self.hidePlayers()
+
 
     def startScreenTiming(self):
 	"start screen timer"
-#        self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
+        self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
         if SCREEN_SAVER > 0: Clock.schedule_once(self.return2clock, SCREEN_SAVER)
 
+	send_command('./unblank.sh')
+	send_command('./backlight.sh 0')
 
     def return2clock(self, *args):
 	"swat screen to CLOCK"
@@ -622,17 +765,20 @@ class Indoor(FloatLayout):
 #        self.dbg('2 clock')
 	if current_call is None:
             self.scrmngr.current = WATCH_SCR
+	    if BACK_LIGHT: send_command('./backlight.sh 1')
 
 
     def finishScreenTiming(self):
 	"finist screen timer"
-#        self.dbg('ScrnLeave')
+        self.dbg('ScrnLeave')
         Clock.unschedule(self.return2clock)
 
 
     def callback_btn_docall(self):
 	"make outgoing call"
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
+
+	print whoami()
 
 	if len(procs) == 0: return
 
@@ -691,7 +837,7 @@ class Indoor(FloatLayout):
 
 
     def settings_callback(self):
-	"callback after closing settings dialog"
+	"callback after closing settings dialog -> restart APP"
 #        global transparency_event, transparency_value
 
 #        transparency_value = 16
@@ -699,14 +845,12 @@ class Indoor(FloatLayout):
 #        if transparency_event is None:
 #            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
 
-        self.dbg('Save Settings!')
+        self.dbg('TODO: Save Settings!')
 
-	try:
-	    os.system('pkill omxplayer')
-	    os.system('pkill dbus-daemon')
-	    os.system('pkill python')
-	except:
-	    pass
+	send_command('pkill omxplayer')
+	send_command('pkill dbus-daemon')
+	send_command('pkill python')
+
 	App.get_running_app().stop()
 
 
@@ -714,43 +858,43 @@ class Indoor(FloatLayout):
 	"start settings"
 	global procs
         self.dbg(self.ids.btnSetOptions.text)
+	print whoami()
 
 	if len(procs) == 0: return
 
-	self.hidePlayers()
+#	self.hidePlayers()
 
-	for idx, p in enumerate(procs):
-	    if p.poll() is not None:
-		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead")
-		try:
-		    p.kill()
-		    os.system(CMD_KILL + str(p.pid))
-		except:
-		    pass
-	procs = []
-	self.displays = []
+#	for idx, p in enumerate(procs):
+#	    if p.poll() is not None:
+#		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead")
+#		try:
+#		    p.kill()
+#		    os.system(CMD_KILL + str(p.pid))
+#		except:
+#		    pass
+#	procs = []
+#	self.displays = []
+#
+#	try:
+#	    os.system('pkill omxplayer')
+#	    os.system('pkill dbus-daemon')
+#	except:
+#	    pass
 
-	try:
-	    os.system('pkill omxplayer')
-	    os.system('pkill dbus-daemon')
-	except:
-	    pass
-
-	self.finishScreenTiming()
         self.scrmngr.current = SETTINGS_SCR
+#	self.finishScreenTiming()
 
-	gl = GridLayout(cols=2, row_force_default=True, row_default_height=80)
+#	for idx, d in enumerate(self.displays):
+#	    d.hidePlayer()
 
-	self._keyboard = VKeyboard(layout='azerty')
-	self._keyboard.bind(on_key_down=self._on_keyboard_down)
-        gl.add_widget(Label(text='IP address'))
-        self.ipaddress = TextInput(multiline=False, focus=True)
-	self.ipaddress.text = ''
-        gl.add_widget(self.ipaddress)
-	self.add_widget(gl)
-        self.add_widget(self._keyboard)
+#	self.hidePlayers()
 
-        print 'keyboard?', self._keyboard
+#	self.gl = GridLayout(cols=2, row_force_default=True, row_default_height=80)
+
+##	self._keyboard = VKeyboard(layout='qwerty')  #'azerty')
+##	self._keyboard.bind(on_key_down=self._on_keyboard_down)
+
+        print 'keyboard?'#, self._keyboard
 
 
     def callback_set_voice(self, value):
@@ -768,13 +912,23 @@ class Indoor(FloatLayout):
     def on_touch_up(self, touch):
 	"process touch up event"
 	global active_display_index
+	print whoami()
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 
 	if len(procs) == 0: return
 
+#	if touch.is_double_tap:
+##	    self.finishScreenTiming()
+#	    self.callback_set_options()
+#	    return
+
 	if touch.is_double_tap:
-#	    self.finishScreenTiming()
-	    self.callback_set_options()
+	    print 'double touch: ', touch.x, touch.y, touch.is_double_tap
+            send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(0)])
+	    self.displays[active_display_index].hidePlayer()
+	    send_command("ps aux | grep omxplayer"+str(active_display_index)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
+	    procs[active_display_index].kill()
+	    send_command(CMD_KILL + str(procs[active_display_index].pid))
 	    return
 
 	self.startScreenTiming()
@@ -792,29 +946,41 @@ class Indoor(FloatLayout):
 	self.displays[active_display_index].setActive()
 
 
-    def _keyboard_closed(self):
-	print 'keyboard closed'
-        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
-        self._keyboard = None
+#    def _keyboard_closed(self):
+#	print 'keyboard closed'
+#        self.cancel_settings()
+#
+#	self.settings_callback()
 
-	self.settings_callback()
+
+#    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+#	print 'kbd_down', keyboard, keycode, text, modifiers
+
+#	if str(keycode) == str('escape') or keycode == 'layout':
+##	    self._keyboard_closed()
+#	    print 'ESC'
+#	    return False
+#	elif str(keycode) == str('backspace'):
+#	    print 'BSP'
+#	    self.ipaddress.text = self.ipaddress.text[:-1]
+#	    return False
+#
+#	if str(text) in ['0','1','2','3','4','5','6','7','8','9','.']:
+#	    self.ipaddress.text += str(text)
+#        return True
 
 
-    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-	print 'kbd_down', keyboard, keycode, text, modifiers
+    def cancel_settings(self):
+	"cancel settings dialog"
+	print whoami(),
+#	self.remove_widget(self.gl)
+#        self.remove_widget(self._keyboard)
+#        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
 
-	if str(keycode) == str('escape') or keycode == 'layout':
-	    self._keyboard_closed()
-	    print 'ESC'
-	    return False
-	elif str(keycode) == str('backspace'):
-	    print 'BSP'
-	    self.ipaddress.text = self.ipaddress.text[:-1]
-	    return False
+	self.gl = None
+#        self._keyboard = None
 
-	if str(text) in ['0','1','2','3','4','5','6','7','8','9','.']:
-	    self.ipaddress.text += str(text)
-        return True
+        self.scrmngr.current = CAMERA_SCR # WATCH_SCR
 
 
 #    def main_touch(self):
@@ -852,19 +1018,12 @@ class Indoor(FloatLayout):
 
     def setButtons(self, visible):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
+	print whoami()
 
 	if visible:
-#	    self.ids.btnScreenClock.size_hint_x = .01
-#	    self.ids.btnSetOptions.size_hint_x = .01
-#	    self.ids.btnVoicePlus.size_hint_x = .3
-#	    self.ids.btnVoiceMinus.size_hint_x = .3
 	    self.ids.btnScreenClock.text = '+'
 	    self.ids.btnSetOptions.text = '-'
 	else:
-#	    self.ids.btnScreenClock.size_hint_x = .3
-#	    self.ids.btnSetOptions.size_hint_x = .3
-#	    self.ids.btnVoicePlus.size_hint_x = .01
-#	    self.ids.btnVoiceMinus.size_hint_x = .01
 	    self.ids.btnScreenClock.text = 'C'
 	    self.ids.btnSetOptions.text = 'S'
 

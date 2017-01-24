@@ -24,6 +24,7 @@ from kivy.uix.checkbox import CheckBox
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.textinput import TextInput
@@ -46,7 +47,30 @@ import time
 
 import pjsua as pj
 
+from settingsjson import settings_json, settings_app, settings_gui, settings_audio, settings_outdoor, settings_sip
+
 #import my_lib as m_ss
+
+#import threading
+#
+#from flask import Flask
+#import pyscreenshot as ImageGrab
+#app = Flask(__name__)
+#
+#
+#@app.route('/')
+#def hello_world():
+#   return 'Hello World.'
+#
+#
+#@app.route('/desktop.jpeg')
+#def desktop():
+#    screen = ImageGrab.grab()
+#    buf = StringIO()
+#    screen.save(buf, 'JPEG', quality=75)
+#    buf.seek(0)
+#    return send_file(buf, mimetype='image/jpeg')
+
 
 
 #Builder.load_file('main1.kv')
@@ -60,6 +84,7 @@ import pjsua as pj
 
 CMD_KILL = 'kill -9 '
 
+#CONFIG_FILE = 'indoor.ini'
 CONFIG_FILE = 'indoorconfig.ini'
 
 APP_NAME = '-Indoor-2.0-'
@@ -79,13 +104,13 @@ WATCH_SCR = 'clock'
 CAMERA_SCR = 'camera'
 SETTINGS_SCR = 'settings'
 
-COLOR_BUTTON_BASIC = 1,1,1,1
-COLOR_ANSWER_CALL = 1,0,0,1
-COLOR_HANGUP_CALL = 1,1,0,1
+COLOR_BUTTON_BASIC = .9,.9,.9,1
+COLOR_ANSWER_CALL = .9,.9,0,1 #1,0,0,1
+COLOR_HANGUP_CALL = 0,0,.9,1 #1,1,0,1
 COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
 
-ACTIVE_DISPLAY_BACKGROUND = Color(1.,1.,.0)
-INACTIVE_DISPLAY_BACKGROUND = Color(.5,.0,.0)
+ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
+INACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.0)
 
 LOG_LEVEL = 3
 current_call = None
@@ -109,6 +134,9 @@ transparency_value = 0
 transparency_event = None
 
 mainLayout = None
+scrmngr = None
+
+config = None
 
 procs = []
 
@@ -233,6 +261,8 @@ class SetScreen(Screen):
 	"build init form for basic settings"
         super(SetScreen, self).__init__(**kwargs)
 
+	return
+
 	self.staticIP = True
 
 	self.labelIpAddr = Label(text='IP address')
@@ -330,7 +360,7 @@ class Ticks(Widget):
         self.bind(pos = self.update_clock)
         self.bind(size = self.update_clock)
 
-        self.ln.text = '[color=ff3333] ' + APP_NAME + ' [/color]'
+#        self.ln.text = '[color=0000f0] ' + APP_NAME + ' [/color]'
         self.ln.pos = self.pos
         self.ln.size = self.size
         self.ln.font_size = '32sp'
@@ -349,7 +379,7 @@ class Ticks(Widget):
         self.remove_widget(self.ln)
         self.ln.pos = self.pos
         self.ln.size = self.size
-        self.ln.text = '[color=ff3333] ' + APP_NAME + ' [/color]'
+        self.ln.text = '[color=0000f0] ' + APP_NAME + ' [/color]'
         self.ln.text_size = self.size
         self.add_widget(self.ln)
 
@@ -483,13 +513,14 @@ def make_call(uri):
 
 class BasicDisplay:
     "basic screen class"
-    def __init__(self,winpos,servaddr,streamaddr):
+    def __init__(self,winpos,servaddr,streamaddr,relaycmd):
 	"display area init"
 	self.screenIndex = len(procs)
 	self.winPosition = winpos.split(',')
 	self.winPosition = [int(i) for i in self.winPosition]
 	self.serverAddr = str(servaddr)
 	self.streamUrl = str(streamaddr)
+	self.relayCmd = str(relaycmd)
 	self.playerPosition = [i for i in self.winPosition]
 
 	delta = 2 #1
@@ -571,7 +602,7 @@ class Indoor(FloatLayout):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
         global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER
-        global main_state, docall_button_global, mainLayout
+        global main_state, docall_button_global, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
 
@@ -584,6 +615,7 @@ class Indoor(FloatLayout):
         self.myprocess = None
 
 	self.scrmngr = self.ids._screen_manager
+	scrmngr = self.scrmngr
 
         # nacitanie konfiguracie
         config = ConfigParser()
@@ -621,6 +653,7 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
+	self.screenTimerEvent = None
 
         self.init_myphone()
 
@@ -659,8 +692,14 @@ class Indoor(FloatLayout):
 	    win = wins[i]
 	    serv = cfg.get('common', 'server_ip_address_'+str(i + 1))
 	    vid = cfg.get('common', 'server_stream_'+str(i + 1))
+	    try:
+		relay = cfg.get('common', 'server_relay_'+str(i + 1))
+	    except:
+		relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 
-	    displ = BasicDisplay(win,serv,vid)
+	    self.dbg(whoami() + ' relay: ' + str(relay))
+
+	    displ = BasicDisplay(win,serv,vid,relay)
 	    self.displays.append(displ)
 
 	if scr_mode != 1: self.displays[0].setActive()
@@ -753,17 +792,22 @@ class Indoor(FloatLayout):
     def startScreenTiming(self):
 	"start screen timer"
         self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
-        if SCREEN_SAVER > 0: Clock.schedule_once(self.return2clock, SCREEN_SAVER)
+	if self.screenTimerEvent is not None: Clock.unschedule(self.screenTimerEvent)
+        if SCREEN_SAVER > 0: self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
 
 	send_command('./unblank.sh')
 	send_command('./backlight.sh 0')
+
 
     def return2clock(self, *args):
 	"swat screen to CLOCK"
 	global current_call
 
 #        self.dbg('2 clock')
-	if current_call is None:
+        Clock.unschedule(self.screenTimerEvent)
+	self.screenTimerEvent = None
+
+	if current_call is None and self.scrmngr.current == CAMERA_SCR:
             self.scrmngr.current = WATCH_SCR
 	    if BACK_LIGHT: send_command('./backlight.sh 1')
 
@@ -771,7 +815,8 @@ class Indoor(FloatLayout):
     def finishScreenTiming(self):
 	"finist screen timer"
         self.dbg('ScrnLeave')
-        Clock.unschedule(self.return2clock)
+        Clock.unschedule(self.screenTimerEvent)
+	self.screenTimerEvent = None
 
 
     def callback_btn_docall(self):
@@ -806,7 +851,7 @@ class Indoor(FloatLayout):
 
     def gotResponse(self, req, results):
 	"relay result"
-#        print 'Relay: ', req, results
+        print 'Relay: ', req, results
         pass
 
 
@@ -816,9 +861,11 @@ class Indoor(FloatLayout):
 
 	if len(procs) == 0: return
 
-	target = self.displays[active_display_index].serverAddr
-
-        req = UrlRequest('http://' + target + '/cgi-bin/remctrl.sh?id=' + relay,\
+#	target = self.displays[active_display_index].serverAddr
+#
+#        req = UrlRequest('http://' + target + '/cgi-bin/remctrl.sh?id=' + relay,\
+#                on_success = self.gotResponse, timeout = 5)
+        req = UrlRequest(self.displays[active_display_index].relayCmd + relay,\
                 on_success = self.gotResponse, timeout = 5)
 
 
@@ -894,6 +941,7 @@ class Indoor(FloatLayout):
 ##	self._keyboard = VKeyboard(layout='qwerty')  #'azerty')
 ##	self._keyboard.bind(on_key_down=self._on_keyboard_down)
 
+	App.get_running_app().open_settings()
         print 'keyboard?'#, self._keyboard
 
 
@@ -1005,6 +1053,7 @@ class Indoor(FloatLayout):
         self.dbg('show players')
         for idx, proc in enumerate(procs):
             send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)])
+#	    self.displays[idx].setActive(False)
 
 	self.displays[active_display_index].setActive()
 
@@ -1091,17 +1140,102 @@ class IndoorApp(App):
 	    Config.get('kivy', 'keyboard_mode'),
 	    Config.get('kivy', 'keyboard_layout'))
         self.dbg(lbl)
+#	threading.Thread(target=self.flask_thread).start()
+
+	self.settings_cls = SettingsWithSidebar
+        self.use_kivy_settings = False
+#        setting = self.config.get('example', 'boolexample')
+
+#	self.config = config
+
         return Indoor()
 
+#    def flask_thread(self):
+#        self.dbg('START flask')
+#	app.run(host='0.0.0.0',port=7080,debug=False)
+#        self.dbg('FLASK')
+
     def on_start(self):
-        self.dbg('START')
+        self.dbg(whoami())
 
     def on_stop(self):
-        self.dbg('STOP')
+        self.dbg(whoami())
 #        lib.destroy()
 
     def dbg(self, info):
         print info
+
+    def build_config(self, config):
+	"build config"
+        self.dbg(whoami())
+#        config.setdefaults('example', {
+#            'boolexample': True,
+#            'numericexample': 10,
+#            'optionexample': 'Analysis type1',
+#            'stringexample': 'PO12345' })
+	config.setdefaults('command', {
+	    'app_name': 'Indoor 2.0',
+	    'screen_saver': 1,
+	    'back_light': 1 })
+	config.setdefaults('sip', {
+	    'sip_username': '',
+	    'sip_p4ssw0rd': '',
+	    'sip_server_addr': '',
+	    'sip_ident_addr': '',
+	    'sip_ident_info': '',
+	    'sip_stun_server': '' })
+	config.setdefaults('devices', {
+	    'sound_device_in': '',
+	    'sound_device_out': '' })
+	config.setdefaults('gui', {
+	    'screen_mode': 0,
+	    'btn_call_none': '',
+	    'btn_docall': 'Do Call',
+	    'btn_call_answer': 'Answer Call',
+	    'btn_call_hangup': 'HangUp Call',
+	    'btn_door_1': 'Open Door 1',
+	    'btn_door_2': 'Open Door 2' })
+	config.setdefaults('common', {
+	    'server_ip_address_1': '192.168.1.250',
+	    'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
+	    'server_ip_address_2': '192.168.1.251:8080',
+	    'server_stream_2': 'http://192.168.1.241:8080/stream/video.mjpeg',
+	    'server_ip_address_3': '192.168.1.251:8080',
+	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
+	    'server_ip_address_4': '192.168.1.250' })
+
+    def build_settings(self, settings):
+	"display settings screen"
+        self.dbg(whoami())
+#        settings.add_json_panel('Parameter of Analysis',
+#                                self.config,
+#                                data=settings_json)
+        settings.add_json_panel('Application',
+                                self.config,
+                                data=settings_app)
+        settings.add_json_panel('GUI',
+                                self.config,
+                                data=settings_gui)
+        settings.add_json_panel('Outdoor Devices',
+                                self.config,
+                                data=settings_outdoor)
+        settings.add_json_panel('Audio Device',
+                                self.config,
+                                data=settings_audio)
+        settings.add_json_panel('SIP',
+                                self.config,
+                                data=settings_sip)
+
+    def on_config_change(self, config, section, key, value):
+	"config item changed"
+        self.dbg(whoami())
+        print config, section, key, value
+
+    def close_settings(self, *args):
+	"close button pressed"
+        self.dbg(whoami())
+        super(IndoorApp, self).close_settings()
+	scrmngr.current = CAMERA_SCR
 
 
 # ###############################################################

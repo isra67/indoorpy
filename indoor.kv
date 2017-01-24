@@ -100,7 +100,9 @@
         SetScreen:
             name: 'settings'
             id: settings
-            on_pre_enter: root.finishScreenTiming()
+#            on_pre_enter: root.finishScreenTiming()
+            on_enter: root.finishScreenTiming()
+            on_leave: root.showPlayers()
 
 
 #CLOCK:

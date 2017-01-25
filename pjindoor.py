@@ -28,8 +28,6 @@ from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.textinput import TextInput
-#from kivy.uix.togglebutton import ToggleButton
-#from kivy.uix.vkeyboard import VKeyboard
 from kivy.uix.widget import Widget
 
 from math import cos, sin, pi
@@ -47,33 +45,7 @@ import time
 
 import pjsua as pj
 
-from settingsjson import settings_json, settings_app, settings_gui, settings_audio, settings_outdoor, settings_sip
-
-#import my_lib as m_ss
-
-#import threading
-#
-#from flask import Flask
-#import pyscreenshot as ImageGrab
-#app = Flask(__name__)
-#
-#
-#@app.route('/')
-#def hello_world():
-#   return 'Hello World.'
-#
-#
-#@app.route('/desktop.jpeg')
-#def desktop():
-#    screen = ImageGrab.grab()
-#    buf = StringIO()
-#    screen.save(buf, 'JPEG', quality=75)
-#    buf.seek(0)
-#    return send_file(buf, mimetype='image/jpeg')
-
-
-
-#Builder.load_file('main1.kv')
+from settingsjson import settings_app, settings_gui, settings_audio, settings_outdoor, settings_sip
 
 
 ###############################################################
@@ -91,6 +63,11 @@ APP_NAME = '-Indoor-2.0-'
 
 SCREEN_SAVER = 0
 BACK_LIGHT = False
+BRIGHTNESS = 100
+
+BACK_LIGHT_SCRIPT = './backlight.sh'
+UNBLANK_SCRIPT = './unblank.sh'
+BRIGHTNESS_SCRIPT = './brightness.sh'
 
 BUTTON_CALL_ANSWER = '=Answer Call='
 BUTTON_CALL_HANGUP = '=HangUp Call='
@@ -261,91 +238,6 @@ class SetScreen(Screen):
 	"build init form for basic settings"
         super(SetScreen, self).__init__(**kwargs)
 
-	return
-
-	self.staticIP = True
-
-	self.labelIpAddr = Label(text='IP address')
-	self.ipAddr = TextInput()
-	self.labelNetMask = Label(text='Network mask')
-	self.netMask = TextInput()
-	self.labelGatewayAddr = Label(text='Gateway')
-	self.gatewayAddr = TextInput()
-
-	self.gl = GridLayout(cols=2, row_force_default=True, row_default_height=40, padding=10)
-	self.gl.cols = 2
-	self.add_widget(self.gl)
-
-	btn = Button(text='Run!')
-        btn.bind(on_press=self.commandRun)
-	self.gl.add_widget(btn)
-
-	btno = Button(text='Back!')
-        btno.bind(on_press=self.commandBack)
-	self.gl.add_widget(btno)
-
-	checkbox = CheckBox(group='IPTYPE', text='Static IP', state='down')
-	checkbox.bind(active=self.on_checkbox_active)
-	self.gl.add_widget(checkbox)
-	self.gl.add_widget(Label(text='STATIC IP ADDRESS'))
-	checkbox2 = CheckBox(group='IPTYPE', text='DHCP')
-#	checkbox2.bind(active=self.on_checkbox_active)
-	self.gl.add_widget(checkbox2)
-	self.gl.add_widget(Label(text='DHCP ADDRESS'))
-
-	self.setStaticIP(None)
-
-#	btn1 = ToggleButton(text='Static IP', group='IP_TYPE')
-#        btn1.bind(on_press=self.staticIP)
-#	btn2 = ToggleButton(text='DHCP', group='IP_TYPE', state='down')
-#        btn2.bind(on_press=self.dhcpIP)
-#	gl.add_widget(btn1)
-#	gl.add_widget(btn2)
-
-
-    def on_checkbox_active(self, checkbox, value):
-	"switch between DHCP/STATIC IP"
-	if value:
-	    self.setStaticIP(None)
-	else:
-	    self.setDhcpIP(None)
-
-
-    def setStaticIP(self, event):
-	"add items to form"
-	print whoami()
-
-	self.gl.add_widget(self.labelIpAddr)
-	self.gl.add_widget(self.ipAddr)
-	self.gl.add_widget(self.labelNetMask)
-	self.gl.add_widget(self.netMask)
-	self.gl.add_widget(self.labelGatewayAddr)
-	self.gl.add_widget(self.gatewayAddr)
-
-
-    def setDhcpIP(self, event):
-	"remove items from form"
-	print whoami()
-
-	self.gl.remove_widget(self.ipAddr)
-	self.gl.remove_widget(self.labelIpAddr)
-	self.gl.remove_widget(self.netMask)
-	self.gl.remove_widget(self.labelNetMask)
-	self.gl.remove_widget(self.gatewayAddr)
-	self.gl.remove_widget(self.labelGatewayAddr)
-
-
-    def commandRun(self, event):
-	"save values"
-	print whoami()
-	mainLayout.settings_callback()
-
-
-    def commandBack(self, event):
-	"cancel form"
-	print whoami()
-	mainLayout.cancel_settings()
-
 
 # ##############################################################################
 
@@ -360,7 +252,6 @@ class Ticks(Widget):
         self.bind(pos = self.update_clock)
         self.bind(size = self.update_clock)
 
-#        self.ln.text = '[color=0000f0] ' + APP_NAME + ' [/color]'
         self.ln.pos = self.pos
         self.ln.size = self.size
         self.ln.font_size = '32sp'
@@ -465,7 +356,6 @@ class MyCallCallback(pj.CallCallback):
             if main_state is not pj.CallState.CALLING:
 		docall_button_global.color = COLOR_ANSWER_CALL
 		docall_button_global.text = BUTTON_CALL_ANSWER
-#		mainLayout.findTargetWindow(self.call.info().remote_uri)
 
         if main_state == pj.CallState.DISCONNECTED:
             docall_button_global.color = COLOR_NOMORE_CALL
@@ -523,7 +413,7 @@ class BasicDisplay:
 	self.relayCmd = str(relaycmd)
 	self.playerPosition = [i for i in self.winPosition]
 
-	delta = 2 #1
+	delta = 2
 	self.playerPosition[0] += delta
 	self.playerPosition[1] += delta
 	self.playerPosition[2] -= delta
@@ -534,7 +424,6 @@ class BasicDisplay:
 
 	self.color = None
 	self.frame = None
-#	self.actScreen = mainLayout
 	self.actScreen = mainLayout.ids.camera
 
 	self.printInfo()
@@ -637,10 +526,19 @@ class Indoor(FloatLayout):
             self.dbg('ERROR 3: read config file!')
 
         try:
-	    bl = int(config.get('command', 'back_light'))
-	    if bl > 0: BACK_LIGHT = True
+	    BACK_LIGHT = config.getboolean('command', 'back_light')
         except:
             self.dbg('ERROR 4: read config file!')
+	    BACK_LIGHT = True
+
+        try:
+	    br = int(config.get('command', 'brightness'))
+	    if br > 0 and br < 256: BRIGHTNESS = int(br * 2.55)
+        except:
+            self.dbg('ERROR 5: read config file!')
+	    BRIGHTNESS = 255
+
+	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
 
         try:
             BUTTON_DO_CALL = config.get('gui', 'btn_docall')
@@ -777,15 +675,12 @@ class Indoor(FloatLayout):
 	    if p.poll() is not None:
 		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead\nscreen:" + self.scrmngr.current+'/'+CAMERA_SCR )
 		try:
-#		    send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
-#		    send_command(CMD_KILL + str(p.pid))
 		    p.kill()
 		except:
 		    pass
 		procs[idx] = self.displays[idx].initPlayer()
 
 		if self.scrmngr.current not in CAMERA_SCR:
-		    #self.displays[idx].hidePlayer()
 		    self.hidePlayers()
 
 
@@ -795,8 +690,8 @@ class Indoor(FloatLayout):
 	if self.screenTimerEvent is not None: Clock.unschedule(self.screenTimerEvent)
         if SCREEN_SAVER > 0: self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
 
-	send_command('./unblank.sh')
-	send_command('./backlight.sh 0')
+	send_command(UNBLANK_SCRIPT)
+	send_command(BACK_LIGHT_SCRIPT + ' 0')
 
 
     def return2clock(self, *args):
@@ -809,7 +704,7 @@ class Indoor(FloatLayout):
 
 	if current_call is None and self.scrmngr.current == CAMERA_SCR:
             self.scrmngr.current = WATCH_SCR
-	    if BACK_LIGHT: send_command('./backlight.sh 1')
+	    if BACK_LIGHT: send_command(BACK_LIGHT_SCRIPT + ' 1')
 
 
     def finishScreenTiming(self):
@@ -951,8 +846,8 @@ class Indoor(FloatLayout):
 	    if value == -1:
 		self.callback_set_options()
 	    else:
-#		self.finishScreenTiming()
 		Clock.schedule_once(self.return2clock, .2)
+#        	send_dbus(DBUS_PLAYERNAME + str(active_display_index), ['status'])
 	else :
             self.dbg('Voice: ' + str(value))
 
@@ -1140,43 +1035,33 @@ class IndoorApp(App):
 	    Config.get('kivy', 'keyboard_mode'),
 	    Config.get('kivy', 'keyboard_layout'))
         self.dbg(lbl)
-#	threading.Thread(target=self.flask_thread).start()
 
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
-#        setting = self.config.get('example', 'boolexample')
-
-#	self.config = config
 
         return Indoor()
 
-#    def flask_thread(self):
-#        self.dbg('START flask')
-#	app.run(host='0.0.0.0',port=7080,debug=False)
-#        self.dbg('FLASK')
 
-    def on_start(self):
-        self.dbg(whoami())
+#    def on_start(self):
+#        self.dbg(whoami())
+#
+#    def on_stop(self):
+#        self.dbg(whoami())
+##        lib.destroy()
 
-    def on_stop(self):
-        self.dbg(whoami())
-#        lib.destroy()
 
     def dbg(self, info):
         print info
 
+
     def build_config(self, config):
 	"build config"
         self.dbg(whoami())
-#        config.setdefaults('example', {
-#            'boolexample': True,
-#            'numericexample': 10,
-#            'optionexample': 'Analysis type1',
-#            'stringexample': 'PO12345' })
 	config.setdefaults('command', {
 	    'app_name': 'Indoor 2.0',
 	    'screen_saver': 1,
-	    'back_light': 1 })
+	    'brightness': 100,
+	    'back_light': True })
 	config.setdefaults('sip', {
 	    'sip_username': '',
 	    'sip_p4ssw0rd': '',
@@ -1204,12 +1089,10 @@ class IndoorApp(App):
 	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
 	    'server_ip_address_4': '192.168.1.250' })
 
+
     def build_settings(self, settings):
 	"display settings screen"
         self.dbg(whoami())
-#        settings.add_json_panel('Parameter of Analysis',
-#                                self.config,
-#                                data=settings_json)
         settings.add_json_panel('Application',
                                 self.config,
                                 data=settings_app)
@@ -1226,16 +1109,32 @@ class IndoorApp(App):
                                 self.config,
                                 data=settings_sip)
 
+
     def on_config_change(self, config, section, key, value):
 	"config item changed"
+	global BRIGHTNESS
+
         self.dbg(whoami())
         print config, section, key, value
 
+	if section in 'command' and key in 'brightness':
+	    br = int(value)
+	    BRIGHTNESS = int(br * 2.55)
+	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+
+
     def close_settings(self, *args):
 	"close button pressed"
+	global scrmngr
+
         self.dbg(whoami())
         super(IndoorApp, self).close_settings()
 	scrmngr.current = CAMERA_SCR
+
+
+#    def on_close(self, *args):
+#	"close settings"
+#        self.dbg(whoami())
 
 
 # ###############################################################

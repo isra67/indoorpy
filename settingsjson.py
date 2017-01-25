@@ -1,31 +1,6 @@
 import json
 
-settings_json = json.dumps([
-    {'type': 'title',
-     'title': 'Analysis parameters'},
-    {'type': 'bool',
-     'title': 'Add accessin number list?',
-     'desc': 'Choose if you want to add an Accession list to your analysis',
-     'section': 'example',
-     'key': 'boolexample'},
-    {'type': 'numeric',
-     'title': 'Select maximum number of protei to display',
-     'desc': 'This will determine maximum protein displayed on graph',
-     'section': 'example',
-     'key': 'numericexample'},
-    {'type': 'options',
-     'title': 'Selection your Analysis option',
-     'desc': 'Choose for an analysis option',
-     'section': 'example',
-     'key': 'optionsexample',
-     'options': ['Analysis type1', 'Analysis type2', 'Analysis type3']},
-    {'type': 'string',
-     'title': 'Type specific accession number to display',
-     'desc': 'Type some accession numbers to display',
-     'section': 'example',
-     'key': 'stringexample'}
-])
-
+# basic app settings
 settings_app = json.dumps([
     {'type': 'title',
      'title': 'Application parameters'},
@@ -34,6 +9,12 @@ settings_app = json.dumps([
      'desc': 'Type the application name to display',
      'section': 'command',
      'key': 'app_name'},
+    {'type': 'options',
+     'title': 'Brightness',
+     'desc': 'Choose for the brightness value',
+     'section': 'command',
+     'key': 'brightness',
+     'options': ['20', '40', '60', '80', '100']},
     {'type': 'numeric',
      'title': 'Screen saver',
      'desc': 'Select time to swap do screen saver mode (0-120 min)',
@@ -46,6 +27,7 @@ settings_app = json.dumps([
      'key': 'back_light'}
 ])
 
+# set GUI
 settings_gui = json.dumps([
     {'type': 'title',
      'title': 'GUI parameters'},
@@ -87,6 +69,7 @@ settings_gui = json.dumps([
      'key': 'btn_door_2'}
 ])
 
+# set outdoor devices
 settings_outdoor = json.dumps([
     {'type': 'title',
      'title': 'Outdoor devices'},
@@ -132,6 +115,7 @@ settings_outdoor = json.dumps([
      'key': 'server_stream_4'}
 ])
 
+# audio settings
 settings_audio = json.dumps([
     {'type': 'title',
      'title': 'Audio device'},
@@ -147,6 +131,7 @@ settings_audio = json.dumps([
      'key': 'sound_device_out'}
 ])
 
+# SIP settings
 settings_sip = json.dumps([
     {'type': 'title',
      'title': 'SIP parameters'},

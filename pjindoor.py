@@ -10,7 +10,6 @@ import kivy
 kivy.require('1.9.0')
 
 from kivy.app import App
-#from kivy.base import runTouchApp
 from kivy.clock import Clock
 from kivy.config import Config
 from kivy.config import ConfigParser
@@ -35,6 +34,7 @@ from math import cos, sin, pi
 import atexit
 import datetime
 import inspect
+import json
 
 import os
 import signal
@@ -45,7 +45,8 @@ import time
 
 import pjsua as pj
 
-from settingsjson import settings_app, settings_gui, settings_audio, settings_outdoor, settings_sip
+from settingsjson import settings_app, settings_gui, settings_audio,\
+		settings_outdoor, settings_sip, settings_system, settings_about
 
 
 ###############################################################
@@ -56,18 +57,21 @@ from settingsjson import settings_app, settings_gui, settings_audio, settings_ou
 
 CMD_KILL = 'kill -9 '
 
-#CONFIG_FILE = 'indoor.ini'
-CONFIG_FILE = 'indoorconfig.ini'
+CONFIG_FILE = 'indoor.ini'
+#CONFIG_FILE = 'indoorconfig.ini'
 
 APP_NAME = '-Indoor-2.0-'
 
 SCREEN_SAVER = 0
 BACK_LIGHT = False
 BRIGHTNESS = 100
+WATCHES = 'analog'
 
+DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
 BACK_LIGHT_SCRIPT = './backlight.sh'
 UNBLANK_SCRIPT = './unblank.sh'
 BRIGHTNESS_SCRIPT = './brightness.sh'
+SYSTEMINFO_SCRIPT = './sysinfo.sh'
 
 BUTTON_CALL_ANSWER = '=Answer Call='
 BUTTON_CALL_HANGUP = '=HangUp Call='
@@ -78,6 +82,7 @@ BUTTON_DOOR_2 = '=Open Door 2='
 
 WAIT_SCR = 'waitscr'
 WATCH_SCR = 'clock'
+DIGITAL_SCR = 'digiclock'
 CAMERA_SCR = 'camera'
 SETTINGS_SCR = 'settings'
 
@@ -169,13 +174,12 @@ def stopWAV():
 
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
-#    cmd = ' '.join(map(str, ['./dbuscntrl.sh', dst] + args))
 
     errs = ''
     outs = ''
 
     try:
-	proc = subprocess.Popen(['./dbuscntrl.sh', dst] + args)
+	proc = subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args)
 	try:
 	    outs, errs = proc.communicate(timeout=2)
 	except TimeoutExpired:
@@ -184,8 +188,8 @@ def send_dbus(dst,args):
     except:
 	pass
 
-    if errs: print whoami(), 'error:', errs
-    if outs: print whoami(), 'out:', outs
+#    if errs not in '': print whoami(), 'error:', errs
+#    if outs not in '': print whoami(), 'out:', outs
 
 
 # ##############################################################################
@@ -197,6 +201,16 @@ def send_command(cmd):
         os.system(cmd)
     except:
 	pass
+
+
+# ###############################################################
+
+def get_info(cmd):
+    "get information from shell script"
+    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    print whoami(), cmd, ':', out
+    return out
 
 
 # ###############################################################
@@ -219,7 +233,12 @@ class DigiClock(Label):
         Clock.schedule_interval(self.update, 1)
 
     def update(self, *args):
-        self.text = datetime.datetime.now().strftime("%d.%m.%Y     %H:%M:%S")
+	t = datetime.datetime.now()
+        self.text = t.strftime("%H:%M:%S")
+#	if int(t.strftime('%S')) % 2:
+#            self.text = t.strftime("%H:%M:%S")
+#	else:
+#            self.text = t.strftime("%H:%M.%S")
 
 
 # ##############################################################################
@@ -233,10 +252,7 @@ class MyClockWidget(FloatLayout):
 
 class SetScreen(Screen):
     "Settings screen"
-
-    def __init__(self, **kwargs):
-	"build init form for basic settings"
-        super(SetScreen, self).__init__(**kwargs)
+    pass
 
 
 # ##############################################################################
@@ -490,7 +506,7 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER
+        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES
         global main_state, docall_button_global, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
@@ -519,11 +535,24 @@ class Indoor(FloatLayout):
                 self.dbg('ERROR 2: read config file!')
 
         try:
-	    APP_NAME = config.get('command', 'app_name')
-	    screen_saver = int(config.get('command', 'screen_saver'))
-	    if screen_saver > 0 and screen_saver < 120: SCREEN_SAVER = screen_saver * 60
+	    APP_NAME = config.get('about', 'app_name')
         except:
             self.dbg('ERROR 3: read config file!')
+
+        try:
+	    value = config.get('command', 'watches')
+	    if value in 'analog': WATCHES = value
+	    else: WATCHES = 'digital'
+            self.dbg(WATCHES)
+        except:
+            self.dbg('ERROR 7: read config file!')
+
+        try:
+	    screen_saver = int(config.get('command', 'screen_saver'))
+	    if screen_saver > 0 and screen_saver < 120: SCREEN_SAVER = screen_saver * 60
+            self.dbg(SCREEN_SAVER)
+        except:
+            self.dbg('ERROR 6: read config file!')
 
         try:
 	    BACK_LIGHT = config.getboolean('command', 'back_light')
@@ -590,12 +619,13 @@ class Indoor(FloatLayout):
 	    win = wins[i]
 	    serv = cfg.get('common', 'server_ip_address_'+str(i + 1))
 	    vid = cfg.get('common', 'server_stream_'+str(i + 1))
-	    try:
-		relay = cfg.get('common', 'server_relay_'+str(i + 1))
-	    except:
-		relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
-
-	    self.dbg(whoami() + ' relay: ' + str(relay))
+	    relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
+#	    try:
+#		relay = cfg.get('common', 'server_relay_'+str(i + 1))
+#	    except:
+#		relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
+#
+#	    self.dbg(whoami() + ' relay: ' + str(relay))
 
 	    displ = BasicDisplay(win,serv,vid,relay)
 	    self.displays.append(displ)
@@ -644,25 +674,21 @@ class Indoor(FloatLayout):
 
     def info_state_loop(self, dt):
 	"state loop"
-        global current_call, docall_button_global, BUTTON_DO_CALL
-#
+        global current_call, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
+
         if current_call is not None: self.info_state = 0
-#
+
         if self.info_state == 0:
             self.info_state = 1
-#            self.ids.btnDoor1.text = BUTTON_DOOR_1
-#            self.ids.btnDoor2.text = BUTTON_DOOR_2
+	    send_command(UNBLANK_SCRIPT)
         elif self.info_state == 1:
             self.info_state = 2
-#            self.ids.btnDoor2.text = datetime.datetime.now().strftime("%H:%M")
+#	    get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + '0 status')
         elif self.info_state == 2:
-            self.info_state = 3
-#            self.ids.btnDoor1.text = BUTTON_DOOR_1 #'(c) Inoteska'
-#            self.ids.btnDoor2.text = BUTTON_DOOR_2
-            if current_call is None: docall_button_global.text = BUTTON_DO_CALL
-        elif self.info_state == 3:
             self.info_state = 0
-#            self.ids.btnDoor1.text = datetime.datetime.now().strftime("%d.%m.%Y")
+            if current_call is None:
+		docall_button_global.text = BUTTON_DO_CALL
+		docall_button_global.color = COLOR_BUTTON_BASIC
 
 
     def infinite_loop(self, dt):
@@ -686,6 +712,8 @@ class Indoor(FloatLayout):
 
     def startScreenTiming(self):
 	"start screen timer"
+	global SCREEN_SAVER
+
         self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
 	if self.screenTimerEvent is not None: Clock.unschedule(self.screenTimerEvent)
         if SCREEN_SAVER > 0: self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
@@ -696,15 +724,16 @@ class Indoor(FloatLayout):
 
     def return2clock(self, *args):
 	"swat screen to CLOCK"
-	global current_call
+	global current_call, BACK_LIGHT, WATCHES
 
 #        self.dbg('2 clock')
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
 
 	if current_call is None and self.scrmngr.current == CAMERA_SCR:
-            self.scrmngr.current = WATCH_SCR
-	    if BACK_LIGHT: send_command(BACK_LIGHT_SCRIPT + ' 1')
+	    if WATCHES in 'analog': self.scrmngr.current = WATCH_SCR
+	    else: self.scrmngr.current = DIGITAL_SCR
+	    if BACK_LIGHT is False: send_command(BACK_LIGHT_SCRIPT + ' 1')
 
 
     def finishScreenTiming(self):
@@ -780,15 +809,6 @@ class Indoor(FloatLayout):
 
     def settings_callback(self):
 	"callback after closing settings dialog -> restart APP"
-#        global transparency_event, transparency_value
-
-#        transparency_value = 16
-##        self.rstTransparency(200)
-#        if transparency_event is None:
-#            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
-
-        self.dbg('TODO: Save Settings!')
-
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
 	send_command('pkill python')
@@ -804,40 +824,9 @@ class Indoor(FloatLayout):
 
 	if len(procs) == 0: return
 
-#	self.hidePlayers()
-
-#	for idx, p in enumerate(procs):
-#	    if p.poll() is not None:
-#		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead")
-#		try:
-#		    p.kill()
-#		    os.system(CMD_KILL + str(p.pid))
-#		except:
-#		    pass
-#	procs = []
-#	self.displays = []
-#
-#	try:
-#	    os.system('pkill omxplayer')
-#	    os.system('pkill dbus-daemon')
-#	except:
-#	    pass
-
         self.scrmngr.current = SETTINGS_SCR
-#	self.finishScreenTiming()
-
-#	for idx, d in enumerate(self.displays):
-#	    d.hidePlayer()
-
-#	self.hidePlayers()
-
-#	self.gl = GridLayout(cols=2, row_force_default=True, row_default_height=80)
-
-##	self._keyboard = VKeyboard(layout='qwerty')  #'azerty')
-##	self._keyboard.bind(on_key_down=self._on_keyboard_down)
 
 	App.get_running_app().open_settings()
-        print 'keyboard?'#, self._keyboard
 
 
     def callback_set_voice(self, value):
@@ -847,7 +836,7 @@ class Indoor(FloatLayout):
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
-#        	send_dbus(DBUS_PLAYERNAME + str(active_display_index), ['status'])
+		get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + str(active_display_index) + ' status')
 	else :
             self.dbg('Voice: ' + str(value))
 
@@ -858,12 +847,9 @@ class Indoor(FloatLayout):
 	print whoami()
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 
-	if len(procs) == 0: return
+#	if not self.collide_point(*touch.pos): return
 
-#	if touch.is_double_tap:
-##	    self.finishScreenTiming()
-#	    self.callback_set_options()
-#	    return
+	if len(procs) == 0: return
 
 	if touch.is_double_tap:
 	    print 'double touch: ', touch.x, touch.y, touch.is_double_tap
@@ -889,60 +875,13 @@ class Indoor(FloatLayout):
 	self.displays[active_display_index].setActive()
 
 
-#    def _keyboard_closed(self):
-#	print 'keyboard closed'
-#        self.cancel_settings()
-#
-#	self.settings_callback()
-
-
-#    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-#	print 'kbd_down', keyboard, keycode, text, modifiers
-
-#	if str(keycode) == str('escape') or keycode == 'layout':
-##	    self._keyboard_closed()
-#	    print 'ESC'
-#	    return False
-#	elif str(keycode) == str('backspace'):
-#	    print 'BSP'
-#	    self.ipaddress.text = self.ipaddress.text[:-1]
-#	    return False
-#
-#	if str(text) in ['0','1','2','3','4','5','6','7','8','9','.']:
-#	    self.ipaddress.text += str(text)
-#        return True
-
-
     def cancel_settings(self):
 	"cancel settings dialog"
-	print whoami(),
-#	self.remove_widget(self.gl)
-#        self.remove_widget(self._keyboard)
-#        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+	print whoami()
 
-	self.gl = None
-#        self._keyboard = None
-
-        self.scrmngr.current = CAMERA_SCR # WATCH_SCR
+        self.scrmngr.current = CAMERA_SCR
 
 
-#    def main_touch(self):
-#	"touch on the screen"
-#        global transparency_event, transparency_value, current_call
-#
-#        Clock.unschedule(self.infinite_event)
-#        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
-#
-#        if current_call is not None:
-#            self.rstTransparency()
-#            return
-#
-##        transparency_value = 200
-#        self.rstTransparency(200)
-#        if transparency_event is None:
-#            transparency_event = Clock.schedule_interval(self.transparency_loop, .05)
-#
-#
     def showPlayers(self):
 	"d-bus command to show video"
         self.dbg('show players')
@@ -1039,6 +978,9 @@ class IndoorApp(App):
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
 
+	self.changeInet = False
+#	self.dhcp = self.config.get('system', 'inet')
+#	print self.dhcp
         return Indoor()
 
 
@@ -1057,10 +999,11 @@ class IndoorApp(App):
     def build_config(self, config):
 	"build config"
         self.dbg(whoami())
+
 	config.setdefaults('command', {
-	    'app_name': 'Indoor 2.0',
 	    'screen_saver': 1,
 	    'brightness': 100,
+	    'watches': 'analog',
 	    'back_light': True })
 	config.setdefaults('sip', {
 	    'sip_username': '',
@@ -1089,38 +1032,122 @@ class IndoorApp(App):
 	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
 	    'server_ip_address_4': '192.168.1.250' })
 
+	s = get_info(SYSTEMINFO_SCRIPT).split()
+	print whoami(), s
+	config.setdefaults('about', {
+	    'app_name': 'Indoor 2.0',
+	    'app_ver': '2.0.0.0',
+	    'serial': s[1] })
+
+	config.setdefaults('system', {
+	    'inet': s[2],
+	    'ipaddress': s[3],
+	    'gateway': s[6],
+	    'netmask': s[4],
+	    'broadcast': s[5],
+	    'network': s[7],
+	    'dns': s[8] })
+#	config.add_callback(self.conf_callback,'system')
+
+
+#    def conf_callback(self, section, key, value):
+#	"callback for section 'system'"
+#        self.dbg(whoami()+': '+section+' '+key+' '+value)
+
 
     def build_settings(self, settings):
 	"display settings screen"
+	global config
+
         self.dbg(whoami())
+
+	if self.changeInet == False:
+	    s = get_info(SYSTEMINFO_SCRIPT).split()
+	    config.set('about', 'serial', s[1])
+	    config.set('system', 'inet', s[2])
+	    config.set('system', 'ipaddress', s[3])
+	    config.set('system', 'netmask', s[4])
+	    config.set('system', 'broadcast', s[5])
+	    config.set('system', 'gateway', s[6])
+	    config.set('system', 'network', s[7])
+	    config.set('system', 'dns', s[8])
+
+	# enable|disable change parameters
+	vDhcp = config.get('system', 'inet') in 'dhcp'
+	sys = json.loads(settings_system)
+	system = []
+	for s in sys:
+	    item = s
+	    if s['type'] not in 'title' and s['key'] not in 'inet': item['disabled'] = vDhcp
+	    system.append(item)
+#	    print item
+	system = json.dumps(system)
+
         settings.add_json_panel('Application',
-                                self.config,
+                                config,
                                 data=settings_app)
         settings.add_json_panel('GUI',
-                                self.config,
+                                config,
                                 data=settings_gui)
         settings.add_json_panel('Outdoor Devices',
-                                self.config,
+                                config,
                                 data=settings_outdoor)
         settings.add_json_panel('Audio Device',
-                                self.config,
+                                config,
                                 data=settings_audio)
         settings.add_json_panel('SIP',
-                                self.config,
+                                config,
                                 data=settings_sip)
+        settings.add_json_panel('System',
+                                config,
+                                data=system)
+        settings.add_json_panel('About',
+                                config,
+                                data=settings_about)
 
 
     def on_config_change(self, config, section, key, value):
 	"config item changed"
-	global BRIGHTNESS
+	global SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES
 
-        self.dbg(whoami())
-        print config, section, key, value
+	token = (section, key)
+        print whoami(),':', section, key, value
 
-	if section in 'command' and key in 'brightness':
-	    br = int(value)
-	    BRIGHTNESS = int(br * 2.55)
+	if token == ('command', 'brightness'):
+	    try:
+		v = int(value)
+		BRIGHTNESS = int(v * 2.55)
+	    except:
+		BRIGHTNESS = 255
 	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+	elif token == ('command', 'screen_saver'):
+	    try:
+		v = int(value)
+		SCREEN_SAVER = v * 60
+	    except:
+		SCREEN_SAVER = 0
+	elif token == ('command', 'back_light'):
+	    try:
+		v = int(value)
+		BACK_LIGHT = v > 0
+	    except:
+		BACK_LIGHT = False
+	elif token == ('command', 'watches'):
+	    if value in 'analog': WATCHES = value
+	    else: WATCHES = 'digital'
+	elif section in 'system' and (key in ['ipaddress', 'netmask', 'broadcast', 'gateway', 'network', 'dns']):
+	    if config.get('system', 'inet') in 'dhcp':
+		print 'disable changes', config.get(section, key),  self.config.get(section, key)
+		config.set(section, key, self.config.get(section, key))
+		config.write()
+	    else:
+		print 'enable changes', config.get('system', 'ipaddress'),  self.config.get('system', 'ipaddress')
+		self.changeInet = True
+	elif token == ('system', 'inet'):
+	    self.changeInet = True
+	    config.write()
+	    self.destroy_settings()
+	    self.open_settings()
 
 
     def close_settings(self, *args):
@@ -1129,7 +1156,20 @@ class IndoorApp(App):
 
         self.dbg(whoami())
         super(IndoorApp, self).close_settings()
+
+	if self.changeInet:
+	    # TODO: start script
+	    send_command('pkill omxplayer')
+	    send_command('pkill dbus-daemon')
+	    send_command('pkill python')
+
+	    App.get_running_app().stop()
+	    return
+
+	self.changeInet = False
 	scrmngr.current = CAMERA_SCR
+
+#	self.destroy_settings()
 
 
 #    def on_close(self, *args):

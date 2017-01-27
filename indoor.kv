@@ -42,8 +42,15 @@
             on_touch_down: _screen_manager.current = 'camera'
 
             BoxLayout:
-#                DigiClockWidget:
                 MyClockWidget:
+
+        Screen:
+            name: 'digiclock'
+            id: digiclock
+            on_touch_down: _screen_manager.current = 'camera'
+
+            BoxLayout:
+                DigiClockWidget:
 
         Screen:
             name: 'camera'
@@ -109,7 +116,7 @@
 
 <DigiClockWidget>:
     DigiClock:
-        font_size: self.height/5
+        font_size: self.height/4
         color: 0.3,0.6,0.9,0.9
 
 

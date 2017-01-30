@@ -33,6 +33,7 @@ from math import cos, sin, pi
 
 import atexit
 import datetime
+from datetime import timedelta
 import inspect
 import json
 
@@ -175,6 +176,19 @@ def stopWAV():
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
 
+    try:
+	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args, stderr=subprocess.STDOUT)
+	# do something with output
+	print whoami(), dst,args, ':', 'out:',proc
+    except subprocess.CalledProcessError as e:
+        print whoami(), dst,args, ':', 'ERR:',e.output
+
+#    proc = subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args, stdout=subprocess.PIPE, shell=True)
+#    (out, err) = proc.communicate()
+#    print whoami(), dst,args, ':', 'out:',out, 'err:',err
+
+    return
+
     errs = ''
     outs = ''
 
@@ -187,9 +201,6 @@ def send_dbus(dst,args):
 	    print whoami(), 'timeout'
     except:
 	pass
-
-#    if errs not in '': print whoami(), 'error:', errs
-#    if outs not in '': print whoami(), 'out:', outs
 
 
 # ##############################################################################
@@ -209,7 +220,7 @@ def get_info(cmd):
     "get information from shell script"
     proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=True)
     (out, err) = proc.communicate()
-    print whoami(), cmd, ':', out
+    print whoami(), cmd, ':', out, err
     return out
 
 
@@ -367,8 +378,7 @@ class MyCallCallback(pj.CallCallback):
         if main_state == pj.CallState.INCOMING:
 		mainLayout.findTargetWindow(self.call.info().remote_uri)
 
-        if main_state == pj.CallState.INCOMING or\
-           main_state == pj.CallState.EARLY:
+        if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
             if main_state is not pj.CallState.CALLING:
 		docall_button_global.color = COLOR_ANSWER_CALL
 		docall_button_global.text = BUTTON_CALL_ANSWER
@@ -597,7 +607,7 @@ class Indoor(FloatLayout):
 
     def init_screen(self, cfg):
 	"define app screen"
-	print whoami()
+	self.dbg(whoami())
 
 	scr_mode = cfg.get('gui', 'screen_mode')
 	if scr_mode == None or scr_mode == '': scr_mode = 0
@@ -640,7 +650,7 @@ class Indoor(FloatLayout):
 	"sip phone init"
         global acc
 
-	print whoami()
+	self.dbg(whoami())
 
         # Create library instance
         lib = pj.Lib()
@@ -747,14 +757,12 @@ class Indoor(FloatLayout):
 	"make outgoing call"
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
 
-	print whoami()
+	self.dbg(whoami())
 
 	if len(procs) == 0: return
 
 	target = self.displays[active_display_index].serverAddr
 #        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
-
-        self.rstTransparency()
 
         if current_call is not None:
 #	    txt = BUTTON_DO_CALL
@@ -797,23 +805,12 @@ class Indoor(FloatLayout):
 	"door 1 button"
         self.dbg(BUTTON_DOOR_1)
         self.setRelayRQ('relay1')
-        self.rstTransparency()
 
 
     def callback_btn_door2(self):
 	"door 2 button"
         self.dbg(BUTTON_DOOR_2)
         self.setRelayRQ('relay2')
-        self.rstTransparency()
-
-
-    def settings_callback(self):
-	"callback after closing settings dialog -> restart APP"
-	send_command('pkill omxplayer')
-	send_command('pkill dbus-daemon')
-	send_command('pkill python')
-
-	App.get_running_app().stop()
 
 
     def callback_set_options(self):
@@ -836,7 +833,7 @@ class Indoor(FloatLayout):
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
-		get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + str(active_display_index) + ' status')
+#		get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + str(active_display_index) + ' status')
 	else :
             self.dbg('Voice: ' + str(value))
 
@@ -844,7 +841,8 @@ class Indoor(FloatLayout):
     def on_touch_up(self, touch):
 	"process touch up event"
 	global active_display_index
-	print whoami()
+
+	self.dbg(whoami())
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 
 #	if not self.collide_point(*touch.pos): return
@@ -875,16 +873,10 @@ class Indoor(FloatLayout):
 	self.displays[active_display_index].setActive()
 
 
-    def cancel_settings(self):
-	"cancel settings dialog"
-	print whoami()
-
-        self.scrmngr.current = CAMERA_SCR
-
-
     def showPlayers(self):
 	"d-bus command to show video"
-        self.dbg('show players')
+	self.dbg(whoami())
+
         for idx, proc in enumerate(procs):
             send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)])
 #	    self.displays[idx].setActive(False)
@@ -894,14 +886,15 @@ class Indoor(FloatLayout):
 
     def hidePlayers(self):
 	"d-bus command to hide video"
-        self.dbg('hide players')
+	self.dbg(whoami())
+
         for idx, proc in enumerate(procs):
 	    self.displays[idx].hidePlayer()
             send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)])
 
     def setButtons(self, visible):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
-	print whoami()
+	self.dbg(whoami())
 
 	if visible:
 	    self.ids.btnScreenClock.text = '+'
@@ -930,35 +923,6 @@ class Indoor(FloatLayout):
 	    self.displays[active_display_index].setActive()
 
 
-    def transparency_loop(self, dt):
-	"unhide loop"
-#        self.dbg('transparency ' + str(transparency_value))
-        global transparency_value, transparency_event
-
-#        if transparency_event is None: return
-
-        if transparency_value > 0 and transparency_value < 250:
-            transparency_value -= 8
-
-        for idx, proc in enumerate(procs):
-            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255 - transparency_value)])
-
-        if transparency_value <= 0 and transparency_event is not None:
-            Clock.unschedule(transparency_event)
-            transparency_event = None
-	    transparency_value = 0
-
-
-    def rstTransparency(self, val = 0):
-	"set transparency"
-#        global transparency_value
-	self.dbg('rstTransparency')
-	return
-
-        transparency_value = val
-        self.transparency_loop(0)
-
-
     def dbg(self, info):
 	"debug outputs"
         print info
@@ -979,8 +943,7 @@ class IndoorApp(App):
         self.use_kivy_settings = False
 
 	self.changeInet = False
-#	self.dhcp = self.config.get('system', 'inet')
-#	print self.dhcp
+
         return Indoor()
 
 
@@ -1037,6 +1000,7 @@ class IndoorApp(App):
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
+	    'uptime': '---',
 	    'serial': s[1] })
 
 	config.setdefaults('system', {
@@ -1047,12 +1011,15 @@ class IndoorApp(App):
 	    'broadcast': s[5],
 	    'network': s[7],
 	    'dns': s[8] })
-#	config.add_callback(self.conf_callback,'system')
 
 
-#    def conf_callback(self, section, key, value):
-#	"callback for section 'system'"
-#        self.dbg(whoami()+': '+section+' '+key+' '+value)
+    def get_uptime_value(self):
+	"retrieve system uptime"
+	with open('/proc/uptime', 'r') as f:
+	    uptime_seconds = float(f.readline().split()[0])
+	    uptime_string = str(timedelta(seconds = uptime_seconds))
+
+	return uptime_string
 
 
     def build_settings(self, settings):
@@ -1071,6 +1038,8 @@ class IndoorApp(App):
 	    config.set('system', 'gateway', s[6])
 	    config.set('system', 'network', s[7])
 	    config.set('system', 'dns', s[8])
+
+	config.set('about', 'uptime', self.get_uptime_value())
 
 	# enable|disable change parameters
 	vDhcp = config.get('system', 'inet') in 'dhcp'
@@ -1168,13 +1137,6 @@ class IndoorApp(App):
 
 	self.changeInet = False
 	scrmngr.current = CAMERA_SCR
-
-#	self.destroy_settings()
-
-
-#    def on_close(self, *args):
-#	"close settings"
-#        self.dbg(whoami())
 
 
 # ###############################################################

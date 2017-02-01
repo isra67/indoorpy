@@ -14,34 +14,29 @@ from kivy.clock import Clock
 from kivy.config import Config
 from kivy.config import ConfigParser
 from kivy.core.window import Window
-from kivy.graphics import Color, Line, Rectangle, Ellipse
 #from kivy.lang import Builder
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 
-from math import cos, sin, pi
+#from math import cos, sin, pi
 
 import atexit
 import datetime
 from datetime import timedelta
-#import inspect
 import json
 
-import os
+#import os
 import signal
 import socket
 import subprocess
-import sys
+#import sys
 import time
 
 import pjsua as pj
@@ -150,95 +145,6 @@ def kill_subprocesses():
 #
 # ###############################################################
 
-class DigiClockWidget(FloatLayout):
-    "Clock class - digital"
-    pass
-
-
-# ##############################################################################
-
-class DigiClock(Label):
-    "Label with date & time"
-    def __init__(self, **kwargs):
-        super(DigiClock, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 1)
-
-    def update(self, *args):
-	t = datetime.datetime.now()
-        self.text = t.strftime("%H:%M:%S")
-#	if int(t.strftime('%S')) % 2:
-#            self.text = t.strftime("%H:%M:%S")
-#	else:
-#            self.text = t.strftime("%H:%M.%S")
-
-
-# ##############################################################################
-
-class MyClockWidget(FloatLayout):
-    "Clock class - analog"
-    pass
-
-
-# ##############################################################################
-
-class SetScreen(Screen):
-    "Settings screen"
-    pass
-
-
-# ##############################################################################
-
-class Ticks(Widget):
-    "Analog watches"
-    galleryIndex = 0
-    gallery = []
-    ln = Label()
-
-    def __init__(self, **kwargs):
-        super(Ticks, self).__init__(**kwargs)
-        self.bind(pos = self.update_clock)
-        self.bind(size = self.update_clock)
-
-        self.ln.pos = self.pos
-        self.ln.size = self.size
-        self.ln.font_size = '32sp'
-        self.ln.text_size = self.size
-        self.ln.halign = 'right'
-        self.ln.valign = 'bottom'
-        self.ln.markup = True
-
-        Clock.schedule_interval(self.update_clock, 1)
-
-
-    def update_clock(self, *args):
-        time = datetime.datetime.now()
-        self.canvas.clear()
-
-        self.remove_widget(self.ln)
-        self.ln.pos = self.pos
-        self.ln.size = self.size
-        self.ln.text = '[color=0000f0] ' + APP_NAME + ' [/color]'
-        self.ln.text_size = self.size
-        self.add_widget(self.ln)
-
-        with self.canvas:
-            Color(.1, .1, .6, .15)
-            Ellipse(pos={self.y + 19,self.width / 4}, size={self.width / 2, self.height - 38})
-
-            Color(0.6, 0.6, 0.9)
-            Line(points = [self.center_x, self.center_y, self.center_x+0.7*self.r*sin(pi/30*time.second),
-                self.center_y+0.7*self.r*cos(pi/30*time.second)], width=1, cap="round")
-            Color(0.5, 0.5, 0.8)
-            Line(points = [self.center_x, self.center_y, self.center_x+0.6*self.r*sin(pi/30*time.minute),
-                self.center_y+0.6*self.r*cos(pi/30*time.minute)], width=2, cap="round")
-            Color(0.4, 0.4, 0.7)
-            th = time.hour*60 + time.minute
-            Line(points = [self.center_x, self.center_y, self.center_x+0.5*self.r*sin(pi/360*th),
-            self.center_y+0.5*self.r*cos(pi/360*th)], width=3, cap="round")
-
-
-# ##############################################################################
-
 class MyAccountCallback(pj.AccountCallback):
     "Callback to receive events from account"
     def __init__(self, account=None):
@@ -328,9 +234,9 @@ class MyCallCallback(pj.CallCallback):
             call_slot = self.call.info().conf_slot
             pj.Lib.instance().conf_connect(call_slot, 0)
             pj.Lib.instance().conf_connect(0, call_slot)
-            print "Media is now active"
-        else:
-            print "Media is inactive"
+#            print "Media is now active"
+#        else:
+#            print "Media is inactive"
 
 
 def make_call(uri):
@@ -781,6 +687,16 @@ class Indoor(FloatLayout):
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 
 
+    def restart_player_window(self, idx):
+	"process is bad - restart"
+	self.dbg(whoami()+': '+str(idx))
+
+	self.displays[idx].hidePlayer()
+	send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
+	procs[idx].kill()
+	send_command(CMD_KILL + str(procs[idx].pid))
+
+
     def on_touch_up(self, touch):
 	"process touch up event"
 	global active_display_index
@@ -793,12 +709,13 @@ class Indoor(FloatLayout):
 	if len(procs) == 0: return
 
 	if touch.is_double_tap:
-	    print 'double touch: ', touch.x, touch.y, touch.is_double_tap
-            send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(0)])
-	    self.displays[active_display_index].hidePlayer()
-	    send_command("ps aux | grep omxplayer"+str(active_display_index)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
-	    procs[active_display_index].kill()
-	    send_command(CMD_KILL + str(procs[active_display_index].pid))
+##	    print 'double touch: ', touch.x, touch.y, touch.is_double_tap
+##            send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(0)])
+#	    self.displays[active_display_index].hidePlayer()
+#	    send_command("ps aux | grep omxplayer"+str(active_display_index)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
+#	    procs[active_display_index].kill()
+#	    send_command(CMD_KILL + str(procs[active_display_index].pid))
+	    self.restart_player_window(active_display_index)
 	    return
 
 	self.startScreenTiming()
@@ -821,8 +738,8 @@ class Indoor(FloatLayout):
 	self.dbg(whoami())
 
         for idx, proc in enumerate(procs):
-            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)])
-#	    self.displays[idx].setActive(False)
+            if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		self.restart_player_window(idx)
 
 	self.displays[active_display_index].setActive()
 
@@ -833,7 +750,9 @@ class Indoor(FloatLayout):
 
         for idx, proc in enumerate(procs):
 	    self.displays[idx].hidePlayer()
-            send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)])
+            if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
+		self.restart_player_window(idx)
+
 
     def setButtons(self, visible):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
@@ -987,7 +906,7 @@ class IndoorApp(App):
 	elif vol > 20: vol = 40
 	else: vol = 20
 	AUDIO_VOLUME = vol
-	print s, vol
+#	print s, vol
 
 	return vol
 

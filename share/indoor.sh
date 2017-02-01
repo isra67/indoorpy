@@ -17,6 +17,7 @@ pustaj() {
 sleep 1
 
 ## working dir
-#cd /home/pi/is-kivy-test
+cd /root/test_stream/indoor
+./hid_init.sh
 
 pustaj >& /dev/null &

@@ -61,7 +61,6 @@ def whoami():
 
 def playWAV(dt):
     "start play"
-#    global RING_WAV
     send_command(RING_WAV)
 
 
@@ -83,25 +82,9 @@ def send_dbus(dst,args):
 	print whoami(), dst,args, ':', 'out:',proc
     except subprocess.CalledProcessError as e:
         print whoami(), dst,args, ':', 'ERR:',e.output
+	return False
 
-#    proc = subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args, stdout=subprocess.PIPE, shell=True)
-#    (out, err) = proc.communicate()
-#    print whoami(), dst,args, ':', 'out:',out, 'err:',err
-
-    return
-
-    errs = ''
-    outs = ''
-
-    try:
-	proc = subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args)
-	try:
-	    outs, errs = proc.communicate(timeout=2)
-	except TimeoutExpired:
-	    proc.kill()
-	    print whoami(), 'timeout'
-    except:
-	pass
+    return True
 
 
 # ##############################################################################

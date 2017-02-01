@@ -135,7 +135,7 @@ settings_audio = json.dumps([
      'desc': 'Choose for the audio volume value [%]',
      'section': 'devices',
      'key': 'volume',
-     'options': ['-100', '-66', '-33', '0', '33', '66', '100']}
+     'options': ['20', '40', '60', '80', '100']}
 ])
 
 # SIP settings

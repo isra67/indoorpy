@@ -65,12 +65,15 @@ SCREEN_SAVER = 0
 BACK_LIGHT = False
 BRIGHTNESS = 100
 WATCHES = 'analog'
+AUDIO_VOLUME = 100
 
 DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
 BACK_LIGHT_SCRIPT = './backlight.sh'
 UNBLANK_SCRIPT = './unblank.sh'
 BRIGHTNESS_SCRIPT = './brightness.sh'
 SYSTEMINFO_SCRIPT = './sysinfo.sh'
+VOLUMEINFO_SCRIPT = './volumeinfo.sh'
+SETVOLUME_SCRIPT = './setvolume.sh'
 
 BUTTON_CALL_ANSWER = '=Answer Call='
 BUTTON_CALL_HANGUP = '=HangUp Call='
@@ -315,7 +318,7 @@ class MyCallCallback(pj.CallCallback):
 	    current_call = self.call
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-	    mainLayout.findTargetWindow('') #self.call.info().remote_uri)
+	    mainLayout.findTargetWindow('')
 
 
     def on_media_state(self):
@@ -325,9 +328,9 @@ class MyCallCallback(pj.CallCallback):
             call_slot = self.call.info().conf_slot
             pj.Lib.instance().conf_connect(call_slot, 0)
             pj.Lib.instance().conf_connect(0, call_slot)
-#            print "Media is now active"
-#        else:
-#            print "Media is inactive"
+            print "Media is now active"
+        else:
+            print "Media is inactive"
 
 
 def make_call(uri):
@@ -738,6 +741,7 @@ class Indoor(FloatLayout):
     def callback_set_options(self):
 	"start settings"
 	global procs
+
         self.dbg(self.ids.btnSetOptions.text)
 	print whoami()
 
@@ -750,14 +754,31 @@ class Indoor(FloatLayout):
 
     def callback_set_voice(self, value):
 	"volume buttons"
-	if self.ids.btnScreenClock.text == 'C':
-	    if value == -1:
+	global AUDIO_VOLUME, current_call
+
+	self.dbg(whoami() + ': ' + str(value) + self.ids.btnScreenClock.text)
+
+	if current_call is None:
+#	if self.ids.btnScreenClock.text == 'C':
+	    if value == 1:
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
 #		get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + str(active_display_index) + ' status')
 	else :
-            self.dbg('Voice: ' + str(value))
+	    vol = AUDIO_VOLUME + int(value) * 20
+	    if vol > 80: vol = 100
+	    elif vol > 60: vol = 80
+	    elif vol > 40: vol = 60
+	    elif vol > 20: vol = 40
+	    else: vol = 20
+	    AUDIO_VOLUME = vol
+
+	    self.ids.btnScreenClock.disabled = vol < 40
+	    self.ids.btnSetOptions.disabled = vol > 80
+
+            self.dbg('Voice: ' + str(value) + ' >> '+ str(AUDIO_VOLUME))
+	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 
 
     def on_touch_up(self, touch):
@@ -816,14 +837,20 @@ class Indoor(FloatLayout):
 
     def setButtons(self, visible):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
+	global AUDIO_VOLUME
+
 	self.dbg(whoami())
 
 	if visible:
-	    self.ids.btnScreenClock.text = '+'
-	    self.ids.btnSetOptions.text = '-'
+	    self.ids.btnScreenClock.text = '-'
+	    self.ids.btnSetOptions.text = '+'
+	    self.ids.btnScreenClock.disabled = AUDIO_VOLUME < 40
+	    self.ids.btnSetOptions.disabled = AUDIO_VOLUME > 80
 	else:
 	    self.ids.btnScreenClock.text = 'C'
 	    self.ids.btnSetOptions.text = 'S'
+	    self.ids.btnScreenClock.disabled = False
+	    self.ids.btnSetOptions.disabled = False
 
 
     def findTargetWindow(self, addr):
@@ -865,6 +892,7 @@ class IndoorApp(App):
         self.use_kivy_settings = False
 
 	self.changeInet = False
+	self.get_volume_value()
 
         return Indoor()
 
@@ -900,7 +928,7 @@ class IndoorApp(App):
 	config.setdefaults('devices', {
 	    'sound_device_in': '',
 	    'sound_device_out': '',
-	    'volume': 0 })
+	    'volume': 100 })
 	config.setdefaults('gui', {
 	    'screen_mode': 0,
 	    'btn_call_none': '',
@@ -945,6 +973,25 @@ class IndoorApp(App):
 	return uptime_string
 
 
+    def get_volume_value(self):
+	"retrieve current volume level"
+	global AUDIO_VOLUME
+
+	s = get_info(VOLUMEINFO_SCRIPT).split()
+	vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0))
+
+	# available volume steps:
+	if vol > 80: vol = 100
+	elif vol > 60: vol = 80
+	elif vol > 40: vol = 60
+	elif vol > 20: vol = 40
+	else: vol = 20
+	AUDIO_VOLUME = vol
+	print s, vol
+
+	return vol
+
+
     def build_settings(self, settings):
 	"display settings screen"
 	global config
@@ -963,6 +1010,7 @@ class IndoorApp(App):
 	    config.set('system', 'dns', s[8])
 
 	config.set('about', 'uptime', self.get_uptime_value())
+	config.set('devices', 'volume', AUDIO_VOLUME)
 
 	# enable|disable change parameters
 	vDhcp = config.get('system', 'inet') in 'dhcp'
@@ -1000,7 +1048,7 @@ class IndoorApp(App):
 
     def on_config_change(self, config, section, key, value):
 	"config item changed"
-	global SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES
+	global SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES, VOLUME
 
 	token = (section, key)
         print whoami(),':', section, key, value
@@ -1027,6 +1075,9 @@ class IndoorApp(App):
 	elif token == ('command', 'watches'):
 	    if value in 'analog': WATCHES = value
 	    else: WATCHES = 'digital'
+	elif token == ('devices', 'volume'):
+	    AUDIO_VOLUME = value
+	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 	elif section in 'system' and (key in ['ipaddress', 'netmask', 'broadcast', 'gateway', 'network', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
 		print 'disable changes', config.get(section, key),  self.config.get(section, key)

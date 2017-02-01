@@ -81,7 +81,7 @@
 	                text: 'C'
 	                font_size: '24dp'
 	                size_hint: .25, 1
-	                on_press: root.callback_set_voice(1)
+	                on_press: root.callback_set_voice(-1)
 	            Button:
 	                id: btnDoor1
 	                text: 'Open Door 1'
@@ -102,7 +102,7 @@
 	                text: 'S'
 	                font_size: '24dp'
 	                size_hint: .25, 1
-	                on_press: root.callback_set_voice(-1)
+	                on_press: root.callback_set_voice(1)
 
         SetScreen:
             name: 'settings'

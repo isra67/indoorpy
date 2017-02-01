@@ -1,3 +1,8 @@
 #!/bin/python
 
-from my_screensaver import *
+
+# ### definitions for settings screen ###
+from settingsjson import *
+
+# ### tools ###
+from itools import *

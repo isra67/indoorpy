@@ -6,7 +6,7 @@ settings_app = json.dumps([
      'title': 'Application parameters'},
     {'type': 'options',
      'title': 'Brightness',
-     'desc': 'Choose for the brightness value',
+     'desc': 'Choose for the brightness value [%]',
      'section': 'command',
      'key': 'brightness',
      'options': ['20', '40', '60', '80', '100']},
@@ -129,7 +129,13 @@ settings_audio = json.dumps([
      'title': 'OUT device',
      'desc': 'Type output device address',
      'section': 'devices',
-     'key': 'sound_device_out'}
+     'key': 'sound_device_out'},
+    {'type': 'options',
+     'title': 'Volume',
+     'desc': 'Choose for the audio volume value [%]',
+     'section': 'devices',
+     'key': 'volume',
+     'options': ['-100', '-66', '-33', '0', '33', '66', '100']}
 ])
 
 # SIP settings

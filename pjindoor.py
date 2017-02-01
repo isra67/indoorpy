@@ -34,7 +34,7 @@ from math import cos, sin, pi
 import atexit
 import datetime
 from datetime import timedelta
-import inspect
+#import inspect
 import json
 
 import os
@@ -46,8 +46,7 @@ import time
 
 import pjsua as pj
 
-from settingsjson import settings_app, settings_gui, settings_audio,\
-		settings_outdoor, settings_sip, settings_system, settings_about
+from my_lib import *
 
 
 ###############################################################
@@ -58,8 +57,7 @@ from settingsjson import settings_app, settings_gui, settings_audio,\
 
 CMD_KILL = 'kill -9 '
 
-CONFIG_FILE = 'indoor.ini'
-#CONFIG_FILE = 'indoorconfig.ini'
+CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 
 APP_NAME = '-Indoor-2.0-'
 
@@ -88,8 +86,8 @@ CAMERA_SCR = 'camera'
 SETTINGS_SCR = 'settings'
 
 COLOR_BUTTON_BASIC = .9,.9,.9,1
-COLOR_ANSWER_CALL = .9,.9,0,1 #1,0,0,1
-COLOR_HANGUP_CALL = 0,0,.9,1 #1,1,0,1
+COLOR_ANSWER_CALL = .9,.9,0,1
+COLOR_HANGUP_CALL = 0,0,.9,1
 COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
 
 ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
@@ -105,9 +103,6 @@ docall_button_global = None
 active_display_index = 0
 
 ring_event = None
-APLAYER = 'aplay'
-APARAMS = '-q -N -f cd -D plughw:1,0'
-RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
 
 TRANSPARENCY_VIDEO_CMD = ['setalpha']
 
@@ -144,84 +139,6 @@ def kill_subprocesses():
             proc.kill()
 	except:
 	    pass
-
-
-# ##############################################################################
-
-def whoami():
-    "returns name of function"
-    return inspect.stack()[1][3]
-
-
-# ##############################################################################
-
-def playWAV(dt):
-    "start play"
-#    global RING_WAV
-    send_command(RING_WAV)
-
-
-# ##############################################################################
-
-def stopWAV():
-    "stop play"
-    global ring_event
-    Clock.unschedule(ring_event)
-    ring_event = None
-    send_command('pkill -9 ' + APLAYER)
-
-
-# ##############################################################################
-
-def send_dbus(dst,args):
-    "send DBUS command to omxplayer"
-
-    try:
-	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args, stderr=subprocess.STDOUT)
-	# do something with output
-	print whoami(), dst,args, ':', 'out:',proc
-    except subprocess.CalledProcessError as e:
-        print whoami(), dst,args, ':', 'ERR:',e.output
-
-#    proc = subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args, stdout=subprocess.PIPE, shell=True)
-#    (out, err) = proc.communicate()
-#    print whoami(), dst,args, ':', 'out:',out, 'err:',err
-
-    return
-
-    errs = ''
-    outs = ''
-
-    try:
-	proc = subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args)
-	try:
-	    outs, errs = proc.communicate(timeout=2)
-	except TimeoutExpired:
-	    proc.kill()
-	    print whoami(), 'timeout'
-    except:
-	pass
-
-
-# ##############################################################################
-
-def send_command(cmd):
-    "send shell command"
-    print whoami(),':', cmd
-    try:
-        os.system(cmd)
-    except:
-	pass
-
-
-# ###############################################################
-
-def get_info(cmd):
-    "get information from shell script"
-    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=True)
-    (out, err) = proc.communicate()
-    print whoami(), cmd, ':', out, err
-    return out
 
 
 # ###############################################################
@@ -373,6 +290,8 @@ class MyCallCallback(pj.CallCallback):
             ring_event = Clock.schedule_interval(playWAV, 3.5)
             playWAV(3.5)
         else:
+	    Clock.unschedule(ring_event)
+	    ring_event = None
             stopWAV()
 
         if main_state == pj.CallState.INCOMING:
@@ -756,6 +675,7 @@ class Indoor(FloatLayout):
     def callback_btn_docall(self):
 	"make outgoing call"
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
+	global ring_event
 
 	self.dbg(whoami())
 
@@ -767,6 +687,8 @@ class Indoor(FloatLayout):
         if current_call is not None:
 #	    txt = BUTTON_DO_CALL
             if main_state == pj.CallState.EARLY:
+		Clock.unschedule(ring_event)
+		ring_event = None
                 stopWAV()
                 current_call.answer(200)
 		self.setButtons(True)
@@ -977,7 +899,8 @@ class IndoorApp(App):
 	    'sip_stun_server': '' })
 	config.setdefaults('devices', {
 	    'sound_device_in': '',
-	    'sound_device_out': '' })
+	    'sound_device_out': '',
+	    'volume': 0 })
 	config.setdefaults('gui', {
 	    'screen_mode': 0,
 	    'btn_call_none': '',

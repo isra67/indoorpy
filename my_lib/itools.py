@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 
+from constants import *
 
 ###############################################################
 #
@@ -22,28 +23,28 @@ import time
 #
 # ###############################################################
 
-CMD_KILL = 'kill -9 '
+#CMD_KILL = 'kill -9 '
 
-CONFIG_FILE = 'indoor.ini'
+#CONFIG_FILE = 'indoor.ini'
 
-SCREEN_SAVER = 0
-BACK_LIGHT = False
-BRIGHTNESS = 100
-WATCHES = 'analog'
+#SCREEN_SAVER = 0
+#BACK_LIGHT = False
+#BRIGHTNESS = 100
+#WATCHES = 'analog'
 
-DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
-BACK_LIGHT_SCRIPT = './backlight.sh'
-UNBLANK_SCRIPT = './unblank.sh'
-BRIGHTNESS_SCRIPT = './brightness.sh'
-SYSTEMINFO_SCRIPT = './sysinfo.sh'
+#DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
+#BACK_LIGHT_SCRIPT = './backlight.sh'
+#UNBLANK_SCRIPT = './unblank.sh'
+#BRIGHTNESS_SCRIPT = './brightness.sh'
+#SYSTEMINFO_SCRIPT = './sysinfo.sh'
 
-APLAYER = 'aplay'
-APARAMS = '-q -N -f cd -D plughw:0,0'
-RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
+#APLAYER = 'aplay'
+#APARAMS = '-q -N -f cd -D plughw:0,0'
+#RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
 
-TRANSPARENCY_VIDEO_CMD = ['setalpha']
+#TRANSPARENCY_VIDEO_CMD = ['setalpha']
 
-DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
+#DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
 
 
 # ###############################################################
@@ -80,6 +81,8 @@ def send_dbus(dst,args):
 	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args, stderr=subprocess.STDOUT)
 	# do something with output
 	print whoami(), dst,args, ':', 'out:',proc
+
+	time.sleep(0.1)
     except subprocess.CalledProcessError as e:
         print whoami(), dst,args, ':', 'ERR:',e.output
 	return False

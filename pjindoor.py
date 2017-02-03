@@ -88,9 +88,7 @@ class MyAccountCallback(pj.AccountCallback):
             call.answer(486, "Busy")
             return
 
-        print "Incoming call from ", call.info().remote_uri
-	mainLayout.findTargetWindow(call.info().remote_uri)
-
+#        print "Incoming call from ", call.info().remote_uri
         current_call = call
 
         call_cb = MyCallCallback(current_call)
@@ -114,32 +112,24 @@ class MyCallCallback(pj.CallCallback):
         global current_call, ring_event, transparency_value
         global main_state, mainLayout, docall_button_global
 
-	print whoami(), ring_event
         print "Call with", self.call.info().remote_uri,
-        print "is", self.call.info().state_text, self.call.info().state,
+        print "is", self.call.info().state_text, #self.call.info().state,
         print "last code =", self.call.info().last_code,
         print "(" + self.call.info().last_reason + ")"
 
         main_state = self.call.info().state
         transparency_value = 0
 
-#        if main_state == pj.CallState.DISCONNECTED:
-#            current_call = None
-#	    mainLayout.setButtons(False)
-##            print 'Current call is', current_call
-
         if main_state == pj.CallState.EARLY:
 	    if not ring_event:
 		ring_event = Clock.schedule_interval(playWAV, 3.5)
 		playWAV(3.5)
+		mainLayout.findTargetWindow(self.call.info().remote_uri)
         else:
 	    if ring_event:
 		Clock.unschedule(ring_event)
 		ring_event = None
 		stopWAV()
-
-        if main_state == pj.CallState.INCOMING:
-	    mainLayout.findTargetWindow(self.call.info().remote_uri)
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
             if main_state is not pj.CallState.CALLING:
@@ -152,6 +142,7 @@ class MyCallCallback(pj.CallCallback):
             docall_button_global.color = COLOR_NOMORE_CALL
             docall_button_global.text = BUTTON_DO_CALL
 	    mainLayout.startScreenTiming()
+	    mainLayout.showPlayers()
 
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
@@ -161,7 +152,7 @@ class MyCallCallback(pj.CallCallback):
 	    current_call = self.call
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-	    mainLayout.findTargetWindow('')
+#	    mainLayout.findTargetWindow('')
 
 
     def on_media_state(self):
@@ -238,6 +229,22 @@ class BasicDisplay:
 	    '--dbus_name',DBUS_PLAYERNAME + str(self.screenIndex),\
 	    '--layer', '1', '--no-keys', '--win', ','.join(self.playerPosition), self.streamUrl],\
 	    stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE) #, close_fds = True)
+
+
+    def resizePlayer(self,newpos=''):
+	"resize video player area"
+	global mainLayout
+
+	print whoami(), newpos
+
+	self.hidePlayer()
+
+	pos = []
+	if not len(newpos): pos = self.playerPosition
+	else: pos = newpos.split(',')
+
+        if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), ['setvideopos'] + pos):
+	    mainLayout.restart_player_window(self.screenIndex)
 
 
     def hidePlayer(self):
@@ -351,13 +358,15 @@ class Indoor(FloatLayout):
         docall_button_global.text = BUTTON_DO_CALL
         docall_button_global.color = COLOR_BUTTON_BASIC
 
+	self.infoText = self.ids.txtBasicLabel
+
+        self.init_myphone()
+
 	self.init_screen()
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
 	self.screenTimerEvent = None
-
-        self.init_myphone()
 
 
     def init_screen(self):
@@ -420,11 +429,6 @@ class Indoor(FloatLayout):
 	except:
             self.dbg('ERROR 10: read config file!')
 
-	if accounttype in 'peer-to-peer':
-            self.dbg('peer-to-peer')
-	else:
-            self.dbg('SIP server')
-
         try:
             # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb))
@@ -440,19 +444,22 @@ class Indoor(FloatLayout):
             lib.start()
 
 	    # Create local account
+            self.dbg(accounttype)
+
 	    if accounttype in 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 	    else:
 		s = str(config.get('sip', 'sip_server_addr'))
 		u = str(config.get('sip', 'sip_username'))
 		p = str(config.get('sip', 'sip_p4ssw0rd'))
+
+		acc_cfg = pj.AccountConfig(domain=s, username=u, password=p)
 #		acc_cfg = pj.AccountConfig()
 #		acc_cfg.id = "sip:" + u + "@" + s
 #		acc_cfg.reg_uri = "sip:" + s + ":5060"
 #		acc_cfg.proxy = [ "sip:" + s + ";lr" ]
 #		acc_cfg.auth_cred = [pj.AuthCred("*", u, p)]
 
-		acc_cfg = pj.AccountConfig(domain=s, username=u, password=p)
 		acc = lib.create_account(acc_cfg)
 		cb = MyAccountCallback(acc)
 		acc.set_callback(cb)
@@ -500,8 +507,8 @@ class Indoor(FloatLayout):
 		    pass
 		procs[idx] = self.displays[idx].initPlayer()
 
-		if self.scrmngr.current not in CAMERA_SCR:
-		    self.hidePlayers()
+#		if self.scrmngr.current not in CAMERA_SCR:
+#		    self.hidePlayers()
 
 
     def startScreenTiming(self):
@@ -549,7 +556,7 @@ class Indoor(FloatLayout):
 	target = self.displays[active_display_index].serverAddr
 #        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
 
-        if current_call is not None:
+        if current_call:
 #	    txt = BUTTON_DO_CALL
             if main_state == pj.CallState.EARLY:
 		Clock.unschedule(ring_event)
@@ -560,12 +567,14 @@ class Indoor(FloatLayout):
             else:
                 current_call.hangup()
 		self.setButtons(False)
+		self.showPlayers()
 	else:
 	    txt = '--> ' + str(active_display_index + 1)
 	    if make_call('sip:' + target + ':5060') is None: txt = txt + ' ERROR'
 
 	    docall_button_global.text = txt
 	    self.setButtons(True)
+	    self.showCallWindow()
 
 
     def gotResponse(self, req, results):
@@ -688,7 +697,9 @@ class Indoor(FloatLayout):
             if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
 		self.restart_player_window(idx)
 
-	self.displays[active_display_index].setActive()
+#	self.displays[active_display_index].setActive()
+	self.displays[active_display_index].resizePlayer()
+	self.infoText.text = ''
 
 
     def hidePlayers(self):
@@ -727,15 +738,43 @@ class Indoor(FloatLayout):
 	self.scrmngr.current = CAMERA_SCR
 	self.finishScreenTiming()
 
+	self.infoText.text = addr
+
 	if addr != '':
 	    active_display_index = 0
 	    for idx, d in enumerate(self.displays):
 		d.setActive(False)
 		if d.serverAddr in addr:
 		    active_display_index = idx
+		    self.dbg('target window:' + str(active_display_index))
+#		    self.displays[active_display_index].setActive()
+		    self.showCallWindow()
+		    return True
 
-#	    self.dbg('target window:' + str(active_display_index))
-	    self.displays[active_display_index].setActive()
+	self.showCallInfo(addr)
+	return False
+
+
+    def showCallInfo(self, info):
+	"video call window"
+
+	self.dbg(whoami() + ': ' + info)
+	self.hidePlayers()
+
+
+    def showCallWindow(self):
+	"video call window"
+	global active_display_index
+
+	self.dbg(whoami() + ': ' + str(active_display_index))
+	self.hidePlayers()
+
+	for idx, d in enumerate(self.displays):
+	    if idx is active_display_index:
+		self.dbg('target window:' + str(idx))
+		d.resizePlayer('30,10,770,420')
+        	if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		    self.restart_player_window(idx)
 
 
     def dbg(self, info):

@@ -29,8 +29,8 @@ from constants import *
 #
 # ###############################################################
 
-ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
-INACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.0)
+#ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
+#INACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.0)
 
 APP_LABEL = APP_NAME
 

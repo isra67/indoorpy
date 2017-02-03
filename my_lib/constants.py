@@ -66,6 +66,10 @@ docall_button_global = None
 
 active_display_index = 0
 
+APLAYER = 'aplay'
+APARAMS = '-q -N -f cd -D plughw:0,0'
+RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
+
 ring_event = None
 
 TRANSPARENCY_VIDEO_CMD = ['setalpha']

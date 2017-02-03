@@ -1,6 +1,12 @@
 #!/bin/python
 
 
+# ### constants & globals ###
+from constants import *
+
+# ### config ###
+from config import *
+
 # ### definitions for settings screen ###
 from settingsjson import *
 

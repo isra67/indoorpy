@@ -11,8 +11,7 @@ kivy.require('1.9.0')
 
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.config import Config
-from kivy.config import ConfigParser
+from kivy.config import Config, ConfigParser
 from kivy.core.window import Window
 #from kivy.lang import Builder
 from kivy.network.urlrequest import UrlRequest
@@ -25,18 +24,14 @@ from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
 
-#from math import cos, sin, pi
-
 import atexit
 import datetime
 from datetime import timedelta
 import json
 
-#import os
 import signal
 import socket
 import subprocess
-#import sys
 import time
 
 import pjsua as pj
@@ -50,71 +45,7 @@ from my_lib import *
 #
 # ###############################################################
 
-CMD_KILL = 'kill -9 '
-
-CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
-
-APP_NAME = '-Indoor-2.0-'
-
-SCREEN_SAVER = 0
-BACK_LIGHT = False
-BRIGHTNESS = 100
-WATCHES = 'analog'
-AUDIO_VOLUME = 100
-
-DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
-BACK_LIGHT_SCRIPT = './backlight.sh'
-UNBLANK_SCRIPT = './unblank.sh'
-BRIGHTNESS_SCRIPT = './brightness.sh'
-SYSTEMINFO_SCRIPT = './sysinfo.sh'
-VOLUMEINFO_SCRIPT = './volumeinfo.sh'
-SETVOLUME_SCRIPT = './setvolume.sh'
-
-BUTTON_CALL_ANSWER = '=Answer Call='
-BUTTON_CALL_HANGUP = '=HangUp Call='
-BUTTON_DO_CALL = '=Do Call='
-
-BUTTON_DOOR_1 = '=Open Door 1='
-BUTTON_DOOR_2 = '=Open Door 2='
-
-WAIT_SCR = 'waitscr'
-WATCH_SCR = 'clock'
-DIGITAL_SCR = 'digiclock'
-CAMERA_SCR = 'camera'
-SETTINGS_SCR = 'settings'
-
-COLOR_BUTTON_BASIC = .9,.9,.9,1
-COLOR_ANSWER_CALL = .9,.9,0,1
-COLOR_HANGUP_CALL = 0,0,.9,1
-COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
-
-ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
-INACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.0)
-
-LOG_LEVEL = 3
-current_call = None
-acc = None
-
-main_state = 0
-docall_button_global = None
-
-active_display_index = 0
-
-ring_event = None
-
-TRANSPARENCY_VIDEO_CMD = ['setalpha']
-
-DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
-
-transparency_value = 0
-transparency_event = None
-
-mainLayout = None
-scrmngr = None
-
-config = None
-
-procs = []
+config = get_config()
 
 
 # ###############################################################
@@ -361,27 +292,18 @@ class Indoor(FloatLayout):
 	scrmngr = self.scrmngr
 
         # nacitanie konfiguracie
-        config = ConfigParser()
-        try:
-            config.read('./' + CONFIG_FILE)
-        except:
-            self.dbg('ERROR 1: read config file!')
-
-            try:
-                config.read(dirname(__file__) + '/' + CONFIG_FILE)
-            except:
-                self.dbg('ERROR 2: read config file!')
-
         try:
 	    APP_NAME = config.get('about', 'app_name')
         except:
             self.dbg('ERROR 3: read config file!')
 
+	watches.APP_LABEL = APP_NAME
+
         try:
 	    value = config.get('command', 'watches')
 	    if value in 'analog': WATCHES = value
 	    else: WATCHES = 'digital'
-            self.dbg(WATCHES)
+#            self.dbg(WATCHES)
         except:
             self.dbg('ERROR 7: read config file!')
 
@@ -422,7 +344,7 @@ class Indoor(FloatLayout):
 
         self.init_myphone()
 
-	self.init_screen(config)
+	self.init_screen()
 
         self.ids.btnDoor1.text = BUTTON_DOOR_1
         self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
@@ -433,11 +355,13 @@ class Indoor(FloatLayout):
         docall_button_global.color = COLOR_BUTTON_BASIC
 
 
-    def init_screen(self, cfg):
+    def init_screen(self):
 	"define app screen"
+	global config
+
 	self.dbg(whoami())
 
-	scr_mode = cfg.get('gui', 'screen_mode')
+	scr_mode = config.get('gui', 'screen_mode')
 	if scr_mode == None or scr_mode == '': scr_mode = 0
 
 	self.scrmngr.current = WAIT_SCR
@@ -451,15 +375,15 @@ class Indoor(FloatLayout):
 	else:
 	    wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
 
-	self.dbg('scr_mode:' + str( scr_mode ) + ' wrange:' + str(len(wins)))
+#	self.dbg('scr_mode:' + str( scr_mode ) + ' wrange:' + str(len(wins)))
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
-	    serv = cfg.get('common', 'server_ip_address_'+str(i + 1))
-	    vid = cfg.get('common', 'server_stream_'+str(i + 1))
+	    serv = config.get('common', 'server_ip_address_'+str(i + 1))
+	    vid = config.get('common', 'server_stream_'+str(i + 1))
 	    relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 #	    try:
-#		relay = cfg.get('common', 'server_relay_'+str(i + 1))
+#		relay = config.get('common', 'server_relay_'+str(i + 1))
 #	    except:
 #		relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 #
@@ -662,7 +586,7 @@ class Indoor(FloatLayout):
 	"volume buttons"
 	global AUDIO_VOLUME, current_call
 
-	self.dbg(whoami() + ': ' + str(value) + self.ids.btnScreenClock.text)
+	self.dbg(whoami() + ': ' + str(value) + ' ' + self.ids.btnScreenClock.text)
 
 	if current_call is None:
 #	if self.ids.btnScreenClock.text == 'C':
@@ -683,7 +607,7 @@ class Indoor(FloatLayout):
 	    self.ids.btnScreenClock.disabled = vol < 40
 	    self.ids.btnSetOptions.disabled = vol > 80
 
-            self.dbg('Voice: ' + str(value) + ' >> '+ str(AUDIO_VOLUME))
+#            self.dbg('Voice: ' + str(value) + ' >> '+ str(AUDIO_VOLUME))
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 
 
@@ -801,6 +725,7 @@ class Indoor(FloatLayout):
 class IndoorApp(App):
     def build(self):
         self.dbg('Hello Indoor 2.0')
+
 #        Config.set('kivy', 'keyboard_mode','')
 	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
 	    Config.get('kivy', 'keyboard_mode'),
@@ -873,14 +798,20 @@ class IndoorApp(App):
 	    'uptime': '---',
 	    'serial': s[1] })
 
+	dns = ''
+	try:
+	    dns = s[8]
+	except:
+	    dns = ''
+
 	config.setdefaults('system', {
 	    'inet': s[2],
 	    'ipaddress': s[3],
 	    'gateway': s[6],
 	    'netmask': s[4],
-	    'broadcast': s[5],
-	    'network': s[7],
-	    'dns': s[8] })
+#	    'broadcast': s[5],
+#	    'network': s[7],
+	    'dns': dns })
 
 
     def get_uptime_value(self):
@@ -906,7 +837,6 @@ class IndoorApp(App):
 	elif vol > 20: vol = 40
 	else: vol = 20
 	AUDIO_VOLUME = vol
-#	print s, vol
 
 	return vol
 
@@ -917,30 +847,16 @@ class IndoorApp(App):
 
         self.dbg(whoami())
 
-	if self.changeInet == False:
-	    s = get_info(SYSTEMINFO_SCRIPT).split()
-	    config.set('about', 'serial', s[1])
-	    config.set('system', 'inet', s[2])
-	    config.set('system', 'ipaddress', s[3])
-	    config.set('system', 'netmask', s[4])
-	    config.set('system', 'broadcast', s[5])
-	    config.set('system', 'gateway', s[6])
-	    config.set('system', 'network', s[7])
-	    config.set('system', 'dns', s[8])
-
-	config.set('about', 'uptime', self.get_uptime_value())
-	config.set('devices', 'volume', AUDIO_VOLUME)
-
 	# enable|disable change parameters
 	vDhcp = config.get('system', 'inet') in 'dhcp'
 	sys = json.loads(settings_system)
-	system = []
+	asystem = []
 	for s in sys:
 	    item = s
 	    if s['type'] not in 'title' and s['key'] not in 'inet': item['disabled'] = vDhcp
-	    system.append(item)
-#	    print item
-	system = json.dumps(system)
+	    asystem.append(item)
+
+	asystem = json.dumps(asystem)
 
         settings.add_json_panel('Application',
                                 config,
@@ -959,10 +875,37 @@ class IndoorApp(App):
                                 data=settings_sip)
         settings.add_json_panel('System',
                                 config,
-                                data=system)
+                                data=asystem)
         settings.add_json_panel('About',
                                 config,
                                 data=settings_about)
+
+
+    def display_settings(self, settings):
+	"display settings"
+
+        self.dbg(whoami())
+
+	if self.changeInet == False:
+	    s = get_info(SYSTEMINFO_SCRIPT).split()
+	    dns = ''
+	    try:
+		dns = s[8]
+	    except:
+		dns = ''
+	    config.set('about', 'serial', s[1])
+	    config.set('system', 'inet', s[2])
+	    config.set('system', 'ipaddress', s[3])
+	    config.set('system', 'netmask', s[4])
+#	    config.set('system', 'broadcast', s[5])
+	    config.set('system', 'gateway', s[6])
+#	    config.set('system', 'network', s[7])
+	    config.set('system', 'dns', dns)
+
+	config.set('about', 'uptime', self.get_uptime_value())
+	config.set('devices', 'volume', AUDIO_VOLUME)
+
+        return super(IndoorApp, self).display_settings(settings)
 
 
     def on_config_change(self, config, section, key, value):
@@ -997,13 +940,14 @@ class IndoorApp(App):
 	elif token == ('devices', 'volume'):
 	    AUDIO_VOLUME = value
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
-	elif section in 'system' and (key in ['ipaddress', 'netmask', 'broadcast', 'gateway', 'network', 'dns']):
+#	elif section in 'system' and (key in ['ipaddress', 'netmask', 'broadcast', 'gateway', 'network', 'dns']):
+	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
-		print 'disable changes', config.get(section, key),  self.config.get(section, key)
+#		print 'disable changes', config.get(section, key),  self.config.get(section, key)
 		config.set(section, key, self.config.get(section, key))
 		config.write()
 	    else:
-		print 'enable changes', config.get('system', 'ipaddress'),  self.config.get('system', 'ipaddress')
+#		print 'enable changes', config.get('system', 'ipaddress'),  self.config.get('system', 'ipaddress')
 		self.changeInet = True
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
@@ -1019,14 +963,26 @@ class IndoorApp(App):
         self.dbg(whoami())
         super(IndoorApp, self).close_settings()
 
+	self.destroy_settings()
+
 	if self.changeInet:
-	    # TODO: start script
+	    # start script
+	    send_command(SETIPADDRESS_SCRIPT\
+#	    print get_info(SETIPADDRESS_SCRIPT\
+			 + ' ' + config.get('system', 'inet')\
+			 + ' ' + config.get('system', 'ipaddress')\
+			 + ' ' + config.get('system', 'netmask')\
+#			 + ' ' + config.get('system', 'broadcast')\
+			 + ' ' + config.get('system', 'gateway')\
+#			 + ' ' + config.get('system', 'network')\
+			 + ' ' + config.get('system', 'dns'))
+
 	    send_command('pkill omxplayer')
 	    send_command('pkill dbus-daemon')
 	    send_command('pkill python')
 
 	    App.get_running_app().stop()
-	    return
+#	    return
 
 	self.changeInet = False
 	scrmngr.current = CAMERA_SCR

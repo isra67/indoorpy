@@ -20,6 +20,7 @@ from math import cos, sin, pi
 
 import datetime
 
+from constants import *
 
 
 ###############################################################
@@ -31,6 +32,7 @@ import datetime
 ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
 INACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.0)
 
+APP_LABEL = APP_NAME
 
 # ###############################################################
 #
@@ -78,22 +80,20 @@ class SetScreen(Screen):
 
 class Ticks(Widget):
     "Analog watches"
-#    galleryIndex = 0
-#    gallery = []
-#    ln = Label()
+    ln = Label()
 
     def __init__(self, **kwargs):
         super(Ticks, self).__init__(**kwargs)
         self.bind(pos = self.update_clock)
         self.bind(size = self.update_clock)
 
-#        self.ln.pos = self.pos
-#        self.ln.size = self.size
-#        self.ln.font_size = '32sp'
-#        self.ln.text_size = self.size
-#        self.ln.halign = 'right'
-#        self.ln.valign = 'bottom'
-#        self.ln.markup = True
+        self.ln.pos = self.pos
+        self.ln.size = self.size
+        self.ln.font_size = '32sp'
+        self.ln.text_size = self.size
+        self.ln.halign = 'right'
+        self.ln.valign = 'bottom'
+        self.ln.markup = True
 
         Clock.schedule_interval(self.update_clock, 1)
 
@@ -102,12 +102,12 @@ class Ticks(Widget):
         time = datetime.datetime.now()
         self.canvas.clear()
 
-#        self.remove_widget(self.ln)
-#        self.ln.pos = self.pos
-#        self.ln.size = self.size
-##        self.ln.text = '[color=0000f0] ' + APP_NAME + ' [/color]'
-#        self.ln.text_size = self.size
-#        self.add_widget(self.ln)
+        self.remove_widget(self.ln)
+        self.ln.pos = self.pos
+        self.ln.size = self.size
+        self.ln.text = '[color=0000f0] ' + APP_LABEL + ' [/color]'
+        self.ln.text_size = self.size
+        self.add_widget(self.ln)
 
         with self.canvas:
             Color(.1, .1, .6, .15)

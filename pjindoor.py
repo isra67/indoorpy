@@ -113,6 +113,8 @@ class MyCallCallback(pj.CallCallback):
 	"Notification when call state has changed"
         global current_call, ring_event, transparency_value
         global main_state, mainLayout, docall_button_global
+
+	print whoami(), ring_event
         print "Call with", self.call.info().remote_uri,
         print "is", self.call.info().state_text, self.call.info().state,
         print "last code =", self.call.info().last_code,
@@ -121,21 +123,23 @@ class MyCallCallback(pj.CallCallback):
         main_state = self.call.info().state
         transparency_value = 0
 
-        if main_state == pj.CallState.DISCONNECTED:
-            current_call = None
-	    mainLayout.setButtons(False)
-#            print 'Current call is', current_call
+#        if main_state == pj.CallState.DISCONNECTED:
+#            current_call = None
+#	    mainLayout.setButtons(False)
+##            print 'Current call is', current_call
 
         if main_state == pj.CallState.EARLY:
-            ring_event = Clock.schedule_interval(playWAV, 3.5)
-            playWAV(3.5)
+	    if not ring_event:
+		ring_event = Clock.schedule_interval(playWAV, 3.5)
+		playWAV(3.5)
         else:
-	    Clock.unschedule(ring_event)
-	    ring_event = None
-            stopWAV()
+	    if ring_event:
+		Clock.unschedule(ring_event)
+		ring_event = None
+		stopWAV()
 
         if main_state == pj.CallState.INCOMING:
-		mainLayout.findTargetWindow(self.call.info().remote_uri)
+	    mainLayout.findTargetWindow(self.call.info().remote_uri)
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
             if main_state is not pj.CallState.CALLING:
@@ -143,6 +147,8 @@ class MyCallCallback(pj.CallCallback):
 		docall_button_global.text = BUTTON_CALL_ANSWER
 
         if main_state == pj.CallState.DISCONNECTED:
+            current_call = None
+	    mainLayout.setButtons(False)
             docall_button_global.color = COLOR_NOMORE_CALL
             docall_button_global.text = BUTTON_DO_CALL
 	    mainLayout.startScreenTiming()
@@ -173,15 +179,15 @@ class MyCallCallback(pj.CallCallback):
 def make_call(uri):
     "Function to make outgoing call"
     global acc
+
+    print whoami(), uri, acc
+
     try:
-        print "Making call to", uri, acc
-	if acc != None:
-	    return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
-	else:
-	    return None
+	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
-        print "Exception: " + str(e)
-        return None
+        print "pj Exception:", e
+
+    return None
 
 
 # ##############################################################################
@@ -303,28 +309,27 @@ class Indoor(FloatLayout):
 	    value = config.get('command', 'watches')
 	    if value in 'analog': WATCHES = value
 	    else: WATCHES = 'digital'
-#            self.dbg(WATCHES)
         except:
-            self.dbg('ERROR 7: read config file!')
+            self.dbg('ERROR 4: read config file!')
 
         try:
-	    screen_saver = int(config.get('command', 'screen_saver'))
+	    screen_saver = config.getint('command', 'screen_saver')
 	    if screen_saver > 0 and screen_saver < 120: SCREEN_SAVER = screen_saver * 60
             self.dbg(SCREEN_SAVER)
         except:
-            self.dbg('ERROR 6: read config file!')
+            self.dbg('ERROR 5: read config file!')
 
         try:
 	    BACK_LIGHT = config.getboolean('command', 'back_light')
         except:
-            self.dbg('ERROR 4: read config file!')
+            self.dbg('ERROR 6: read config file!')
 	    BACK_LIGHT = True
 
         try:
-	    br = int(config.get('command', 'brightness'))
+	    br = config.getint('command', 'brightness')
 	    if br > 0 and br < 256: BRIGHTNESS = int(br * 2.55)
         except:
-            self.dbg('ERROR 5: read config file!')
+            self.dbg('ERROR 7: read config file!')
 	    BRIGHTNESS = 255
 
 	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
@@ -336,15 +341,7 @@ class Indoor(FloatLayout):
             BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
             BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
         except:
-            self.dbg('ERROR: read config file!')
-
-        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
-        Clock.schedule_interval(self.info_state_loop, 10.)
-	self.screenTimerEvent = None
-
-        self.init_myphone()
-
-	self.init_screen()
+            self.dbg('ERROR 8: read config file!')
 
         self.ids.btnDoor1.text = BUTTON_DOOR_1
         self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
@@ -354,6 +351,14 @@ class Indoor(FloatLayout):
         docall_button_global.text = BUTTON_DO_CALL
         docall_button_global.color = COLOR_BUTTON_BASIC
 
+	self.init_screen()
+
+        self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
+        Clock.schedule_interval(self.info_state_loop, 10.)
+	self.screenTimerEvent = None
+
+        self.init_myphone()
+
 
     def init_screen(self):
 	"define app screen"
@@ -361,8 +366,12 @@ class Indoor(FloatLayout):
 
 	self.dbg(whoami())
 
-	scr_mode = config.get('gui', 'screen_mode')
-	if scr_mode == None or scr_mode == '': scr_mode = 0
+	scr_mode = 0
+	try:
+	    scr_mode = config.getint('gui', 'screen_mode')
+	except:
+            self.dbg('ERROR 9: read config file!')
+	    scr_mode = 0
 
 	self.scrmngr.current = WAIT_SCR
 
@@ -374,8 +383,6 @@ class Indoor(FloatLayout):
 	    wins = ['0,0,400,432', '400,0,800,432']
 	else:
 	    wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
-
-#	self.dbg('scr_mode:' + str( scr_mode ) + ' wrange:' + str(len(wins)))
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
@@ -407,6 +414,17 @@ class Indoor(FloatLayout):
         # Create library instance
         lib = pj.Lib()
 
+	accounttype = 'peer-to-peer'
+	try:
+	    accounttype = config.get('sip', 'sip_mode')
+	except:
+            self.dbg('ERROR 10: read config file!')
+
+	if accounttype in 'peer-to-peer':
+            self.dbg('peer-to-peer')
+	else:
+            self.dbg('SIP server')
+
         try:
             # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb))
@@ -414,22 +432,36 @@ class Indoor(FloatLayout):
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-            # Create UDP transport which listens to any available port
-            transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(5060))
-
-            print "\nListening on", transport.info().host, "port", transport.info().port, "\n"
+	    # Create UDP transport which listens to any available port
+	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(5060))
+	    print "Listening on", transport.info().host, "port", transport.info().port
 
             # Start the library
             lib.start()
 
-            # Create local account
-            acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
+	    # Create local account
+	    if accounttype in 'peer-to-peer':
+        	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
+	    else:
+		s = str(config.get('sip', 'sip_server_addr'))
+		u = str(config.get('sip', 'sip_username'))
+		p = str(config.get('sip', 'sip_p4ssw0rd'))
+#		acc_cfg = pj.AccountConfig()
+#		acc_cfg.id = "sip:" + u + "@" + s
+#		acc_cfg.reg_uri = "sip:" + s + ":5060"
+#		acc_cfg.proxy = [ "sip:" + s + ";lr" ]
+#		acc_cfg.auth_cred = [pj.AuthCred("*", u, p)]
+
+		acc_cfg = pj.AccountConfig(domain=s, username=u, password=p)
+		acc = lib.create_account(acc_cfg)
+		cb = MyAccountCallback(acc)
+		acc.set_callback(cb)
 
             my_sip_uri = "sip:" + transport.info().host + ":" + str(transport.info().port)
-            print "\nAccount", acc, "at URI", my_sip_uri, "\n"
+            print "Account", acc, "at URI", my_sip_uri
 
         except pj.Error, e:
-            print "Exception: " + str(e)
+            print "pj Exception: ",e
             lib.destroy()
             lib = None
 
@@ -539,7 +571,6 @@ class Indoor(FloatLayout):
     def gotResponse(self, req, results):
 	"relay result"
         print 'Relay: ', req, results
-        pass
 
 
     def setRelayRQ(self, relay):
@@ -575,7 +606,7 @@ class Indoor(FloatLayout):
         self.dbg(self.ids.btnSetOptions.text)
 	print whoami()
 
-	if len(procs) == 0: return
+#???	if len(procs) == 0: return
 
         self.scrmngr.current = SETTINGS_SCR
 
@@ -589,7 +620,6 @@ class Indoor(FloatLayout):
 	self.dbg(whoami() + ': ' + str(value) + ' ' + self.ids.btnScreenClock.text)
 
 	if current_call is None:
-#	if self.ids.btnScreenClock.text == 'C':
 	    if value == 1:
 		self.callback_set_options()
 	    else:
@@ -607,7 +637,6 @@ class Indoor(FloatLayout):
 	    self.ids.btnScreenClock.disabled = vol < 40
 	    self.ids.btnSetOptions.disabled = vol > 80
 
-#            self.dbg('Voice: ' + str(value) + ' >> '+ str(AUDIO_VOLUME))
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 
 
@@ -633,12 +662,6 @@ class Indoor(FloatLayout):
 	if len(procs) == 0: return
 
 	if touch.is_double_tap:
-##	    print 'double touch: ', touch.x, touch.y, touch.is_double_tap
-##            send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(0)])
-#	    self.displays[active_display_index].hidePlayer()
-#	    send_command("ps aux | grep omxplayer"+str(active_display_index)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
-#	    procs[active_display_index].kill()
-#	    send_command(CMD_KILL + str(procs[active_display_index].pid))
 	    self.restart_player_window(active_display_index)
 	    return
 
@@ -711,7 +734,7 @@ class Indoor(FloatLayout):
 		if d.serverAddr in addr:
 		    active_display_index = idx
 
-	    self.dbg('target window:' + str(active_display_index))
+#	    self.dbg('target window:' + str(active_display_index))
 	    self.displays[active_display_index].setActive()
 
 
@@ -763,19 +786,20 @@ class IndoorApp(App):
 	    'watches': 'analog',
 	    'back_light': True })
 	config.setdefaults('sip', {
-	    'sip_username': '',
-	    'sip_p4ssw0rd': '',
+	    'sip_mode': 'peer-to-peer',
 	    'sip_server_addr': '',
-	    'sip_ident_addr': '',
-	    'sip_ident_info': '',
-	    'sip_stun_server': '' })
+	    'sip_username': '',
+	    'sip_p4ssw0rd': '' })
+#	    'sip_ident_addr': '',
+#	    'sip_ident_info': '',
+#	    'sip_stun_server': '' })
 	config.setdefaults('devices', {
 	    'sound_device_in': '',
 	    'sound_device_out': '',
 	    'volume': 100 })
 	config.setdefaults('gui', {
 	    'screen_mode': 0,
-	    'btn_call_none': '',
+#	    'btn_call_none': '',
 	    'btn_docall': 'Do Call',
 	    'btn_call_answer': 'Answer Call',
 	    'btn_call_hangup': 'HangUp Call',
@@ -809,8 +833,6 @@ class IndoorApp(App):
 	    'ipaddress': s[3],
 	    'gateway': s[6],
 	    'netmask': s[4],
-#	    'broadcast': s[5],
-#	    'network': s[7],
 	    'dns': dns })
 
 
@@ -886,7 +908,7 @@ class IndoorApp(App):
 
         self.dbg(whoami())
 
-	if self.changeInet == False:
+	if True or self.changeInet == False:
 	    s = get_info(SYSTEMINFO_SCRIPT).split()
 	    dns = ''
 	    try:
@@ -897,9 +919,7 @@ class IndoorApp(App):
 	    config.set('system', 'inet', s[2])
 	    config.set('system', 'ipaddress', s[3])
 	    config.set('system', 'netmask', s[4])
-#	    config.set('system', 'broadcast', s[5])
 	    config.set('system', 'gateway', s[6])
-#	    config.set('system', 'network', s[7])
 	    config.set('system', 'dns', dns)
 
 	config.set('about', 'uptime', self.get_uptime_value())
@@ -940,14 +960,11 @@ class IndoorApp(App):
 	elif token == ('devices', 'volume'):
 	    AUDIO_VOLUME = value
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
-#	elif section in 'system' and (key in ['ipaddress', 'netmask', 'broadcast', 'gateway', 'network', 'dns']):
 	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
-#		print 'disable changes', config.get(section, key),  self.config.get(section, key)
 		config.set(section, key, self.config.get(section, key))
 		config.write()
 	    else:
-#		print 'enable changes', config.get('system', 'ipaddress'),  self.config.get('system', 'ipaddress')
 		self.changeInet = True
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
@@ -968,13 +985,10 @@ class IndoorApp(App):
 	if self.changeInet:
 	    # start script
 	    send_command(SETIPADDRESS_SCRIPT\
-#	    print get_info(SETIPADDRESS_SCRIPT\
 			 + ' ' + config.get('system', 'inet')\
 			 + ' ' + config.get('system', 'ipaddress')\
 			 + ' ' + config.get('system', 'netmask')\
-#			 + ' ' + config.get('system', 'broadcast')\
 			 + ' ' + config.get('system', 'gateway')\
-#			 + ' ' + config.get('system', 'network')\
 			 + ' ' + config.get('system', 'dns'))
 
 	    send_command('pkill omxplayer')

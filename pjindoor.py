@@ -259,8 +259,11 @@ class BasicDisplay:
 
     def setActive(self, active=True):
 	"add or remove active flag"
+	global current_call
 	print whoami(), self.screenIndex, active
 	self.hidePlayer()
+
+	if current_call: return
 
 	if active:
 	    self.color = ACTIVE_DISPLAY_BACKGROUND
@@ -553,8 +556,8 @@ class Indoor(FloatLayout):
 
 	if len(procs) == 0: return
 
-	target = self.displays[active_display_index].serverAddr
-#        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
+#	target = self.displays[active_display_index].serverAddr
+##        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
 
         if current_call:
 #	    txt = BUTTON_DO_CALL
@@ -567,14 +570,17 @@ class Indoor(FloatLayout):
             else:
                 current_call.hangup()
 		self.setButtons(False)
-		self.showPlayers()
+#???		self.showPlayers()
 	else:
-	    txt = '--> ' + str(active_display_index + 1)
-	    if make_call('sip:' + target + ':5060') is None: txt = txt + ' ERROR'
+#	    txt = '--> ' + str(active_display_index + 1)
+	    target = self.displays[active_display_index].serverAddr
+	    if make_call('sip:' + target + ':5060') is None:
+		txt = '--> ' + str(active_display_index + 1) + ' ERROR'
+#		txt = txt + ' ERROR'
+		docall_button_global.text = txt
 
-	    docall_button_global.text = txt
 	    self.setButtons(True)
-	    self.showCallWindow()
+#	    self.showCallWindow()
 
 
     def gotResponse(self, req, results):
@@ -588,10 +594,6 @@ class Indoor(FloatLayout):
 
 	if len(procs) == 0: return
 
-#	target = self.displays[active_display_index].serverAddr
-#
-#        req = UrlRequest('http://' + target + '/cgi-bin/remctrl.sh?id=' + relay,\
-#                on_success = self.gotResponse, timeout = 5)
         req = UrlRequest(self.displays[active_display_index].relayCmd + relay,\
                 on_success = self.gotResponse, timeout = 5)
 
@@ -661,7 +663,7 @@ class Indoor(FloatLayout):
 
     def on_touch_up(self, touch):
 	"process touch up event"
-	global active_display_index
+	global active_display_index, current_call
 
 	self.dbg(whoami())
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
@@ -686,7 +688,7 @@ class Indoor(FloatLayout):
 	    else:
 		d.setActive(False)
 
-	self.displays[active_display_index].setActive()
+	if not current_call: self.displays[active_display_index].setActive()
 
 
     def showPlayers(self):
@@ -739,42 +741,23 @@ class Indoor(FloatLayout):
 	self.finishScreenTiming()
 
 	self.infoText.text = addr
+	ret = False
 
 	if addr != '':
 	    active_display_index = 0
 	    for idx, d in enumerate(self.displays):
 		d.setActive(False)
+		d.hidePlayer()
 		if d.serverAddr in addr:
 		    active_display_index = idx
 		    self.dbg('target window:' + str(active_display_index))
-#		    self.displays[active_display_index].setActive()
-		    self.showCallWindow()
-		    return True
+		    d.resizePlayer('80,10,720,390')
+		    ret = True
+		else:
+        	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
+			self.restart_player_window(idx)
 
-	self.showCallInfo(addr)
-	return False
-
-
-    def showCallInfo(self, info):
-	"video call window"
-
-	self.dbg(whoami() + ': ' + info)
-	self.hidePlayers()
-
-
-    def showCallWindow(self):
-	"video call window"
-	global active_display_index
-
-	self.dbg(whoami() + ': ' + str(active_display_index))
-	self.hidePlayers()
-
-	for idx, d in enumerate(self.displays):
-	    if idx is active_display_index:
-		self.dbg('target window:' + str(idx))
-		d.resizePlayer('30,10,770,420')
-        	if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		    self.restart_player_window(idx)
+	return ret
 
 
     def dbg(self, info):

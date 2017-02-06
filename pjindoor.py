@@ -120,19 +120,8 @@ class MyCallCallback(pj.CallCallback):
         main_state = self.call.info().state
         transparency_value = 0
 
-        if main_state == pj.CallState.EARLY:
-	    if not ring_event:
-		ring_event = Clock.schedule_interval(playWAV, 3.5)
-		playWAV(3.5)
-		mainLayout.findTargetWindow(self.call.info().remote_uri)
-        else:
-	    if ring_event:
-		Clock.unschedule(ring_event)
-		ring_event = None
-		stopWAV()
-
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
-            if main_state is not pj.CallState.CALLING:
+#            if main_state is not pj.CallState.CALLING:
 		docall_button_global.color = COLOR_ANSWER_CALL
 		docall_button_global.text = BUTTON_CALL_ANSWER
 
@@ -153,6 +142,17 @@ class MyCallCallback(pj.CallCallback):
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
 #	    mainLayout.findTargetWindow('')
+
+        if main_state == pj.CallState.EARLY:
+	    if not ring_event:
+		mainLayout.findTargetWindow(self.call.info().remote_uri)
+		ring_event = Clock.schedule_interval(playWAV, 3.5)
+		playWAV(3.5)
+        else:
+	    if ring_event:
+		Clock.unschedule(ring_event)
+		ring_event = None
+		stopWAV()
 
 
     def on_media_state(self):
@@ -291,7 +291,7 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES
+        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES, RING_TONE
         global main_state, docall_button_global, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
@@ -343,6 +343,14 @@ class Indoor(FloatLayout):
 	    BRIGHTNESS = 255
 
 	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+
+        try:
+	    RING_TONE = config.get('devices', 'ringtone').strip()
+        except:
+            self.dbg('ERROR 11: read config file!')
+	    RING_TONE = 'oldphone.wav'
+
+	itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
 
         try:
             BUTTON_DO_CALL = config.get('gui', 'btn_docall')
@@ -556,11 +564,7 @@ class Indoor(FloatLayout):
 
 	if len(procs) == 0: return
 
-#	target = self.displays[active_display_index].serverAddr
-##        self.dbg(BUTTON_DO_CALL + ' --> ' + 'sip:' + target + ':5060')
-
         if current_call:
-#	    txt = BUTTON_DO_CALL
             if main_state == pj.CallState.EARLY:
 		Clock.unschedule(ring_event)
 		ring_event = None
@@ -570,17 +574,13 @@ class Indoor(FloatLayout):
             else:
                 current_call.hangup()
 		self.setButtons(False)
-#???		self.showPlayers()
 	else:
-#	    txt = '--> ' + str(active_display_index + 1)
 	    target = self.displays[active_display_index].serverAddr
 	    if make_call('sip:' + target + ':5060') is None:
 		txt = '--> ' + str(active_display_index + 1) + ' ERROR'
-#		txt = txt + ' ERROR'
 		docall_button_global.text = txt
 
 	    self.setButtons(True)
-#	    self.showCallWindow()
 
 
     def gotResponse(self, req, results):
@@ -616,8 +616,6 @@ class Indoor(FloatLayout):
 
         self.dbg(self.ids.btnSetOptions.text)
 	print whoami()
-
-#???	if len(procs) == 0: return
 
         self.scrmngr.current = SETTINGS_SCR
 
@@ -699,7 +697,6 @@ class Indoor(FloatLayout):
             if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
 		self.restart_player_window(idx)
 
-#	self.displays[active_display_index].setActive()
 	self.displays[active_display_index].resizePlayer()
 	self.infoText.text = ''
 
@@ -818,6 +815,7 @@ class IndoorApp(App):
 	config.setdefaults('devices', {
 	    'sound_device_in': '',
 	    'sound_device_out': '',
+	    'ringtone': 'oldphone.wav',
 	    'volume': 100 })
 	config.setdefaults('gui', {
 	    'screen_mode': 0,
@@ -946,6 +944,7 @@ class IndoorApp(App):
 
 	config.set('about', 'uptime', self.get_uptime_value())
 	config.set('devices', 'volume', AUDIO_VOLUME)
+	config.set('devices', 'ringtone', RING_TONE)
 
         return super(IndoorApp, self).display_settings(settings)
 
@@ -982,6 +981,12 @@ class IndoorApp(App):
 	elif token == ('devices', 'volume'):
 	    AUDIO_VOLUME = value
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+	elif token == ('devices', 'ringtone'):
+	    RING_TONE = value.strip()
+	    stopWAV()
+	    itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
+#	    send_command(itools.PHONE_RING_PLAYER)
+	    playWAV(3.0)
 	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
 		config.set(section, key, self.config.get(section, key))

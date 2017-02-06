@@ -23,28 +23,11 @@ from constants import *
 #
 # ###############################################################
 
-#CMD_KILL = 'kill -9 '
-
-#CONFIG_FILE = 'indoor.ini'
-
-#SCREEN_SAVER = 0
-#BACK_LIGHT = False
-#BRIGHTNESS = 100
-#WATCHES = 'analog'
-
-#DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
-#BACK_LIGHT_SCRIPT = './backlight.sh'
-#UNBLANK_SCRIPT = './unblank.sh'
-#BRIGHTNESS_SCRIPT = './brightness.sh'
-#SYSTEMINFO_SCRIPT = './sysinfo.sh'
-
 #APLAYER = 'aplay'
 #APARAMS = '-q -N -f cd -D plughw:0,0'
 #RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
 
-#TRANSPARENCY_VIDEO_CMD = ['setalpha']
-
-#DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
+PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE  #'aplay -q -N -f cd -D plughw:0,0 sounds/oldphone.wav'
 
 
 # ###############################################################
@@ -62,7 +45,8 @@ def whoami():
 
 def playWAV(dt):
     "start play"
-    send_command(RING_WAV)
+    print whoami(), PHONERING_PLAYER, RING_TONE
+    send_command(PHONERING_PLAYER)
 
 
 # ##############################################################################

@@ -67,8 +67,9 @@ docall_button_global = None
 active_display_index = 0
 
 APLAYER = 'aplay'
-APARAMS = '-q -N -f cd -D plughw:0,0'
-RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
+APARAMS = '-q -N -f cd -D plughw:0,0 sounds/'
+RING_TONE = 'oldphone.wav'
+RING_WAV = APLAYER + ' ' + APARAMS + ' ' + RING_TONE # 'share/sounds/linphone/rings/oldphone.wav &'
 
 ring_event = None
 

@@ -40,10 +40,4 @@ def get_config():
 	    print('ERROR 2: read config file!')
 	    return None
 
-#    try:
-#	APP_NAME = config.get('about', 'app_name')
-#    except:
-#        print('ERROR 3: read config file!')
-#	return None
-
     return config

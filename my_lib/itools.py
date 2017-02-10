@@ -45,8 +45,9 @@ def whoami():
 
 def playWAV(dt):
     "start play"
-    print whoami(), PHONERING_PLAYER, RING_TONE
-    send_command(PHONERING_PLAYER)
+    print whoami(), PHONERING_PLAYER
+#    send_command(PHONERING_PLAYER)
+    subprocess.Popen(PHONERING_PLAYER.split())
 
 
 # ##############################################################################
@@ -61,12 +62,15 @@ def stopWAV():
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
 
+#    subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args)
+#    return True
+
     try:
-	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args, stderr=subprocess.STDOUT)
+	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args) #, stderr=subprocess.STDOUT, shell=False)
 	# do something with output
 	print whoami(), dst,args, ':', 'out:',proc
 
-	time.sleep(0.05)
+	time.sleep(0.1)
     except subprocess.CalledProcessError as e:
         print whoami(), dst,args, ':', 'ERR:',e.output
 	return False
@@ -89,7 +93,7 @@ def send_command(cmd):
 
 def get_info(cmd):
     "get information from shell script"
-    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=True)
+    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=False)
     (out, err) = proc.communicate()
     print whoami(), cmd, ':', out, err
     return out

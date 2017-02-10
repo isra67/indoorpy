@@ -31,7 +31,7 @@ status)
     ;;
 
 volume)
-    volume=`dbus-send --print-reply=double --session --reply-timeout=500 --dest=$1 /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Set string:"org.mpris.MediaPlayer2.Player" string:"Volume" ${2:+double:}$3`
+    volume=`dbus-send --print-reply=literal --session --reply-timeout=500 --dest=$1 /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Set string:"org.mpris.MediaPlayer2.Player" string:"Volume" ${2:+double:}$3`
     [ $? -ne 0 ] && exit 1
     volume="$(awk '{print $3}' <<< "$volume")"
     echo "Volume: $volume"
@@ -54,7 +54,7 @@ setposition)
     ;;
 
 setalpha)
-    dbus-send --print-reply=double --session --dest=$1 /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.SetAlpha objpath:/not/used int64:$3 > /dev/null
+    dbus-send --print-reply=literal --session --dest=$1 /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.SetAlpha objpath:/not/used int64:$3 > /dev/null
     ;;
 
 setvideopos)

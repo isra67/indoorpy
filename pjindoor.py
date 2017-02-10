@@ -22,6 +22,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
+#from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 
 import atexit
@@ -120,10 +121,21 @@ class MyCallCallback(pj.CallCallback):
         main_state = self.call.info().state
         transparency_value = 0
 
+        if main_state == pj.CallState.EARLY:
+	    if not ring_event:
+		mainLayout.findTargetWindow(self.call.info().remote_uri)
+		ring_event = Clock.schedule_interval(playWAV, 3.5)
+		playWAV(3.5)
+        else:
+	    if ring_event:
+		Clock.unschedule(ring_event)
+		ring_event = None
+		stopWAV()
+
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
-#            if main_state is not pj.CallState.CALLING:
-		docall_button_global.color = COLOR_ANSWER_CALL
-		docall_button_global.text = BUTTON_CALL_ANSWER
+	    docall_button_global.color = COLOR_ANSWER_CALL
+	    docall_button_global.text = BUTTON_CALL_ANSWER
+	    mainLayout.setButtons(True)
 
         if main_state == pj.CallState.DISCONNECTED:
             current_call = None
@@ -141,18 +153,6 @@ class MyCallCallback(pj.CallCallback):
 	    current_call = self.call
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-#	    mainLayout.findTargetWindow('')
-
-        if main_state == pj.CallState.EARLY:
-	    if not ring_event:
-		mainLayout.findTargetWindow(self.call.info().remote_uri)
-		ring_event = Clock.schedule_interval(playWAV, 3.5)
-		playWAV(3.5)
-        else:
-	    if ring_event:
-		Clock.unschedule(ring_event)
-		ring_event = None
-		stopWAV()
 
 
     def on_media_state(self):
@@ -185,12 +185,13 @@ def make_call(uri):
 
 class BasicDisplay:
     "basic screen class"
-    def __init__(self,winpos,servaddr,streamaddr,relaycmd):
+    def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd):
 	"display area init"
 	self.screenIndex = len(procs)
 	self.winPosition = winpos.split(',')
 	self.winPosition = [int(i) for i in self.winPosition]
 	self.serverAddr = str(servaddr)
+	self.sipcall = str(sipcall)
 	self.streamUrl = str(streamaddr)
 	self.relayCmd = str(relaycmd)
 	self.playerPosition = [i for i in self.winPosition]
@@ -233,11 +234,13 @@ class BasicDisplay:
 
     def resizePlayer(self,newpos=''):
 	"resize video player area"
-	global mainLayout
+	global mainLayout, scr_mode
 
 	print whoami(), newpos
 
 	self.hidePlayer()
+
+	if scr_mode == 1: return
 
 	pos = []
 	if not len(newpos): pos = self.playerPosition
@@ -282,7 +285,8 @@ class BasicDisplay:
 
     def printInfo(self):
 	"print class info"
-	print self.screenIndex,'area:',self.winPosition, 'IPaddr:', self.serverAddr, 'stream:', self.streamUrl
+	print self.screenIndex,'area:',self.winPosition, 'IPaddr:', self.serverAddr,\
+	    'SIP:', self.sipcall, 'stream:', self.streamUrl
 
 
 # ##############################################################################
@@ -291,7 +295,7 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES, RING_TONE
+        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
         global main_state, docall_button_global, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
@@ -306,6 +310,7 @@ class Indoor(FloatLayout):
 
 	self.scrmngr = self.ids._screen_manager
 	scrmngr = self.scrmngr
+	self.sipServerAddr = ''
 
         # nacitanie konfiguracie
         try:
@@ -317,8 +322,8 @@ class Indoor(FloatLayout):
 
         try:
 	    value = config.get('command', 'watches')
-	    if value in 'analog': WATCHES = value
-	    else: WATCHES = 'digital'
+	    if value in 'analog' or value in 'digital': WATCHES = value
+	    else: WATCHES = 'None'
         except:
             self.dbg('ERROR 4: read config file!')
 
@@ -328,12 +333,6 @@ class Indoor(FloatLayout):
             self.dbg(SCREEN_SAVER)
         except:
             self.dbg('ERROR 5: read config file!')
-
-        try:
-	    BACK_LIGHT = config.getboolean('command', 'back_light')
-        except:
-            self.dbg('ERROR 6: read config file!')
-	    BACK_LIGHT = True
 
         try:
 	    br = config.getint('command', 'brightness')
@@ -382,7 +381,7 @@ class Indoor(FloatLayout):
 
     def init_screen(self):
 	"define app screen"
-	global config
+	global config, scr_mode
 
 	self.dbg(whoami())
 
@@ -406,17 +405,18 @@ class Indoor(FloatLayout):
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
-	    serv = config.get('common', 'server_ip_address_'+str(i + 1))
-	    vid = config.get('common', 'server_stream_'+str(i + 1))
+	    serv = config.get('common', 'server_ip_address_'+str(i + 1)).strip()
+	    sipc = config.get('common', 'sip_call'+str(i + 1)).strip()
+	    vid = config.get('common', 'server_stream_'+str(i + 1)).strip()
 	    relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 #	    try:
-#		relay = config.get('common', 'server_relay_'+str(i + 1))
+#		relay = config.get('common', 'server_relay_'+str(i + 1)).strip()
 #	    except:
 #		relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 #
 #	    self.dbg(whoami() + ' relay: ' + str(relay))
 
-	    displ = BasicDisplay(win,serv,vid,relay)
+	    displ = BasicDisplay(win,serv,sipc,vid,relay)
 	    self.displays.append(displ)
 
 	if scr_mode != 1: self.displays[0].setActive()
@@ -459,8 +459,9 @@ class Indoor(FloatLayout):
 
 	    if accounttype in 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
+		self.sipServerAddr = ''
 	    else:
-		s = str(config.get('sip', 'sip_server_addr'))
+		self.sipServerAddr = s = str(config.get('sip', 'sip_server_addr'))
 		u = str(config.get('sip', 'sip_username'))
 		p = str(config.get('sip', 'sip_p4ssw0rd'))
 
@@ -488,7 +489,7 @@ class Indoor(FloatLayout):
 	"state loop"
         global current_call, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
 
-        if current_call is not None: self.info_state = 0
+        if current_call: self.info_state = 0
 
         if self.info_state == 0:
             self.info_state = 1
@@ -501,6 +502,9 @@ class Indoor(FloatLayout):
             if current_call is None:
 		docall_button_global.text = BUTTON_DO_CALL
 		docall_button_global.color = COLOR_BUTTON_BASIC
+		self.setButtons(False)
+
+#	self.capture()
 
 
     def infinite_loop(self, dt):
@@ -522,12 +526,30 @@ class Indoor(FloatLayout):
 #		    self.hidePlayers()
 
 
+    def capture(self):
+	"screen to png"
+	global scrmngr
+	self.dbg(whoami())
+
+	path = '/tmp/my.png'
+
+#	try:
+#	    os.remove(path)
+#	except OSError:
+#	    pass
+
+	try:
+	    self.export_to_png(path)
+	except:
+	    pass
+
+
     def startScreenTiming(self):
 	"start screen timer"
 	global SCREEN_SAVER
 
         self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
-	if self.screenTimerEvent is not None: Clock.unschedule(self.screenTimerEvent)
+	if self.screenTimerEvent: Clock.unschedule(self.screenTimerEvent)
         if SCREEN_SAVER > 0: self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
 
 	send_command(UNBLANK_SCRIPT)
@@ -536,16 +558,18 @@ class Indoor(FloatLayout):
 
     def return2clock(self, *args):
 	"swat screen to CLOCK"
-	global current_call, BACK_LIGHT, WATCHES
+	global current_call, WATCHES
 
-#        self.dbg('2 clock')
+        self.dbg(whoami() + ': ' + self.scrmngr.current + ' - ' + WATCHES)
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
 
-	if current_call is None and self.scrmngr.current == CAMERA_SCR:
-	    if WATCHES in 'analog': self.scrmngr.current = WATCH_SCR
-	    else: self.scrmngr.current = DIGITAL_SCR
-	    if BACK_LIGHT is False: send_command(BACK_LIGHT_SCRIPT + ' 1')
+	if current_call is None and self.scrmngr.current in CAMERA_SCR:
+	    if WATCHES in 'analog':
+		self.scrmngr.current = WATCH_SCR
+	    else:
+		self.scrmngr.current = DIGITAL_SCR
+	    if WATCHES in 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
 
 
     def finishScreenTiming(self):
@@ -575,7 +599,13 @@ class Indoor(FloatLayout):
                 current_call.hangup()
 		self.setButtons(False)
 	else:
-	    target = self.displays[active_display_index].serverAddr
+	    target = self.displays[active_display_index].sipcall
+
+	    if not len(target) or len(self.sipServerAddr) and '.' in target: return
+
+	    if len(self.sipServerAddr) and '.' not in target:
+		target = target + '@' + self.sipServerAddr
+
 	    if make_call('sip:' + target + ':5060') is None:
 		txt = '--> ' + str(active_display_index + 1) + ' ERROR'
 		docall_button_global.text = txt
@@ -614,12 +644,28 @@ class Indoor(FloatLayout):
 	"start settings"
 	global procs
 
-        self.dbg(self.ids.btnSetOptions.text)
-	print whoami()
+        self.dbg(whoami() + " " + self.ids.btnSetOptions.text)
 
-        self.scrmngr.current = SETTINGS_SCR
+#	self.hidePlayers()
 
+#        Popup(title="Enter password",
+#              content=TextInput(focus=True),
+#              size_hint=(0.6, 0.6),
+#              on_dismiss=self.openAppSettings).open()
+
+	self.scrmngr.current = SETTINGS_SCR
 	App.get_running_app().open_settings()
+
+
+    def openAppSettings(self, popup):
+	"swap to Settings screen"
+	self.dbg(whoami() + ': ' + popup.content.text)
+
+	if popup.content.text in '1234':
+	    self.scrmngr.current = SETTINGS_SCR
+	    App.get_running_app().open_settings()
+	else:
+	    self.showPlayers()
 
 
     def callback_set_voice(self, value):
@@ -667,14 +713,24 @@ class Indoor(FloatLayout):
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 
 #	if not self.collide_point(*touch.pos): return
+#	print whoami(), self.collide_point(*touch.pos)
 
 	if len(procs) == 0: return
 
 	if touch.is_double_tap:
-	    self.restart_player_window(active_display_index)
+	    if not current_call and self.scrmngr.current in CAMERA_SCR:
+		self.restart_player_window(active_display_index)
 	    return
 
 	self.startScreenTiming()
+
+#	for child in self.walk():
+#	    if child is self: continue
+#	    if child.collide_point(*touch.pos):
+#		print 'HUHUHUUUUUUUUUUU', touch.x, touch.y
+#		return
+
+	if current_call or self.scrmngr.current not in CAMERA_SCR: return
 
 	rx = int(round(touch.x))
 	ry = int(round(touch.y))
@@ -686,7 +742,8 @@ class Indoor(FloatLayout):
 	    else:
 		d.setActive(False)
 
-	if not current_call: self.displays[active_display_index].setActive()
+	if not current_call and self.scrmngr.current in CAMERA_SCR:
+	    self.displays[active_display_index].setActive()
 
 
     def showPlayers(self):
@@ -765,14 +822,15 @@ class Indoor(FloatLayout):
 # ###############################################################
 
 class IndoorApp(App):
+    restartAppFlag = False
     def build(self):
         self.dbg('Hello Indoor 2.0')
 
-#        Config.set('kivy', 'keyboard_mode','')
-	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
-	    Config.get('kivy', 'keyboard_mode'),
-	    Config.get('kivy', 'keyboard_layout'))
-        self.dbg(lbl)
+##        Config.set('kivy', 'keyboard_mode','')
+#	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
+#	    Config.get('kivy', 'keyboard_mode'),
+#	    Config.get('kivy', 'keyboard_layout'))
+#        self.dbg(lbl)
 
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
@@ -780,7 +838,7 @@ class IndoorApp(App):
 	self.changeInet = False
 	self.get_volume_value()
 
-        return Indoor()
+	return Indoor()
 
 
 #    def on_start(self):
@@ -788,7 +846,7 @@ class IndoorApp(App):
 #
 #    def on_stop(self):
 #        self.dbg(whoami())
-##        lib.destroy()
+#	self.root.stop.set()
 
 
     def dbg(self, info):
@@ -802,16 +860,12 @@ class IndoorApp(App):
 	config.setdefaults('command', {
 	    'screen_saver': 1,
 	    'brightness': 100,
-	    'watches': 'analog',
-	    'back_light': True })
+	    'watches': 'analog' })
 	config.setdefaults('sip', {
 	    'sip_mode': 'peer-to-peer',
 	    'sip_server_addr': '',
 	    'sip_username': '',
 	    'sip_p4ssw0rd': '' })
-#	    'sip_ident_addr': '',
-#	    'sip_ident_info': '',
-#	    'sip_stun_server': '' })
 	config.setdefaults('devices', {
 	    'sound_device_in': '',
 	    'sound_device_out': '',
@@ -819,7 +873,6 @@ class IndoorApp(App):
 	    'volume': 100 })
 	config.setdefaults('gui', {
 	    'screen_mode': 0,
-#	    'btn_call_none': '',
 	    'btn_docall': 'Do Call',
 	    'btn_call_answer': 'Answer Call',
 	    'btn_call_hangup': 'HangUp Call',
@@ -828,19 +881,31 @@ class IndoorApp(App):
 	config.setdefaults('common', {
 	    'server_ip_address_1': '192.168.1.250',
 	    'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
-	    'server_ip_address_2': '192.168.1.251:8080',
-	    'server_stream_2': 'http://192.168.1.241:8080/stream/video.mjpeg',
-	    'server_ip_address_3': '192.168.1.251:8080',
-	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
-	    'server_ip_address_4': '192.168.1.250' })
+	    'sip_call1': '',
+	    'server_ip_address_2': '192.168.1.250',
+#	    'server_stream_2': 'http://192.168.1.241:8080/stream/video.mjpeg',
+	    'server_stream_2': 'http://192.168.1.250:80/video.mjpg',
+	    'sip_call2': '',
+	    'server_ip_address_3': '192.168.1.250',
+#	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
+	    'server_stream_3': 'http://192.168.1.250:80/video.mjpg',
+	    'sip_call3': '',
+	    'server_ip_address_4': '192.168.1.250',
+	    'server_stream_4': 'http://192.168.1.250/video.mjpg',
+	    'sip_call4': '' })
 
 	s = get_info(SYSTEMINFO_SCRIPT).split()
-	print whoami(), s
+#	print whoami(), s
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
 	    'uptime': '---',
 	    'serial': s[1] })
+	config.set('about', 'serial', s[1])
+	config.set('about', 'uptime', self.get_uptime_value())
+
+	config.set('devices', 'volume', AUDIO_VOLUME)
+	config.set('devices', 'ringtone', RING_TONE)
 
 	dns = ''
 	try:
@@ -854,6 +919,11 @@ class IndoorApp(App):
 	    'gateway': s[6],
 	    'netmask': s[4],
 	    'dns': dns })
+	config.set('system', 'inet', s[2])
+	config.set('system', 'ipaddress', s[3])
+	config.set('system', 'gateway', s[6])
+	config.set('system', 'netmask', s[4])
+	config.set('system', 'dns', dns)
 
 
     def get_uptime_value(self):
@@ -861,6 +931,8 @@ class IndoorApp(App):
 	with open('/proc/uptime', 'r') as f:
 	    uptime_seconds = float(f.readline().split()[0])
 	    uptime_string = str(timedelta(seconds = uptime_seconds))
+
+        self.dbg(whoami() + ': ' + uptime_string)
 
 	return uptime_string
 
@@ -885,50 +957,11 @@ class IndoorApp(App):
 
     def build_settings(self, settings):
 	"display settings screen"
-	global config
+	global config, scr_mode
 
         self.dbg(whoami())
 
-	# enable|disable change parameters
-	vDhcp = config.get('system', 'inet') in 'dhcp'
-	sys = json.loads(settings_system)
-	asystem = []
-	for s in sys:
-	    item = s
-	    if s['type'] not in 'title' and s['key'] not in 'inet': item['disabled'] = vDhcp
-	    asystem.append(item)
-
-	asystem = json.dumps(asystem)
-
-        settings.add_json_panel('Application',
-                                config,
-                                data=settings_app)
-        settings.add_json_panel('GUI',
-                                config,
-                                data=settings_gui)
-        settings.add_json_panel('Outdoor Devices',
-                                config,
-                                data=settings_outdoor)
-        settings.add_json_panel('Audio Device',
-                                config,
-                                data=settings_audio)
-        settings.add_json_panel('SIP',
-                                config,
-                                data=settings_sip)
-        settings.add_json_panel('System',
-                                config,
-                                data=asystem)
-        settings.add_json_panel('About',
-                                config,
-                                data=settings_about)
-
-
-    def display_settings(self, settings):
-	"display settings"
-
-        self.dbg(whoami())
-
-	if True or self.changeInet == False:
+	if self.changeInet == False:
 	    s = get_info(SYSTEMINFO_SCRIPT).split()
 	    dns = ''
 	    try:
@@ -946,15 +979,88 @@ class IndoorApp(App):
 	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.set('devices', 'ringtone', RING_TONE)
 
-        return super(IndoorApp, self).display_settings(settings)
+	# enable|disable network parameters
+	vDhcp = config.get('system', 'inet') in 'dhcp'
+	sys = json.loads(settings_system)
+	asystem = []
+	for s in sys:
+	    item = s
+	    if s['type'] not in 'title' and s['key'] not in 'inet': item['disabled'] = vDhcp
+	    asystem.append(item)
+	asystem = json.dumps(asystem)
+
+	# enable|disalbe SIP parameters
+	vSip = config.get('sip', 'sip_mode')
+	sys = json.loads(settings_sip)
+	asip = []
+	for s in sys:
+	    item = s
+	    if s['type'] not in 'title' and s['key'] not in 'sip_mode': item['disabled'] = vSip
+	    asip.append(item)
+	asip = json.dumps(asip)
+
+	# enable|disalbe players
+	wins = config.getint('gui', 'screen_mode')
+	if wins == 0 or wins == 4:
+	    acomm = settings_outdoor
+	elif wins == 1:
+	    enabledWin = '1'
+	    sys = json.loads(settings_outdoor)
+	    acomm = []
+	    for s in sys:
+		item = s
+		if not (s['type'] not in 'title' and enabledWin not in s['key']):
+		    acomm.append(item)
+	    acomm = json.dumps(acomm)
+	else:
+	    sys = json.loads(settings_outdoor)
+	    acomm = []
+	    for s in sys:
+		item = s
+		if not (s['type'] not in 'title' and ('3' in s['key'] or '4' in s['key'])):
+		    acomm.append(item)
+	    acomm = json.dumps(acomm)
+
+        settings.add_json_panel('Application',
+                                config,
+                                data=settings_app)
+        settings.add_json_panel('GUI',
+                                config,
+                                data=settings_gui)
+        settings.add_json_panel('Outdoor Devices',
+                                config,
+                                data=acomm)
+        settings.add_json_panel('Audio Device',
+                                config,
+                                data=settings_audio)
+        settings.add_json_panel('SIP',
+                                config,
+                                data=asip)
+        settings.add_json_panel('Network',
+                                config,
+                                data=asystem)
+        settings.add_json_panel('About',
+                                config,
+                                data=settings_about)
+
+
+    def display_settings(self, settings):
+	"display settings"
+	global mainLayout
+
+        self.dbg(whoami())
+
+#        return super(IndoorApp, self).display_settings(settings)
+	mainLayout.ids.settings.add_widget(settings)
 
 
     def on_config_change(self, config, section, key, value):
 	"config item changed"
-	global SCREEN_SAVER, BACK_LIGHT, BRIGHTNESS, WATCHES, VOLUME
+	global SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME
 
-	token = (section, key)
         print whoami(),':', section, key, value
+	token = (section, key)
+	value = value.strip()
 
 	if token == ('command', 'brightness'):
 	    try:
@@ -969,23 +1075,16 @@ class IndoorApp(App):
 		SCREEN_SAVER = v * 60
 	    except:
 		SCREEN_SAVER = 0
-	elif token == ('command', 'back_light'):
-	    try:
-		v = int(value)
-		BACK_LIGHT = v > 0
-	    except:
-		BACK_LIGHT = False
 	elif token == ('command', 'watches'):
-	    if value in 'analog': WATCHES = value
-	    else: WATCHES = 'digital'
+	    if value in 'analog' or value in 'digital': WATCHES = value
+	    else: WATCHES = 'None'
 	elif token == ('devices', 'volume'):
 	    AUDIO_VOLUME = value
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 	elif token == ('devices', 'ringtone'):
-	    RING_TONE = value.strip()
+	    RING_TONE = value
 	    stopWAV()
 	    itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
-#	    send_command(itools.PHONE_RING_PLAYER)
 	    playWAV(3.0)
 	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
@@ -995,23 +1094,32 @@ class IndoorApp(App):
 		self.changeInet = True
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
+	    config.set(section, key, value)
 	    config.write()
+	    self.destroy_settings()
+	    self.open_settings()
+	elif token == ('gui', 'screen_mode') or token == ('sip', 'sip_mode'):
+	    config.set(section, key, value)
+	    config.write()
+	    self.restartAppFlag = True
 	    self.destroy_settings()
 	    self.open_settings()
 
 
     def close_settings(self, *args):
 	"close button pressed"
-	global scrmngr
+	global scrmngr, mainLayout
 
         self.dbg(whoami())
         super(IndoorApp, self).close_settings()
 
+	mainLayout.ids.settings.clear_widgets()
+
 	self.destroy_settings()
 
-	if self.changeInet:
-	    # start script
-	    send_command(SETIPADDRESS_SCRIPT\
+	if self.changeInet or self.restartAppFlag:
+	    if self.changeInet: # start script
+		send_command(SETIPADDRESS_SCRIPT\
 			 + ' ' + config.get('system', 'inet')\
 			 + ' ' + config.get('system', 'ipaddress')\
 			 + ' ' + config.get('system', 'netmask')\
@@ -1021,6 +1129,8 @@ class IndoorApp(App):
 	    send_command('pkill omxplayer')
 	    send_command('pkill dbus-daemon')
 	    send_command('pkill python')
+
+	    kill_subprocesses()
 
 	    App.get_running_app().stop()
 #	    return

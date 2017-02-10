@@ -22,7 +22,6 @@ CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 APP_NAME = '-Indoor-2.0-'
 
 SCREEN_SAVER = 0
-BACK_LIGHT = False
 BRIGHTNESS = 100
 WATCHES = 'analog'
 AUDIO_VOLUME = 100
@@ -82,7 +81,7 @@ transparency_event = None
 
 mainLayout = None
 scrmngr = None
-
+scr_mode = 0
 config = None
 
 procs = []

@@ -461,9 +461,10 @@ class Indoor(FloatLayout):
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
 	    else:
-		self.sipServerAddr = s = str(config.get('sip', 'sip_server_addr'))
-		u = str(config.get('sip', 'sip_username'))
-		p = str(config.get('sip', 'sip_p4ssw0rd'))
+		s = str(config.get('sip', 'sip_server_addr')).strip()
+		u = str(config.get('sip', 'sip_username')).strip()
+		p = str(config.get('sip', 'sip_p4ssw0rd')).strip()
+		self.sipServerAddr = s
 
 		acc_cfg = pj.AccountConfig(domain=s, username=u, password=p)
 #		acc_cfg = pj.AccountConfig()
@@ -477,7 +478,7 @@ class Indoor(FloatLayout):
 		acc.set_callback(cb)
 
             my_sip_uri = "sip:" + transport.info().host + ":" + str(transport.info().port)
-            print "Account", acc, "at URI", my_sip_uri
+            print "Account", acc, "at URI", my_sip_uri, 'server', self.sipServerAddr
 
         except pj.Error, e:
             print "pj Exception: ",e

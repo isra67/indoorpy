@@ -6,7 +6,7 @@ pustaj() {
 	while true
 	do
 		## working dir
-		cd /root/test_stream/indoor
+		cd /root/indoorpy
 
 		## Inoteska Evidence python App
 		/usr/bin/python pjindoor.py
@@ -17,7 +17,7 @@ pustaj() {
 sleep 1
 
 ## working dir
-cd /root/test_stream/indoor
+cd /root/indoorpy/indoor
 ./hid_init.sh
 
 pustaj >& /dev/null &

@@ -17,7 +17,7 @@ pustaj() {
 sleep 1
 
 ## working dir
-cd /root/indoorpy/indoor
+cd /root/indoorpy
 ./hid_init.sh
 
 pustaj >& /dev/null &

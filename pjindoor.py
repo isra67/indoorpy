@@ -302,6 +302,8 @@ class Indoor(FloatLayout):
 
 	mainLayout = self
 
+	self.testPlayerIdx = 0
+
 	self.displays = []
 
         main_state = 0
@@ -419,10 +421,11 @@ class Indoor(FloatLayout):
 	    displ = BasicDisplay(win,serv,sipc,vid,relay)
 	    self.displays.append(displ)
 
-	if scr_mode != 1: self.displays[0].setActive()
-
 	self.scrmngr.current = CAMERA_SCR
 	self.setButtons(False)
+
+	#if scr_mode != 1: 
+	self.displays[0].setActive()
 
 
     def init_myphone(self):
@@ -497,6 +500,15 @@ class Indoor(FloatLayout):
 	    send_command(UNBLANK_SCRIPT)
         elif self.info_state == 1:
             self.info_state = 2
+
+	    # test if player is alive:
+	    if self.scrmngr.current in CAMERA_SCR: val = 255
+	    else: val = 0
+            if not send_dbus(DBUS_PLAYERNAME + str(self.testPlayerIdx), TRANSPARENCY_VIDEO_CMD + [str(val)]):
+		self.restart_player_window(self.testPlayerIdx)
+	    self.testPlayerIdx += 1
+	    self.testPlayerIdx %= len(self.displays)
+
 #	    get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + '0 status')
         elif self.info_state == 2:
             self.info_state = 0
@@ -752,8 +764,9 @@ class Indoor(FloatLayout):
 	self.dbg(whoami())
 
         for idx, proc in enumerate(procs):
-            if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		self.restart_player_window(idx)
+	    if idx != active_display_index:
+        	if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		    self.restart_player_window(idx)
 
 	self.displays[active_display_index].resizePlayer()
 	self.infoText.text = ''

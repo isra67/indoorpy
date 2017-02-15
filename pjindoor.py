@@ -496,8 +496,8 @@ class Indoor(FloatLayout):
         if current_call: self.info_state = 0
 
         if self.info_state == 0:
-            self.info_state = 1
-	    send_command(UNBLANK_SCRIPT)
+            if not current_call is None: self.info_state = 1
+#	    send_command(UNBLANK_SCRIPT)
         elif self.info_state == 1:
             self.info_state = 2
 
@@ -508,14 +508,11 @@ class Indoor(FloatLayout):
 		self.restart_player_window(self.testPlayerIdx)
 	    self.testPlayerIdx += 1
 	    self.testPlayerIdx %= len(self.displays)
-
-#	    get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + '0 status')
         elif self.info_state == 2:
             self.info_state = 0
-            if current_call is None:
-		docall_button_global.text = BUTTON_DO_CALL
-		docall_button_global.color = COLOR_BUTTON_BASIC
-		self.setButtons(False)
+	    docall_button_global.text = BUTTON_DO_CALL
+	    docall_button_global.color = COLOR_BUTTON_BASIC
+	    self.setButtons(False)
 
 #	self.capture()
 
@@ -755,8 +752,7 @@ class Indoor(FloatLayout):
 	    else:
 		d.setActive(False)
 
-	if not current_call and self.scrmngr.current in CAMERA_SCR:
-	    self.displays[active_display_index].setActive()
+	self.displays[active_display_index].setActive()
 
 
     def showPlayers(self):
@@ -770,6 +766,7 @@ class Indoor(FloatLayout):
 
 	self.displays[active_display_index].resizePlayer()
 	self.infoText.text = ''
+	self.displays[active_display_index].setActive()
 
 
     def hidePlayers(self):
@@ -851,6 +848,9 @@ class IndoorApp(App):
 
 	self.changeInet = False
 	self.get_volume_value()
+
+	# bug fix: bad PJSIP start - port in use with another process
+	send_command("netstat -tulpn | grep :5060 | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	return Indoor()
 
@@ -943,7 +943,7 @@ class IndoorApp(App):
     def get_uptime_value(self):
 	"retrieve system uptime"
 	with open('/proc/uptime', 'r') as f:
-	    uptime_seconds = float(f.readline().split()[0])
+	    uptime_seconds = float(f.readline().split()[0]) or 0
 	    uptime_string = str(timedelta(seconds = uptime_seconds))
 
         self.dbg(whoami() + ': ' + uptime_string)
@@ -956,7 +956,10 @@ class IndoorApp(App):
 	global AUDIO_VOLUME
 
 	s = get_info(VOLUMEINFO_SCRIPT).split()
-	vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0))
+	if len(s) < 4:
+	    vol = 20		# script problem!
+	else:
+	    vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 0
 
 	# available volume steps:
 	if vol > 80: vol = 100
@@ -993,6 +996,8 @@ class IndoorApp(App):
 	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.set('devices', 'ringtone', RING_TONE)
 
+	asystem = settings_system
+	"""
 	# enable|disable network parameters
 	vDhcp = config.get('system', 'inet') in 'dhcp'
 	sys = json.loads(settings_system)
@@ -1002,7 +1007,10 @@ class IndoorApp(App):
 	    if s['type'] not in 'title' and s['key'] not in 'inet': item['disabled'] = vDhcp
 	    asystem.append(item)
 	asystem = json.dumps(asystem)
+	"""
 
+	asip = settings_sip
+	"""
 	# enable|disalbe SIP parameters
 	vSip = config.get('sip', 'sip_mode')
 	sys = json.loads(settings_sip)
@@ -1012,7 +1020,10 @@ class IndoorApp(App):
 	    if s['type'] not in 'title' and s['key'] not in 'sip_mode': item['disabled'] = vSip
 	    asip.append(item)
 	asip = json.dumps(asip)
+	"""
 
+	acomm = settings_outdoor
+	"""
 	# enable|disalbe players
 	wins = config.getint('gui', 'screen_mode')
 	if wins == 0 or wins == 4:
@@ -1034,6 +1045,7 @@ class IndoorApp(App):
 		if not (s['type'] not in 'title' and ('3' in s['key'] or '4' in s['key'])):
 		    acomm.append(item)
 	    acomm = json.dumps(acomm)
+	"""
 
         settings.add_json_panel('Application',
                                 config,
@@ -1076,6 +1088,9 @@ class IndoorApp(App):
 	token = (section, key)
 	value = value.strip()
 
+	config.set(section, key, value)
+	config.write()
+
 	if token == ('command', 'brightness'):
 	    try:
 		v = int(value)
@@ -1108,16 +1123,16 @@ class IndoorApp(App):
 		self.changeInet = True
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
-	    config.set(section, key, value)
-	    config.write()
-	    self.destroy_settings()
-	    self.open_settings()
+##	    config.set(section, key, value)
+##	    config.write()
+#	    self.destroy_settings()
+#	    self.open_settings()
 	elif token == ('gui', 'screen_mode') or token == ('sip', 'sip_mode'):
-	    config.set(section, key, value)
-	    config.write()
+##	    config.set(section, key, value)
+##	    config.write()
 	    self.restartAppFlag = True
-	    self.destroy_settings()
-	    self.open_settings()
+#	    self.destroy_settings()
+#	    self.open_settings()
 
 
     def close_settings(self, *args):

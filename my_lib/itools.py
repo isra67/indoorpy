@@ -68,9 +68,8 @@ def send_dbus(dst,args):
     try:
 	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args) #, stderr=subprocess.STDOUT, shell=False)
 	# do something with output
-	print whoami(), dst,args, ':', 'out:',proc
-
-	time.sleep(0.15)
+#	print whoami(), dst,args, ':', 'out:',proc
+#	time.sleep(0.12)
     except subprocess.CalledProcessError as e:
         print whoami(), dst,args, ':', 'ERR:',e.output
 	return False

@@ -16,6 +16,7 @@ from kivy.core.window import Window
 #from kivy.lang import Builder
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
@@ -145,15 +146,18 @@ class MyCallCallback(pj.CallCallback):
             docall_button_global.text = BUTTON_DO_CALL
 	    mainLayout.startScreenTiming()
 	    mainLayout.showPlayers()
+	    docall_button_global.disabled = False
 
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
+	    docall_button_global.disabled = False
 
         if main_state == pj.CallState.CALLING:
 	    current_call = self.call
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
+	    docall_button_global.disabled = True
 
 
     def on_media_state(self):
@@ -520,6 +524,7 @@ class Indoor(FloatLayout):
             self.info_state = 0
 	    docall_button_global.text = BUTTON_DO_CALL
 	    docall_button_global.color = COLOR_BUTTON_BASIC
+	    docall_button_global.disabled = False
 	    self.setButtons(False)
 
 #	self.capture()
@@ -527,7 +532,7 @@ class Indoor(FloatLayout):
 
     def infinite_loop(self, dt):
 	"main neverendig loop"
-        global procs
+        global current_call, active_display_index, procs
 
 	if len(procs) == 0: return
 
@@ -538,7 +543,8 @@ class Indoor(FloatLayout):
 		    p.kill()
 		except:
 		    pass
-		procs[idx] = self.displays[idx].initPlayer()
+		if current_call is None or idx == active_display_index:
+		    procs[idx] = self.displays[idx].initPlayer()
 
     """
     def capture(self):
@@ -679,6 +685,7 @@ class Indoor(FloatLayout):
 #              on_dismiss=self.openAppSettings).open()
 
 	self.scrmngr.current = SETTINGS_SCR
+#	Thread(target=App.get_running_app().open_settings()).start()
 	App.get_running_app().open_settings()
 
 
@@ -842,16 +849,18 @@ class Indoor(FloatLayout):
 	self.scrmngr.current = CAMERA_SCR
 	self.finishScreenTiming()
 
-	self.infoText.text = addr
 	ret = False
+	self.infoText.text = addr
 
 	if addr != '':
 	    active_display_index = 0
 	    for idx, d in enumerate(self.displays):
 		d.setActive(False)
 		d.hidePlayer()
-		if d.serverAddr in addr:
+		if not ret and d.sipcall in addr and d.sipcall != '':
+#		if d.serverAddr in addr:
 		    active_display_index = idx
+		    self.infoText.text = d.sipcall
 		    self.dbg('target window:' + str(active_display_index))
 		    d.resizePlayer('80,10,720,390')
 		    ret = True
@@ -932,20 +941,19 @@ class IndoorApp(App):
 	    'server_ip_address_1': '192.168.1.250',
 	    'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
 	    'sip_call1': '',
-	    'server_ip_address_2': '192.168.1.250',
+	    'server_ip_address_2': '',
 #	    'server_stream_2': 'http://192.168.1.241:8080/stream/video.mjpeg',
-	    'server_stream_2': 'http://192.168.1.250:80/video.mjpg',
+	    'server_stream_2': '',
 	    'sip_call2': '',
-	    'server_ip_address_3': '192.168.1.250',
+	    'server_ip_address_3': '',
 #	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
-	    'server_stream_3': 'http://192.168.1.250:80/video.mjpg',
+	    'server_stream_3': '',
 	    'sip_call3': '',
-	    'server_ip_address_4': '192.168.1.250',
-	    'server_stream_4': 'http://192.168.1.250/video.mjpg',
+	    'server_ip_address_4': '',
+	    'server_stream_4': '',
 	    'sip_call4': '' })
 
 	s = get_info(SYSTEMINFO_SCRIPT).split()
-#	print whoami(), s
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
@@ -993,7 +1001,7 @@ class IndoorApp(App):
 
 	s = get_info(VOLUMEINFO_SCRIPT).split()
 	if len(s) < 4:
-	    vol = 20		# script problem!
+	    vol = 0		# script problem!
 	else:
 	    vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 0
 
@@ -1127,7 +1135,9 @@ class IndoorApp(App):
 	config.set(section, key, value)
 	config.write()
 
-	if token == ('command', 'brightness'):
+	if section == 'common':
+	    self.restartAppFlag = True
+	elif token == ('command', 'brightness'):
 	    try:
 		v = int(value)
 		BRIGHTNESS = int(v * 2.55)
@@ -1153,22 +1163,34 @@ class IndoorApp(App):
 	    playWAV(3.0)
 	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
+#		config.set(section, key, self.config.get(section, key))
+		config.set(section, key, config.getdefault(section, key))
+		config.write()
+	    else:
+		self.changeInet = True
+	elif section in 'sip' and (key in ['sip_server_addr', 'sip_username', 'sip_p4ssw0rd']):
+	    if config.get('sip', 'sip_mode') in 'peer-to-peer':
 		config.set(section, key, self.config.get(section, key))
+#		config.set(section, key, config.getdefault(section, key))
 		config.write()
 	    else:
 		self.changeInet = True
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
-##	    config.set(section, key, value)
-##	    config.write()
 #	    self.destroy_settings()
 #	    self.open_settings()
 	elif token == ('gui', 'screen_mode') or token == ('sip', 'sip_mode'):
-##	    config.set(section, key, value)
-##	    config.write()
 	    self.restartAppFlag = True
 #	    self.destroy_settings()
 #	    self.open_settings()
+
+    def popupClosed(self, popup):
+	send_command('pkill omxplayer')
+	send_command('pkill dbus-daemon')
+	send_command('pkill python')
+
+	kill_subprocesses()
+	App.get_running_app().stop() # restart App
 
 
     def close_settings(self, *args):
@@ -1191,17 +1213,23 @@ class IndoorApp(App):
 			 + ' ' + config.get('system', 'gateway')\
 			 + ' ' + config.get('system', 'dns'))
 
-	    send_command('pkill omxplayer')
-	    send_command('pkill dbus-daemon')
-	    send_command('pkill python')
+	    # Alert box:
+	    box = BoxLayout(orientation='vertical', spacing=10)
+	    box.add_widget(Label(text='Application is going to restart to apply your changes!',padding_y=80))
+	    btn = Button(text='OK', size_hint=(1, 0.4))
+	    btn.bind(on_press=self.popupClosed)
+	    box.add_widget(btn)
+	    Popup(title="App info", content=box, size_hint=(0.8, 0.6), on_dismiss=self.popupClosed).open()
 
-	    kill_subprocesses()
-
-	    App.get_running_app().stop()
-#	    return
-
-	self.changeInet = False
-	scrmngr.current = CAMERA_SCR
+#	    send_command('pkill omxplayer')
+#	    send_command('pkill dbus-daemon')
+#	    send_command('pkill python')
+#
+#	    kill_subprocesses()
+#	    App.get_running_app().stop() # restart App
+	else:
+	    self.changeInet = False
+	    scrmngr.current = CAMERA_SCR
 
 
     def fixStart(self):

@@ -39,7 +39,7 @@
         Screen:
             name: 'clock'
             id: clock
-            on_touch_down: _screen_manager.current = 'camera'
+            on_touch_down: root.swap2camera() #_screen_manager.current = 'camera'
 
             BoxLayout:
                 MyClockWidget:
@@ -47,7 +47,7 @@
         Screen:
             name: 'digiclock'
             id: digiclock
-            on_touch_down: _screen_manager.current = 'camera'
+            on_touch_down: root.swap2camera() #_screen_manager.current = 'camera'
 
             BoxLayout:
                 DigiClockWidget:

@@ -70,7 +70,7 @@ def send_dbus(dst,args):
 	# do something with output
 	print whoami(), dst,args, ':', 'out:',proc
 
-	time.sleep(0.1)
+	time.sleep(0.15)
     except subprocess.CalledProcessError as e:
         print whoami(), dst,args, ':', 'ERR:',e.output
 	return False

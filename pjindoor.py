@@ -33,6 +33,7 @@ import json
 import signal
 import socket
 import subprocess
+from threading import Thread
 import time
 
 import pjsua as pj
@@ -303,8 +304,11 @@ class Indoor(FloatLayout):
 	mainLayout = self
 
 	self.testPlayerIdx = 0
+	self.loseNextTouch = False
 
 	self.displays = []
+
+	self.screenTimerEvent = None
 
         main_state = 0
         self.info_state = 0
@@ -323,7 +327,7 @@ class Indoor(FloatLayout):
 	watches.APP_LABEL = APP_NAME
 
         try:
-	    value = config.get('command', 'watches')
+	    value = config.get('command', 'watches').strip()
 	    if value in 'analog' or value in 'digital': WATCHES = value
 	    else: WATCHES = 'None'
         except:
@@ -378,7 +382,6 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
-	self.screenTimerEvent = None
 
 
     def init_screen(self):
@@ -394,7 +397,7 @@ class Indoor(FloatLayout):
             self.dbg('ERROR 9: read config file!')
 	    scr_mode = 0
 
-	self.scrmngr.current = WAIT_SCR
+#	self.scrmngr.current = WAIT_SCR
 
 	if scr_mode == 1:
 	    wins = ['0,0,800,432']
@@ -439,7 +442,7 @@ class Indoor(FloatLayout):
 
 	accounttype = 'peer-to-peer'
 	try:
-	    accounttype = config.get('sip', 'sip_mode')
+	    accounttype = config.get('sip', 'sip_mode').strip()
 	except:
             self.dbg('ERROR 10: read config file!')
 
@@ -449,6 +452,10 @@ class Indoor(FloatLayout):
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+	    # bug fix: bad PJSIP start - port in use with another process
+	    send_command('pkill dbus-daemon')
+	    send_command("netstat -tulpn | grep :5060 | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	    # Create UDP transport which listens to any available port
 	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(5060))
@@ -493,14 +500,15 @@ class Indoor(FloatLayout):
 	"state loop"
         global current_call, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
 
-        if current_call: self.info_state = 0
+#	self.dbg(whoami()+': '+str(current_call)+': '+str(self.info_state))
+
+        if not current_call is None: self.info_state = 0
 
         if self.info_state == 0:
-            if not current_call is None: self.info_state = 1
+            if current_call is None: self.info_state = 1
 #	    send_command(UNBLANK_SCRIPT)
         elif self.info_state == 1:
             self.info_state = 2
-
 	    # test if player is alive:
 	    if self.scrmngr.current in CAMERA_SCR: val = 255
 	    else: val = 0
@@ -525,17 +533,14 @@ class Indoor(FloatLayout):
 
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
-		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead\nscreen:" + self.scrmngr.current+'/'+CAMERA_SCR )
+#		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead\nscreen:" + self.scrmngr.current+'/'+CAMERA_SCR )
 		try:
 		    p.kill()
 		except:
 		    pass
 		procs[idx] = self.displays[idx].initPlayer()
 
-#		if self.scrmngr.current not in CAMERA_SCR:
-#		    self.hidePlayers()
-
-
+    """
     def capture(self):
 	"screen to png"
 	global scrmngr
@@ -552,6 +557,7 @@ class Indoor(FloatLayout):
 	    self.export_to_png(path)
 	except:
 	    pass
+    """
 
 
     def startScreenTiming(self):
@@ -560,7 +566,8 @@ class Indoor(FloatLayout):
 
         self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
 	if self.screenTimerEvent: Clock.unschedule(self.screenTimerEvent)
-        if SCREEN_SAVER > 0: self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
+        if SCREEN_SAVER > 0:
+	    self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
 
 	send_command(UNBLANK_SCRIPT)
 	send_command(BACK_LIGHT_SCRIPT + ' 0')
@@ -587,6 +594,14 @@ class Indoor(FloatLayout):
         self.dbg('ScrnLeave')
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
+
+
+    def swap2camera(self):
+	"swap screen to CAMERA"
+	self.dbg(whoami())
+
+	self.on_touch_up(None)
+	self.scrmngr.current = CAMERA_SCR
 
 
     def callback_btn_docall(self):
@@ -689,7 +704,6 @@ class Indoor(FloatLayout):
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
-#		get_info(DBUSCONTROL_SCRIPT + ' ' + DBUS_PLAYERNAME + str(active_display_index) + ' status')
 	else :
 	    vol = AUDIO_VOLUME + int(value) * 20
 	    if vol > 80: vol = 100
@@ -719,15 +733,18 @@ class Indoor(FloatLayout):
 	"process touch up event"
 	global active_display_index, current_call
 
-	self.dbg(whoami())
+	self.dbg(whoami()+': '+str(self.loseNextTouch)+' '+str(touch))
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
+	if self.loseNextTouch:
+	    self.loseNextTouch = False
+	    return
 
 #	if not self.collide_point(*touch.pos): return
 #	print whoami(), self.collide_point(*touch.pos)
 
 	if len(procs) == 0: return
 
-	if touch.is_double_tap:
+	if touch is not None and touch.is_double_tap:
 	    if not current_call and self.scrmngr.current in CAMERA_SCR:
 		self.restart_player_window(active_display_index)
 	    return
@@ -740,7 +757,9 @@ class Indoor(FloatLayout):
 #		print 'HUHUHUUUUUUUUUUU', touch.x, touch.y
 #		return
 
-	if current_call or self.scrmngr.current not in CAMERA_SCR: return
+	if touch is None or current_call or self.scrmngr.current not in CAMERA_SCR:
+	    self.loseNextTouch = True
+	    return
 
 	rx = int(round(touch.x))
 	ry = int(round(touch.y))
@@ -754,29 +773,47 @@ class Indoor(FloatLayout):
 
 	self.displays[active_display_index].setActive()
 
+    """
+    def worker2(self):
+	"thread - show video"
+	for idx, proc in enumerate(procs):
+#		if idx != active_display_index:
+	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		self.restart_player_window(idx)
+
+	self.displays[active_display_index].resizePlayer()
+	self.infoText.text = ''
+	self.displays[active_display_index].setActive()
+    """
+
 
     def showPlayers(self):
 	"d-bus command to show video"
 	self.dbg(whoami())
 
-        for idx, proc in enumerate(procs):
-	    if idx != active_display_index:
-        	if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		    self.restart_player_window(idx)
+#	Thread(target=self.worker2).start()
+	for idx, proc in enumerate(procs):
+	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		self.restart_player_window(idx)
 
 	self.displays[active_display_index].resizePlayer()
 	self.infoText.text = ''
 	self.displays[active_display_index].setActive()
 
 
+    def worker1(self):
+	"thread - hide video"
+	for idx, proc in enumerate(procs):
+	    self.displays[idx].hidePlayer()
+	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
+		self.restart_player_window(idx)
+
+
     def hidePlayers(self):
 	"d-bus command to hide video"
 	self.dbg(whoami())
 
-        for idx, proc in enumerate(procs):
-	    self.displays[idx].hidePlayer()
-            if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
-		self.restart_player_window(idx)
+	Thread(target=self.worker1).start()
 
 
     def setButtons(self, visible):
@@ -843,14 +880,13 @@ class IndoorApp(App):
 #	    Config.get('kivy', 'keyboard_layout'))
 #        self.dbg(lbl)
 
+	self.fixStart()
+
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
 
 	self.changeInet = False
 	self.get_volume_value()
-
-	# bug fix: bad PJSIP start - port in use with another process
-	send_command("netstat -tulpn | grep :5060 | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	return Indoor()
 
@@ -1167,6 +1203,11 @@ class IndoorApp(App):
 	self.changeInet = False
 	scrmngr.current = CAMERA_SCR
 
+
+    def fixStart(self):
+	"bug fix"
+	send_command('pkill omxplayer')
+	send_command('pkill dbus-daemon')
 
 # ###############################################################
 #

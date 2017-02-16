@@ -15,3 +15,6 @@ from itools import *
 
 # ### watches classes ###
 from watches import *
+
+# ### button in Settings ###
+from settingsbutton import *

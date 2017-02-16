@@ -20,7 +20,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
-from kivy.uix.settings import SettingsWithSidebar
+from kivy.uix.settings import Settings, SettingsWithSidebar
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
 #from kivy.uix.textinput import TextInput
@@ -957,10 +957,10 @@ class IndoorApp(App):
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
-	    'uptime': '---',
+#	    'uptime': '---',
 	    'serial': s[1] })
 	config.set('about', 'serial', s[1])
-	config.set('about', 'uptime', self.get_uptime_value())
+#	config.set('about', 'uptime', self.get_uptime_value())
 
 	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.set('devices', 'ringtone', RING_TONE)
@@ -1021,6 +1021,7 @@ class IndoorApp(App):
 	global config, scr_mode
 
         self.dbg(whoami())
+	settings.register_type('buttons', SettingButtons)
 
 	if self.changeInet == False:
 	    s = get_info(SYSTEMINFO_SCRIPT).split()
@@ -1036,7 +1037,7 @@ class IndoorApp(App):
 	    config.set('system', 'gateway', s[6])
 	    config.set('system', 'dns', dns)
 
-	config.set('about', 'uptime', self.get_uptime_value())
+#	config.set('about', 'uptime', self.get_uptime_value())
 	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.set('devices', 'ringtone', RING_TONE)
 
@@ -1175,6 +1176,9 @@ class IndoorApp(App):
 		config.write()
 	    else:
 		self.changeInet = True
+	elif token == ('about', 'buttonpress'):
+	    if 'button_status' == value:
+		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value()) # Alert box
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
 #	    self.destroy_settings()
@@ -1184,13 +1188,15 @@ class IndoorApp(App):
 #	    self.destroy_settings()
 #	    self.open_settings()
 
+
     def popupClosed(self, popup):
+	"restart App after alert box"
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
 	send_command('pkill python')
 
 	kill_subprocesses()
-	App.get_running_app().stop() # restart App
+	App.get_running_app().stop()
 
 
     def close_settings(self, *args):
@@ -1202,7 +1208,7 @@ class IndoorApp(App):
 
 	mainLayout.ids.settings.clear_widgets()
 
-	self.destroy_settings()
+#	self.destroy_settings()
 
 	if self.changeInet or self.restartAppFlag:
 	    if self.changeInet: # start script
@@ -1213,23 +1219,24 @@ class IndoorApp(App):
 			 + ' ' + config.get('system', 'gateway')\
 			 + ' ' + config.get('system', 'dns'))
 
-	    # Alert box:
-	    box = BoxLayout(orientation='vertical', spacing=10)
-	    box.add_widget(Label(text='Application is going to restart to apply your changes!',padding_y=80))
-	    btn = Button(text='OK', size_hint=(1, 0.4))
-	    btn.bind(on_press=self.popupClosed)
-	    box.add_widget(btn)
-	    Popup(title="App info", content=box, size_hint=(0.8, 0.6), on_dismiss=self.popupClosed).open()
-
-#	    send_command('pkill omxplayer')
-#	    send_command('pkill dbus-daemon')
-#	    send_command('pkill python')
-#
-#	    kill_subprocesses()
-#	    App.get_running_app().stop() # restart App
+	    self.myAlertBox('App info', 'Application is going to restart to apply your changes!', self.popupClosed)
 	else:
 	    self.changeInet = False
 	    scrmngr.current = CAMERA_SCR
+
+
+    def myAlertBox(self, titl, txt, cb=None):
+	"Alert box"
+	self.dbg(whoami()+': '+titl+' '+txt)
+	box = BoxLayout(orientation='vertical', spacing=10)
+	box.add_widget(Label(text=txt, padding_y=80))
+	btn = Button(text='OK', size_hint=(1, 0.4))
+	box.add_widget(btn)
+	p = Popup(title=titl, content=box, size_hint=(0.8, 0.6))
+	if cb is None: cb = p.dismiss
+	btn.bind(on_press=cb)
+	p.bind(on_press=cb)
+	p.open()
 
 
     def fixStart(self):

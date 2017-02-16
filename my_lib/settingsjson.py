@@ -260,10 +260,15 @@ settings_about = json.dumps([
      'section': 'about',
      'disabled': True,
      'key': 'serial'},
-    {'type': 'string',
-     'title': 'System uptime',
-     'desc': 'The system uptime to display',
-     'section': 'about',
-     'disabled': True,
-     'key': 'uptime'}
+#    {'type': 'string',
+#     'title': 'System uptime',
+#     'desc': 'The system uptime to display',
+#     'section': 'about',
+#     'disabled': True,
+#     'key': 'uptime'},
+    {"type": "buttons",
+     "title": "Status","desc": "Show popup window with main status informations",
+     "section": "about",
+     "key": "buttonpress",
+     "buttons": [{"title":"Status","id":"button_status"}]} #,{"title":"Del","id":"button_delete"},{"title":"Rename","id":"button_rename"}]}
 ])

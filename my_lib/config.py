@@ -26,7 +26,7 @@ from constants import *
 
 def get_config():
     "nacitanie konfiguracie"
-    global config
+    print 'get_config'
 
     config = ConfigParser()
     try:
@@ -39,5 +39,7 @@ def get_config():
 	except:
 	    print('ERROR 2: read config file!')
 	    return None
+
+    print '***** tone: ', config.get('devices', 'ringtone')
 
     return config

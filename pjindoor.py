@@ -306,7 +306,8 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2, APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
+        global BUTTON_DOOR_1, BUTTON_DOOR_2 
+	global APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
         global main_state, docall_button_global, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
@@ -443,7 +444,7 @@ class Indoor(FloatLayout):
 
     def init_myphone(self):
 	"sip phone init"
-        global acc
+        global acc, config
 
 	self.dbg(whoami())
 
@@ -911,9 +912,15 @@ class Indoor(FloatLayout):
 # ###############################################################
 
 class IndoorApp(App):
+
     restartAppFlag = False
+
     def build(self):
+	global config
+
         self.dbg('Hello Indoor 2.0')
+
+	self.config = config
 
 ##        Config.set('kivy', 'keyboard_mode','')
 #	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
@@ -987,18 +994,15 @@ class IndoorApp(App):
 	    'server_stream_4': '',
 	    'sip_call4': '' })
 
-	print config
 	s = get_info(SYSTEMINFO_SCRIPT).split()
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
-#	    'uptime': '---',
 	    'serial': s[1] })
 	config.set('about', 'serial', s[1])
-#	config.set('about', 'uptime', self.get_uptime_value())
 
-	config.set('devices', 'volume', AUDIO_VOLUME)
-	config.set('devices', 'ringtone', RING_TONE)
+#?	config.set('devices', 'volume', AUDIO_VOLUME)
+#?	config.set('devices', 'ringtone', RING_TONE)
 
 	dns = ''
 	try:
@@ -1017,8 +1021,6 @@ class IndoorApp(App):
 	config.set('system', 'gateway', s[6])
 	config.set('system', 'netmask', s[4])
 	config.set('system', 'dns', dns)
-	config.write()
-	print config
 
 
     def get_uptime_value(self):
@@ -1230,6 +1232,7 @@ class IndoorApp(App):
 
     def popupClosed(self, popup):
 	"restart App after alert box"
+	send_command('sync')
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
 	send_command('pkill python')
@@ -1240,10 +1243,12 @@ class IndoorApp(App):
 
     def close_settings(self, *args):
 	"close button pressed"
-	global scrmngr, mainLayout
+	global scrmngr, mainLayout, config
 
         self.dbg(whoami())
-        super(IndoorApp, self).close_settings()
+#        super(IndoorApp, self).close_settings()
+
+	send_command('sync')
 
 	mainLayout.ids.settings.clear_widgets()
 

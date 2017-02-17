@@ -135,8 +135,9 @@ class MyCallCallback(pj.CallCallback):
 		stopWAV()
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
-	    docall_button_global.color = COLOR_ANSWER_CALL
-	    docall_button_global.text = BUTTON_CALL_ANSWER
+	    if not mainLayout.outgoingCall:
+		docall_button_global.color = COLOR_ANSWER_CALL
+		docall_button_global.text = BUTTON_CALL_ANSWER
 	    mainLayout.setButtons(True)
 
         if main_state == pj.CallState.DISCONNECTED:
@@ -146,6 +147,7 @@ class MyCallCallback(pj.CallCallback):
             docall_button_global.text = BUTTON_DO_CALL
 	    mainLayout.startScreenTiming()
 	    mainLayout.showPlayers()
+	    mainLayout.outgoingCall = False
 #	    docall_button_global.disabled = False
 
         if main_state == pj.CallState.CONFIRMED:
@@ -155,7 +157,7 @@ class MyCallCallback(pj.CallCallback):
 
         if main_state == pj.CallState.CALLING:
 	    current_call = self.call
-            docall_button_global.color = COLOR_HANGUP_CALL
+            docall_button_global.color = COLOR_ANSWER_CALL #COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
 #	    docall_button_global.disabled = True
 
@@ -297,6 +299,10 @@ class BasicDisplay:
 # ##############################################################################
 
 class Indoor(FloatLayout):
+
+    lib = None
+    outgoingCall = False
+
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
@@ -443,6 +449,7 @@ class Indoor(FloatLayout):
 
         # Create library instance
         lib = pj.Lib()
+	self.lib = lib
 
 	accounttype = 'peer-to-peer'
 	try:
@@ -497,7 +504,7 @@ class Indoor(FloatLayout):
         except pj.Error, e:
             print "pj Exception: ",e
             lib.destroy()
-            lib = None
+            self.lib = lib = None
 
 
     def info_state_loop(self, dt):
@@ -609,6 +616,7 @@ class Indoor(FloatLayout):
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
 
+
     def enterCameraScreen(self):
 	"swap screen to CAMERA"
 	global current_call
@@ -623,20 +631,25 @@ class Indoor(FloatLayout):
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
 	global ring_event
 
-	self.dbg(whoami())
+	self.dbg(whoami() + ' *** call: ' + str(current_call) + ' ' + str(main_state))
 
 	if len(procs) == 0: return
 
         if current_call:
+	    print whoami(), 'last code:', current_call.info().last_code
             if main_state == pj.CallState.EARLY:
 		Clock.unschedule(ring_event)
 		ring_event = None
                 stopWAV()
-                current_call.answer(200)
-		self.setButtons(True)
+
+		if not self.outgoingCall:
+        	    current_call.answer(200)
+#		    self.setButtons(True)
+		else:
+		    current_call.hangup()
             else:
                 current_call.hangup()
-		self.setButtons(False)
+#		self.setButtons(False)
 	else:
 	    target = self.displays[active_display_index].sipcall
 
@@ -646,11 +659,14 @@ class Indoor(FloatLayout):
 	    if len(self.sipServerAddr) and '.' not in target:
 		target = target + '@' + self.sipServerAddr
 
+	    lck = self.lib.auto_lock()
+	    self.outgoingCall = True
 	    if make_call('sip:' + target + ':5060') is None:
 		txt = '--> ' + str(active_display_index + 1) + ' ERROR'
 		docall_button_global.text = txt
 	    else:
 		self.setButtons(True)
+	    del lck
 
 
     def gotResponse(self, req, results):
@@ -928,8 +944,10 @@ class IndoorApp(App):
         print info
 
 
-    def build_config(self, config):
+    def build_config(self, cfg):
 	"build config"
+	global config
+
         self.dbg(whoami())
 
 	config.setdefaults('command', {
@@ -969,6 +987,7 @@ class IndoorApp(App):
 	    'server_stream_4': '',
 	    'sip_call4': '' })
 
+	print config
 	s = get_info(SYSTEMINFO_SCRIPT).split()
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
@@ -998,6 +1017,8 @@ class IndoorApp(App):
 	config.set('system', 'gateway', s[6])
 	config.set('system', 'netmask', s[4])
 	config.set('system', 'dns', dns)
+	config.write()
+	print config
 
 
     def get_uptime_value(self):
@@ -1034,7 +1055,7 @@ class IndoorApp(App):
 
     def build_settings(self, settings):
 	"display settings screen"
-	global config, scr_mode
+	global config  #, scr_mode
 
         self.dbg(whoami())
 	settings.register_type('buttons', SettingButtons)
@@ -1143,9 +1164,9 @@ class IndoorApp(App):
 	mainLayout.ids.settings.add_widget(settings)
 
 
-    def on_config_change(self, config, section, key, value):
+    def on_config_change(self, cfg, section, key, value):
 	"config item changed"
-	global SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME
+	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME
 
         print whoami(),':', section, key, value
 	token = (section, key)
@@ -1261,6 +1282,7 @@ class IndoorApp(App):
 	"bug fix"
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
+
 
 # ###############################################################
 #

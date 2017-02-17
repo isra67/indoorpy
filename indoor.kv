@@ -56,7 +56,7 @@
             name: 'camera'
             id: camera
             on_enter: root.startScreenTiming()
-            on_pre_enter: root.showPlayers()
+            on_pre_enter: root.enterCameraScreen() #root.showPlayers()
             on_leave: root.finishScreenTiming()
             on_pre_leave: root.hidePlayers()
 

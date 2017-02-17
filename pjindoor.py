@@ -146,18 +146,18 @@ class MyCallCallback(pj.CallCallback):
             docall_button_global.text = BUTTON_DO_CALL
 	    mainLayout.startScreenTiming()
 	    mainLayout.showPlayers()
-	    docall_button_global.disabled = False
+#	    docall_button_global.disabled = False
 
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-	    docall_button_global.disabled = False
+#	    docall_button_global.disabled = False
 
         if main_state == pj.CallState.CALLING:
 	    current_call = self.call
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-	    docall_button_global.disabled = True
+#	    docall_button_global.disabled = True
 
 
     def on_media_state(self):
@@ -524,7 +524,7 @@ class Indoor(FloatLayout):
             self.info_state = 0
 	    docall_button_global.text = BUTTON_DO_CALL
 	    docall_button_global.color = COLOR_BUTTON_BASIC
-	    docall_button_global.disabled = False
+#	    docall_button_global.disabled = False
 	    self.setButtons(False)
 
 #	self.capture()
@@ -609,6 +609,14 @@ class Indoor(FloatLayout):
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
 
+    def enterCameraScreen(self):
+	"swap screen to CAMERA"
+	global current_call
+
+	self.dbg(whoami() + str(current_call))
+
+	if current_call is None: self.showPlayers()
+
 
     def callback_btn_docall(self):
 	"make outgoing call"
@@ -632,7 +640,8 @@ class Indoor(FloatLayout):
 	else:
 	    target = self.displays[active_display_index].sipcall
 
-	    if not len(target) or len(self.sipServerAddr) and '.' in target: return
+#	    if not len(target) or len(self.sipServerAddr) and '.' in target: return
+	    if len(target) == 0: return
 
 	    if len(self.sipServerAddr) and '.' not in target:
 		target = target + '@' + self.sipServerAddr
@@ -640,8 +649,8 @@ class Indoor(FloatLayout):
 	    if make_call('sip:' + target + ':5060') is None:
 		txt = '--> ' + str(active_display_index + 1) + ' ERROR'
 		docall_button_global.text = txt
-
-	    self.setButtons(True)
+	    else:
+		self.setButtons(True)
 
 
     def gotResponse(self, req, results):
@@ -732,7 +741,7 @@ class Indoor(FloatLayout):
 
 	self.displays[idx].hidePlayer()
 	send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
-	procs[idx].kill()
+#	procs[idx].kill()
 	send_command(CMD_KILL + str(procs[idx].pid))
 
 
@@ -764,7 +773,7 @@ class Indoor(FloatLayout):
 #		print 'HUHUHUUUUUUUUUUU', touch.x, touch.y
 #		return
 
-	if touch is None or current_call or self.scrmngr.current not in CAMERA_SCR:
+	if touch is None or self.scrmngr.current not in CAMERA_SCR: # or current_call
 	    self.loseNextTouch = True
 	    return
 
@@ -846,8 +855,8 @@ class Indoor(FloatLayout):
 	global active_display_index
         self.dbg('find target window for:' + addr)
 
-	self.scrmngr.current = CAMERA_SCR
-	self.finishScreenTiming()
+#	self.scrmngr.current = CAMERA_SCR
+#	self.finishScreenTiming()
 
 	ret = False
 	self.infoText.text = addr
@@ -867,6 +876,13 @@ class Indoor(FloatLayout):
 		else:
         	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
 			self.restart_player_window(idx)
+
+	if ret and not self.scrmngr.current in CAMERA_SCR:
+	    if not send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		self.restart_player_window(active_display_index)
+
+	self.scrmngr.current = CAMERA_SCR
+	self.finishScreenTiming()
 
 	return ret
 
@@ -1023,6 +1039,7 @@ class IndoorApp(App):
         self.dbg(whoami())
 	settings.register_type('buttons', SettingButtons)
 
+	"""
 	if self.changeInet == False:
 	    s = get_info(SYSTEMINFO_SCRIPT).split()
 	    dns = ''
@@ -1036,6 +1053,7 @@ class IndoorApp(App):
 	    config.set('system', 'netmask', s[4])
 	    config.set('system', 'gateway', s[6])
 	    config.set('system', 'dns', dns)
+	"""
 
 #	config.set('about', 'uptime', self.get_uptime_value())
 	config.set('devices', 'volume', AUDIO_VOLUME)

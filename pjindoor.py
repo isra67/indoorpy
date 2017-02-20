@@ -114,7 +114,7 @@ class MyCallCallback(pj.CallCallback):
 
     sip_call_id_last = '***'
     callTimerEvent = None
-    CALL_TIMEOUT = 3 * 60
+    CALL_TIMEOUT = 60 * 3
 
     def __init__(self, call=None):
         pj.CallCallback.__init__(self, call)
@@ -161,6 +161,7 @@ class MyCallCallback(pj.CallCallback):
 		docall_button_global.color = COLOR_ANSWER_CALL
 		docall_button_global.text = BUTTON_CALL_ANSWER
 	    mainLayout.setButtons(True)
+	    mainLayout.finishScreenTiming()
 
         if main_state == pj.CallState.DISCONNECTED:
             current_call = None
@@ -171,7 +172,6 @@ class MyCallCallback(pj.CallCallback):
 	    mainLayout.showPlayers()
 	    mainLayout.outgoingCall = False
 	    self.sip_call_id_last = ci.sip_call_id
-#	    docall_button_global.disabled = False
 	    if not self.callTimerEvent is None:
 		Clock.unschedule(self.callTimerEvent)
 		self.callTimerEvent = None
@@ -179,13 +179,11 @@ class MyCallCallback(pj.CallCallback):
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-#	    docall_button_global.disabled = False
 
         if main_state == pj.CallState.CALLING:
 	    current_call = self.call
-            docall_button_global.color = COLOR_ANSWER_CALL #COLOR_HANGUP_CALL
+            docall_button_global.color = COLOR_ANSWER_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-#	    docall_button_global.disabled = True
 
 
     def on_media_state(self):
@@ -203,12 +201,12 @@ class MyCallCallback(pj.CallCallback):
     def callTimerWD(self, dt):
 	"SIP call watch dog"
         global current_call, ring_event
-        global main_state, mainLayout,  acc
+        global main_state, mainLayout, acc
 
 	print whoami()
 
 	self.callTimerEvent = None
-	main_state = 0
+	main_state = pj.CallState.DISCONNECTED
 	mainLayout.setButtons(False)
         docall_button_global.color = COLOR_NOMORE_CALL
         docall_button_global.text = BUTTON_DO_CALL
@@ -216,16 +214,19 @@ class MyCallCallback(pj.CallCallback):
 	mainLayout.showPlayers()
 	mainLayout.outgoingCall = False
 
-	if ring_event:
+	if not ring_event is None:
 	    Clock.unschedule(ring_event)
 	    ring_event = None
 	    stopWAV()
-	if not current_call is None: 
-	    current_call.hang_up()
+
+	if not current_call is None:
+	    try:
+		current_call.hangup()
+	    except:
+		pass
 	    current_call = None
-	if not acc is None: acc.destroy()
-	pj.Lib.destroy()
-	mainLayout.init_myphone()
+
+#	App.get_running_app().stop()
 
 
 def make_call(uri):
@@ -408,7 +409,7 @@ class Indoor(FloatLayout):
 
         try:
 	    self.dnd_mode = config.getint('command', 'dnd_mode') > 0
-            self.dbg('DND: '+str(self.dnd_mode))
+#            self.dbg('DND: '+str(self.dnd_mode))
         except:
             self.dbg('ERROR 6: read config file!')
 
@@ -499,7 +500,6 @@ class Indoor(FloatLayout):
 	self.scrmngr.current = CAMERA_SCR
 	self.setButtons(False)
 
-	#if scr_mode != 1: 
 	self.displays[0].setActive()
 
 
@@ -579,7 +579,6 @@ class Indoor(FloatLayout):
 
         if self.info_state == 0:
             if current_call is None: self.info_state = 1
-#	    send_command(UNBLANK_SCRIPT)
         elif self.info_state == 1:
             self.info_state = 2
 	    # test if player is alive:
@@ -592,11 +591,9 @@ class Indoor(FloatLayout):
         elif self.info_state == 2:
             self.info_state = 0
 	    docall_button_global.text = BUTTON_DO_CALL
+	    if self.dnd_mode: docall_button_global.text = BUTTON_DO_CALL + ' (DND)'
 	    docall_button_global.color = COLOR_BUTTON_BASIC
-#	    docall_button_global.disabled = False
 	    self.setButtons(False)
-
-#	self.capture()
 
 
     def infinite_loop(self, dt):
@@ -614,25 +611,6 @@ class Indoor(FloatLayout):
 		    pass
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
-
-    """
-    def capture(self):
-	"screen to png"
-	global scrmngr
-	self.dbg(whoami())
-
-	path = '/tmp/my.png'
-
-#	try:
-#	    os.remove(path)
-#	except OSError:
-#	    pass
-
-	try:
-	    self.export_to_png(path)
-	except:
-	    pass
-    """
 
 
     def startScreenTiming(self):
@@ -705,16 +683,13 @@ class Indoor(FloatLayout):
 
 		if not self.outgoingCall:
         	    current_call.answer(200)
-#		    self.setButtons(True)
 		else:
 		    current_call.hangup()
             else:
                 current_call.hangup()
-#		self.setButtons(False)
 	else:
 	    target = self.displays[active_display_index].sipcall
 
-#	    if not len(target) or len(self.sipServerAddr) and '.' in target: return
 	    if len(target) == 0: return
 
 	    if len(self.sipServerAddr) and '.' not in target:
@@ -759,7 +734,7 @@ class Indoor(FloatLayout):
 
     def callback_set_options(self):
 	"start settings"
-	global procs
+#	global procs
 
         self.dbg(whoami() + " " + self.ids.btnSetOptions.text)
 
@@ -771,19 +746,18 @@ class Indoor(FloatLayout):
 #              on_dismiss=self.openAppSettings).open()
 
 	self.scrmngr.current = SETTINGS_SCR
-#	Thread(target=App.get_running_app().open_settings()).start()
 	App.get_running_app().open_settings()
 
 
-    def openAppSettings(self, popup):
-	"swap to Settings screen"
-	self.dbg(whoami() + ': ' + popup.content.text)
-
-	if popup.content.text in '1234':
-	    self.scrmngr.current = SETTINGS_SCR
-	    App.get_running_app().open_settings()
-	else:
-	    self.showPlayers()
+#    def openAppSettings(self, popup):
+#	"swap to Settings screen"
+#	self.dbg(whoami() + ': ' + popup.content.text)
+#
+#	if popup.content.text in '1234':
+#	    self.scrmngr.current = SETTINGS_SCR
+#	    App.get_running_app().open_settings()
+#	else:
+#	    self.showPlayers()
 
 
     def callback_set_voice(self, value):
@@ -842,7 +816,7 @@ class Indoor(FloatLayout):
 		self.restart_player_window(active_display_index)
 	    return
 
-	self.startScreenTiming()
+	if current_call is None: self.startScreenTiming()
 
 #	for child in self.walk():
 #	    if child is self: continue
@@ -866,25 +840,11 @@ class Indoor(FloatLayout):
 
 	self.displays[active_display_index].setActive()
 
-    """
-    def worker2(self):
-	"thread - show video"
-	for idx, proc in enumerate(procs):
-#		if idx != active_display_index:
-	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		self.restart_player_window(idx)
-
-	self.displays[active_display_index].resizePlayer()
-	self.infoText.text = ''
-	self.displays[active_display_index].setActive()
-    """
-
 
     def showPlayers(self):
 	"d-bus command to show video"
 	self.dbg(whoami())
 
-#	Thread(target=self.worker2).start()
 	for idx, proc in enumerate(procs):
 	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
 		self.restart_player_window(idx)
@@ -932,9 +892,6 @@ class Indoor(FloatLayout):
 	global active_display_index
         self.dbg('find target window for:' + addr)
 
-#	self.scrmngr.current = CAMERA_SCR
-#	self.finishScreenTiming()
-
 	ret = False
 	self.infoText.text = addr
 
@@ -944,10 +901,9 @@ class Indoor(FloatLayout):
 		d.setActive(False)
 		d.hidePlayer()
 		if not ret and d.sipcall in addr and d.sipcall != '':
-#		if d.serverAddr in addr:
 		    active_display_index = idx
 		    self.infoText.text = d.sipcall
-		    self.dbg('target window:' + str(active_display_index))
+#		    self.dbg('target window:' + str(active_display_index))
 		    d.resizePlayer('80,10,720,390')
 		    ret = True
 		else:
@@ -959,7 +915,7 @@ class Indoor(FloatLayout):
 		self.restart_player_window(active_display_index)
 
 	self.scrmngr.current = CAMERA_SCR
-	self.finishScreenTiming()
+#	self.finishScreenTiming()
 
 	return ret
 
@@ -1062,9 +1018,6 @@ class IndoorApp(App):
 	    'serial': s[1] })
 	config.set('about', 'serial', s[1])
 
-#?	config.set('devices', 'volume', AUDIO_VOLUME)
-#?	config.set('devices', 'ringtone', RING_TONE)
-
 	dns = ''
 	try:
 	    dns = s[8]
@@ -1118,28 +1071,11 @@ class IndoorApp(App):
 
     def build_settings(self, settings):
 	"display settings screen"
-	global config  #, scr_mode
+	global config
 
         self.dbg(whoami())
 	settings.register_type('buttons', SettingButtons)
 
-	"""
-	if self.changeInet == False:
-	    s = get_info(SYSTEMINFO_SCRIPT).split()
-	    dns = ''
-	    try:
-		dns = s[8]
-	    except:
-		dns = ''
-	    config.set('about', 'serial', s[1])
-	    config.set('system', 'inet', s[2])
-	    config.set('system', 'ipaddress', s[3])
-	    config.set('system', 'netmask', s[4])
-	    config.set('system', 'gateway', s[6])
-	    config.set('system', 'dns', dns)
-	"""
-
-#	config.set('about', 'uptime', self.get_uptime_value())
 	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.set('devices', 'ringtone', RING_TONE)
 
@@ -1249,7 +1185,6 @@ class IndoorApp(App):
 	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
 	elif token == ('command', 'dnd_mode'):
 	    mainLayout.dnd_mode = int(value) > 0
-	    print mainLayout.dnd_mode
 	elif token == ('command', 'screen_saver'):
 	    try:
 		v = int(value)
@@ -1286,8 +1221,6 @@ class IndoorApp(App):
 		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value()) # Alert box
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
-#	    self.destroy_settings()
-#	    self.open_settings()
 	elif token == ('gui', 'screen_mode') or token == ('sip', 'sip_mode'):
 	    self.restartAppFlag = True
 #	    self.destroy_settings()
@@ -1296,7 +1229,7 @@ class IndoorApp(App):
 
     def popupClosed(self, popup):
 	"restart App after alert box"
-	send_command('sync')
+#	send_command('sync')
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
 	send_command('pkill python')
@@ -1315,8 +1248,6 @@ class IndoorApp(App):
 #	send_command('sync')
 
 	mainLayout.ids.settings.clear_widgets()
-
-#	self.destroy_settings()
 
 	if self.changeInet or self.restartAppFlag:
 	    if self.changeInet: # start script

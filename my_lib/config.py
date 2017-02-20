@@ -40,6 +40,4 @@ def get_config():
 	    print('ERROR 2: read config file!')
 	    return None
 
-    print '***** tone: ', config.get('devices', 'ringtone')
-
     return config

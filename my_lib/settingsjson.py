@@ -264,10 +264,21 @@ settings_about = json.dumps([
      'desc': 'Raspberry Pi serial number',
      'section': 'about',
      'disabled': True,
-     'key': 'serial'},
+     'key': 'serial'}
+])
+
+# service function
+settings_services = json.dumps([
+    {'type': 'title',
+     'title': 'Service functions'},
     {"type": "buttons",
      "title": "Status","desc": "Show popup window with main status informations",
-     "section": "about",
+     "section": "service",
      "key": "buttonpress",
-     "buttons": [{"title":"Status","id":"button_status"}]} #,{"title":"Del","id":"button_delete"},{"title":"Rename","id":"button_rename"}]}
+     "buttons": [{"title":"Status","id":"button_status"}]},
+    {"type": "buttons",
+     "title": "Restart","desc": "Restart the application",
+     "section": "service",
+     "key": "app_rst",
+     "buttons": [{"title":"Restart App","id":"button_app_rst"}]} #,{"title":"Del","id":"button_delete"},{"title":"Rename","id":"button_rename"}]}
 ])

@@ -132,6 +132,7 @@ class MyCallCallback(pj.CallCallback):
         print "Call with", ci.remote_uri, "is", ci.state_text, # ci.state,
         print "last code=", ci.last_code, "(" + ci.last_reason + ")",
 	print "as", role, 'sip_call_id=', ci.sip_call_id
+#	print ' *** call state:', self.call.dump_status()
 
         main_state = ci.state
         transparency_value = 0
@@ -179,6 +180,7 @@ class MyCallCallback(pj.CallCallback):
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
+	    print ' *** call state:', self.call.dump_status()
 
         if main_state == pj.CallState.CALLING:
 	    current_call = self.call
@@ -512,6 +514,8 @@ class Indoor(FloatLayout):
         # Create library instance
         lib = pj.Lib()
 	self.lib = lib
+#	uacfg = lib.ua_cfg
+#	self.dbg('PJSIP max_calls: ' + str(uacfg.max_calls))
 
 	accounttype = 'peer-to-peer'
 	try:
@@ -536,6 +540,10 @@ class Indoor(FloatLayout):
 
             # Start the library
             lib.start()
+
+	    cl = lib.enum_codecs()
+	    for c in cl:
+		self.dbg('CODEC: ' + c.name + ' priority: ' + str(c.priority))
 
 	    # Create local account
             self.dbg(accounttype)
@@ -590,10 +598,11 @@ class Indoor(FloatLayout):
 	    self.testPlayerIdx %= len(self.displays)
         elif self.info_state == 2:
             self.info_state = 0
-	    docall_button_global.text = BUTTON_DO_CALL
-	    if self.dnd_mode: docall_button_global.text = BUTTON_DO_CALL + ' (DND)'
-	    docall_button_global.color = COLOR_BUTTON_BASIC
-	    self.setButtons(False)
+	    if self.scrmngr.current in CAMERA_SCR:
+		docall_button_global.text = BUTTON_DO_CALL
+		if self.dnd_mode: docall_button_global.text = BUTTON_DO_CALL + ' (DND)'
+		docall_button_global.color = COLOR_BUTTON_BASIC
+		self.setButtons(False)
 
 
     def infinite_loop(self, dt):
@@ -676,7 +685,9 @@ class Indoor(FloatLayout):
 	if len(procs) == 0: return
 
         if current_call:
-            if main_state == pj.CallState.EARLY:
+	    self.dbg(whoami() + ' *** call state: ' + str(current_call.dump_status()))
+
+            if current_call.is_valid() and main_state == pj.CallState.EARLY:
 		Clock.unschedule(ring_event)
 		ring_event = None
                 stopWAV()
@@ -686,7 +697,12 @@ class Indoor(FloatLayout):
 		else:
 		    current_call.hangup()
             else:
-                current_call.hangup()
+                if current_call.is_valid(): current_call.hangup()
+		current_call = None
+		self.outgoingCall = False
+		docall_button_global.text = BUTTON_DO_CALL
+		docall_button_global.color = COLOR_BUTTON_BASIC
+		self.setButtons(False)
 	else:
 	    target = self.displays[active_display_index].sipcall
 
@@ -1148,6 +1164,9 @@ class IndoorApp(App):
         settings.add_json_panel('Network',
                                 config,
                                 data=asystem)
+        settings.add_json_panel('Service',
+                                config,
+                                data=settings_services)
         settings.add_json_panel('About',
                                 config,
                                 data=settings_about)
@@ -1216,9 +1235,12 @@ class IndoorApp(App):
 		config.write()
 	    else:
 		self.changeInet = True
-	elif token == ('about', 'buttonpress'):
+	elif token == ('service', 'buttonpress'):
 	    if 'button_status' == value:
 		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value()) # Alert box
+	elif token == ('service', 'app_rst'):
+	    if 'button_app_rst' == value:
+		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed)
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
 	elif token == ('gui', 'screen_mode') or token == ('sip', 'sip_mode'):

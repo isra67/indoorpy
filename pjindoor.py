@@ -84,10 +84,14 @@ class MyAccountCallback(pj.AccountCallback):
     def __init__(self, account=None):
         pj.AccountCallback.__init__(self, account)
 
+
     # Notification on incoming call
     def on_incoming_call(self, call):
         global current_call, mainLayout
-        if current_call:
+
+	print whoami(), mainLayout.dnd_mode
+
+        if current_call or mainLayout.dnd_mode:
             call.answer(486, "Busy")
             return
 
@@ -107,25 +111,34 @@ def log_cb(level, str, len):
 
 class MyCallCallback(pj.CallCallback):
     "Callback to receive events from Call"
+
+    sip_call_id_last = '***'
+    callTimerEvent = None
+    CALL_TIMEOUT = 3 * 60
+
     def __init__(self, call=None):
         pj.CallCallback.__init__(self, call)
+
 
     def on_state(self):
 	"Notification when call state has changed"
         global current_call, ring_event, transparency_value
         global main_state, mainLayout, docall_button_global
 
-        print "Call with", self.call.info().remote_uri,
-        print "is", self.call.info().state_text, #self.call.info().state,
-        print "last code =", self.call.info().last_code,
-        print "(" + self.call.info().last_reason + ")"
+	ci = self.call.info()
+	if ci.role == 0: role = 'CALLER'
+	else: role = 'CALLEE'
 
-        main_state = self.call.info().state
+        print "Call with", ci.remote_uri, "is", ci.state_text, # ci.state,
+        print "last code=", ci.last_code, "(" + ci.last_reason + ")",
+	print "as", role, 'sip_call_id=', ci.sip_call_id
+
+        main_state = ci.state
         transparency_value = 0
 
         if main_state == pj.CallState.EARLY:
 	    if not ring_event:
-		mainLayout.findTargetWindow(self.call.info().remote_uri)
+		mainLayout.findTargetWindow(ci.remote_uri)
 		ring_event = Clock.schedule_interval(playWAV, 3.5)
 		playWAV(3.5)
         else:
@@ -133,6 +146,15 @@ class MyCallCallback(pj.CallCallback):
 		Clock.unschedule(ring_event)
 		ring_event = None
 		stopWAV()
+
+#	if not mainLayout.outgoingCall and ci.role == 0:
+	if self.sip_call_id_last is ci.sip_call_id:
+	    print '*** ERROR:  Unwanted message: '+ci.state_text+' from '+ci.remote_uri+' as '+role+' ***'
+	    return
+
+	if self.callTimerEvent is None:
+	    Clock.unschedule(self.callTimerEvent)
+	    self.callTimerEvent = Clock.schedule_once(self.callTimerWD, self.CALL_TIMEOUT)
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
 	    if not mainLayout.outgoingCall:
@@ -148,7 +170,11 @@ class MyCallCallback(pj.CallCallback):
 	    mainLayout.startScreenTiming()
 	    mainLayout.showPlayers()
 	    mainLayout.outgoingCall = False
+	    self.sip_call_id_last = ci.sip_call_id
 #	    docall_button_global.disabled = False
+	    if not self.callTimerEvent is None:
+		Clock.unschedule(self.callTimerEvent)
+		self.callTimerEvent = None
 
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
@@ -172,6 +198,34 @@ class MyCallCallback(pj.CallCallback):
 #            print "Media is now active"
 #        else:
 #            print "Media is inactive"
+
+
+    def callTimerWD(self, dt):
+	"SIP call watch dog"
+        global current_call, ring_event
+        global main_state, mainLayout,  acc
+
+	print whoami()
+
+	self.callTimerEvent = None
+	main_state = 0
+	mainLayout.setButtons(False)
+        docall_button_global.color = COLOR_NOMORE_CALL
+        docall_button_global.text = BUTTON_DO_CALL
+	mainLayout.startScreenTiming()
+	mainLayout.showPlayers()
+	mainLayout.outgoingCall = False
+
+	if ring_event:
+	    Clock.unschedule(ring_event)
+	    ring_event = None
+	    stopWAV()
+	if not current_call is None: 
+	    current_call.hang_up()
+	    current_call = None
+	if not acc is None: acc.destroy()
+	pj.Lib.destroy()
+	mainLayout.init_myphone()
 
 
 def make_call(uri):
@@ -302,6 +356,7 @@ class Indoor(FloatLayout):
 
     lib = None
     outgoingCall = False
+    dnd_mode = False
 
     def __init__(self, **kwargs):
 	"app init"
@@ -347,9 +402,15 @@ class Indoor(FloatLayout):
         try:
 	    screen_saver = config.getint('command', 'screen_saver')
 	    if screen_saver > 0 and screen_saver < 120: SCREEN_SAVER = screen_saver * 60
-            self.dbg(SCREEN_SAVER)
+#            self.dbg(SCREEN_SAVER)
         except:
             self.dbg('ERROR 5: read config file!')
+
+        try:
+	    self.dnd_mode = config.getint('command', 'dnd_mode') > 0
+            self.dbg('DND: '+str(self.dnd_mode))
+        except:
+            self.dbg('ERROR 6: read config file!')
 
         try:
 	    br = config.getint('command', 'brightness')
@@ -637,7 +698,6 @@ class Indoor(FloatLayout):
 	if len(procs) == 0: return
 
         if current_call:
-	    print whoami(), 'last code:', current_call.info().last_code
             if main_state == pj.CallState.EARLY:
 		Clock.unschedule(ring_event)
 		ring_event = None
@@ -959,6 +1019,7 @@ class IndoorApp(App):
 
 	config.setdefaults('command', {
 	    'screen_saver': 1,
+	    'dnd_mode': 0,
 	    'brightness': 100,
 	    'watches': 'analog' })
 	config.setdefaults('sip', {
@@ -1168,7 +1229,7 @@ class IndoorApp(App):
 
     def on_config_change(self, cfg, section, key, value):
 	"config item changed"
-	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME
+	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME, mainLayout
 
         print whoami(),':', section, key, value
 	token = (section, key)
@@ -1186,6 +1247,9 @@ class IndoorApp(App):
 	    except:
 		BRIGHTNESS = 255
 	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+	elif token == ('command', 'dnd_mode'):
+	    mainLayout.dnd_mode = int(value) > 0
+	    print mainLayout.dnd_mode
 	elif token == ('command', 'screen_saver'):
 	    try:
 		v = int(value)
@@ -1248,7 +1312,7 @@ class IndoorApp(App):
         self.dbg(whoami())
 #        super(IndoorApp, self).close_settings()
 
-	send_command('sync')
+#	send_command('sync')
 
 	mainLayout.ids.settings.clear_widgets()
 

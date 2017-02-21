@@ -62,17 +62,22 @@ config = get_config()
 @atexit.register
 def kill_subprocesses():
     "tidy up at exit or break"
+
     Logger.info(__name__ +': destroy lib at exit')
     try:
 	pj.Lib.destroy()
     except:
 	pass
+
     Logger.info(__name__ +': kill subprocesses at exit')
     for proc in procs:
 	try:
             proc.kill()
 	except:
 	    pass
+
+    send_command('pkill omxplayer')
+    send_command('pkill dbus-daemon')
 #    print(LoggerHistory.history)
 
 
@@ -219,7 +224,7 @@ class MyCallCallback(pj.CallCallback):
         global current_call, ring_event
         global main_state, mainLayout, acc
 
-	Logger.warning(whoami())
+	Logger.warning(whoami()+':')
 
 	self.callTimerEvent = None
 	main_state = pj.CallState.DISCONNECTED
@@ -304,7 +309,7 @@ class BasicDisplay:
     def initPlayer(self):
 	"start video player"
 
-	Logger.debug(whoami())
+	Logger.debug(whoami()+':')
 
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd',\
 	    '--dbus_name',DBUS_PLAYERNAME + str(self.screenIndex),\
@@ -333,7 +338,7 @@ class BasicDisplay:
     def hidePlayer(self):
 	"hide video player area"
 
-	Logger.debug(whoami())
+	Logger.debug(whoami()+':')
 
 	if self.color is not None: self.actScreen.canvas.remove(self.color)
 	if self.frame is not None: self.actScreen.canvas.remove(self.frame)
@@ -369,7 +374,7 @@ class BasicDisplay:
 
     def printInfo(self):
 	"print class info"
-	Logger.debug('Display: id=%d area:%s IP:%s SIPcall:%s stream:%s'\
+	Logger.debug('Display: id=%d area=%s IP=%s SIPcall=%s stream=%s'\
 	    % (self.screenIndex, self.playerPosition, self.serverAddr, self.sipcall, self.streamUrl))
 
 
@@ -483,7 +488,7 @@ class Indoor(FloatLayout):
 	"define app screen"
 	global config, scr_mode
 
-	Logger.debug(whoami())
+	Logger.debug(whoami()+':')
 
 	scr_mode = 0
 	try:
@@ -528,7 +533,7 @@ class Indoor(FloatLayout):
 	"sip phone init"
         global acc, config
 
-	Logger.debug(whoami())
+	Logger.debug(whoami()+':')
 
         # Create library instance
         lib = pj.Lib()
@@ -561,7 +566,7 @@ class Indoor(FloatLayout):
 
 	    cl = lib.enum_codecs()
 	    for c in cl:
-		Logger.debug(whoami() + ' CODEC: ' + c.name + ' priority: ' + str(c.priority))
+		Logger.debug(whoami() + ' CODEC ' + c.name + ' priority ' + str(c.priority))
 
 	    # Create local account
 	    if accounttype in 'peer-to-peer':
@@ -588,7 +593,7 @@ class Indoor(FloatLayout):
 		% (transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
 
         except pj.Error, e:
-            Logger.critical("pjSip Exception: " + e)
+            Logger.critical("pjSip Exception: " + e.output)
 
             lib.destroy()
             self.lib = lib = None
@@ -673,7 +678,7 @@ class Indoor(FloatLayout):
     def finishScreenTiming(self):
 	"finist screen timer"
 
-        Logger.debug('ScrnLeave')
+        Logger.debug('ScrnLeave: ')
 
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
@@ -682,7 +687,7 @@ class Indoor(FloatLayout):
     def swap2camera(self):
 	"swap screen to CAMERA"
 
-        Logger.info(whoami())
+        Logger.info(whoami()+':')
 
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
@@ -773,7 +778,7 @@ class Indoor(FloatLayout):
 
     def callback_btn_door2(self):
 	"door 2 button"
-        Logger.debug(BUTTON_DOOR_2)
+        Logger.debug(BUTTON_DOOR_2+':')
         self.setRelayRQ('relay2')
 
 
@@ -849,7 +854,7 @@ class Indoor(FloatLayout):
     def checkTripleTap(self,touch):
 	"check if triple tap is in valid area, if yes -> finish app"
 
-	Logger.info(whoami())
+	Logger.info(whoami()+':')
 
 	x = touch.x
 	y = touch.y
@@ -872,7 +877,7 @@ class Indoor(FloatLayout):
 	Logger.info(whoami()+': loseNext='+str(self.loseNextTouch))
 	if not touch is None:
 	    Logger.debug(whoami()+': touch=%d,%d double=%d triple=%d'\
-		% ( touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap))
+		% (touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap))
 
 	if self.loseNextTouch:
 	    self.loseNextTouch = False
@@ -899,9 +904,11 @@ class Indoor(FloatLayout):
 #		print 'HUHUHUUUUUUUUUUU', touch.x, touch.y
 #		return
 
-	if touch is None: # or self.scrmngr.current not in CAMERA_SCR: # or current_call
+	if touch is None:
 	    self.loseNextTouch = True
 	    return
+
+	if not self.scrmngr.current in CAMERA_SCR or not current_call is None: return
 
 	rx = int(round(touch.x))
 	ry = int(round(touch.y))
@@ -1014,7 +1021,7 @@ class IndoorApp(App):
 #	    Config.get('kivy', 'keyboard_layout'))
 #        self.dbg(lbl)
 
-	self.fixStart()
+	kill_subprocesses()
 
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
@@ -1238,6 +1245,7 @@ class IndoorApp(App):
     def on_config_change(self, cfg, section, key, value):
 	"config item changed"
 	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME, mainLayout
+#	global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP, BUTTON_DOOR_1, BUTTON_DOOR_2
 
         Logger.info(whoami()+': sec=%s key=%s val=%s' %(section, key, value))
 	token = (section, key)
@@ -1296,7 +1304,7 @@ class IndoorApp(App):
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed)
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
-	elif token == ('gui', 'screen_mode') or token == ('sip', 'sip_mode'):
+	elif 'gui' in section or token == ('sip', 'sip_mode'):
 	    self.restartAppFlag = True
 #	    self.destroy_settings()
 #	    self.open_settings()
@@ -1307,12 +1315,13 @@ class IndoorApp(App):
 
         Logger.debug(whoami())
 
+	kill_subprocesses()
+
 #	send_command('sync')
-	send_command('pkill omxplayer')
-	send_command('pkill dbus-daemon')
+#	send_command('pkill omxplayer')
+#	send_command('pkill dbus-daemon')
 	send_command('pkill python')
 
-	kill_subprocesses()
 	App.get_running_app().stop()
 
 
@@ -1335,13 +1344,13 @@ class IndoorApp(App):
 			 + ' ' + config.get('system', 'gateway')\
 			 + ' ' + config.get('system', 'dns'))
 
-	    self.myAlertBox('App info', 'Application is going to restart to apply your changes!', self.popupClosed)
+	    self.myAlertBox('App info', 'Application is going to restart to apply your changes!', self.popupClosed, False)
 	else:
 	    self.changeInet = False
 	    scrmngr.current = CAMERA_SCR
 
 
-    def myAlertBox(self, titl, txt, cb=None):
+    def myAlertBox(self, titl, txt, cb=None, ad=True):
 	"Alert box"
 
 	Logger.debug(whoami()+': title='+titl+' msg='+txt)
@@ -1350,19 +1359,11 @@ class IndoorApp(App):
 	box.add_widget(Label(text=txt, padding_y=80))
 	btn = Button(text='OK', size_hint=(1, 0.4))
 	box.add_widget(btn)
-	p = Popup(title=titl, content=box, size_hint=(0.8, 0.6))
+	p = Popup(title=titl, content=box, size_hint=(0.8, 0.6), auto_dismiss=ad)
 	if cb is None: cb = p.dismiss
 	btn.bind(on_press=cb)
 	p.bind(on_press=cb)
 	p.open()
-
-
-    def fixStart(self):
-	"bug fix"
-        Logger.debug(whoami())
-
-	send_command('pkill omxplayer')
-	send_command('pkill dbus-daemon')
 
 
 # ###############################################################

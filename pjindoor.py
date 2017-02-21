@@ -9,6 +9,8 @@
 import kivy
 kivy.require('1.9.0')
 
+from kivy.logger import Logger, LoggerHistory
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import Config, ConfigParser
@@ -60,17 +62,18 @@ config = get_config()
 @atexit.register
 def kill_subprocesses():
     "tidy up at exit or break"
-    print('destroy lib at exit')
+    Logger.info(__name__ +': destroy lib at exit')
     try:
 	pj.Lib.destroy()
     except:
 	pass
-    print('kill subprocesses at exit')
+    Logger.info(__name__ +': kill subprocesses at exit')
     for proc in procs:
 	try:
             proc.kill()
 	except:
 	    pass
+#    print(LoggerHistory.history)
 
 
 # ###############################################################
@@ -89,13 +92,13 @@ class MyAccountCallback(pj.AccountCallback):
     def on_incoming_call(self, call):
         global current_call, mainLayout
 
-	print whoami(), mainLayout.dnd_mode
+	Logger.trace(whoami() +': DND mode = '+ str(mainLayout.dnd_mode))
 
         if current_call or mainLayout.dnd_mode:
             call.answer(486, "Busy")
             return
 
-#        print "Incoming call from ", call.info().remote_uri
+        Logger.info(whoami() +": Incoming call from " + call.info().remote_uri)
         current_call = call
 
         call_cb = MyCallCallback(current_call)
@@ -106,7 +109,8 @@ class MyAccountCallback(pj.AccountCallback):
 
 def log_cb(level, str, len):
     "pjSip logging callback"
-    print str,
+#    print str,
+    Logger.info('pjSip cb: ' + str)
 
 
 class MyCallCallback(pj.CallCallback):
@@ -129,9 +133,11 @@ class MyCallCallback(pj.CallCallback):
 	if ci.role == 0: role = 'CALLER'
 	else: role = 'CALLEE'
 
-        print "Call with", ci.remote_uri, "is", ci.state_text, # ci.state,
-        print "last code=", ci.last_code, "(" + ci.last_reason + ")",
-	print "as", role, 'sip_call_id=', ci.sip_call_id
+	Logger.info('pjSip on_state: Call width=%s is %s last code=%s (%s)'\
+	    % (ci.remote_uri, ci.state_text, str(ci.last_code), ci.last_reason))
+##        print "Call with", ci.remote_uri, "is", ci.state_text, # ci.state,
+##        print "last code=", ci.last_code, "(" + ci.last_reason + ")",
+#	print "as", role, 'sip_call_id=', ci.sip_call_id
 #	print ' *** call state:', self.call.dump_status()
 
         main_state = ci.state
@@ -150,7 +156,7 @@ class MyCallCallback(pj.CallCallback):
 
 #	if not mainLayout.outgoingCall and ci.role == 0:
 	if self.sip_call_id_last is ci.sip_call_id:
-	    print '*** ERROR:  Unwanted message: '+ci.state_text+' from '+ci.remote_uri+' as '+role+' ***'
+	    Logger.error('pjSip '+whoami()+': Unwanted message='+ci.state_text+' from '+ci.remote_uri+' as '+role)
 	    return
 
 	if self.callTimerEvent is None:
@@ -180,7 +186,7 @@ class MyCallCallback(pj.CallCallback):
         if main_state == pj.CallState.CONFIRMED:
             docall_button_global.color = COLOR_HANGUP_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
-	    print ' *** call state:', self.call.dump_status()
+	    Logger.info('pjSip call status:' + self.call.dump_status())
 
         if main_state == pj.CallState.CALLING:
 	    current_call = self.call
@@ -195,9 +201,9 @@ class MyCallCallback(pj.CallCallback):
             call_slot = self.call.info().conf_slot
             pj.Lib.instance().conf_connect(call_slot, 0)
             pj.Lib.instance().conf_connect(0, call_slot)
-#            print "Media is now active"
+            Logger.debug("pjSip "+whoami()+": Media is now active")
 #        else:
-#            print "Media is inactive"
+            Logger.debug("pjSip "+whoami()+": Media is inactive")
 
 
     def callTimerWD(self, dt):
@@ -205,7 +211,7 @@ class MyCallCallback(pj.CallCallback):
         global current_call, ring_event
         global main_state, mainLayout, acc
 
-	print whoami()
+	Logger.warning(whoami())
 
 	self.callTimerEvent = None
 	main_state = pj.CallState.DISCONNECTED
@@ -235,12 +241,12 @@ def make_call(uri):
     "Function to make outgoing call"
     global acc
 
-    print whoami(), uri, acc
+    Logger.debug(whoami() + ': ' + uri)
 
     try:
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
-        print "pj Exception:", e
+        Logger.error("pjSip "+whoami()+" Exception: " + e)
 
     return None
 
@@ -289,7 +295,9 @@ class BasicDisplay:
 
     def initPlayer(self):
 	"start video player"
-	print whoami()
+
+	Logger.debug(whoami())
+
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd',\
 	    '--dbus_name',DBUS_PLAYERNAME + str(self.screenIndex),\
 	    '--layer', '1', '--no-keys', '--win', ','.join(self.playerPosition), self.streamUrl],\
@@ -300,7 +308,7 @@ class BasicDisplay:
 	"resize video player area"
 	global mainLayout, scr_mode
 
-	print whoami(), newpos
+	Logger.debug(whoami() + ': ' + newpos)
 
 	self.hidePlayer()
 
@@ -316,7 +324,9 @@ class BasicDisplay:
 
     def hidePlayer(self):
 	"hide video player area"
-	print whoami()
+
+	Logger.debug(whoami())
+
 	if self.color is not None: self.actScreen.canvas.remove(self.color)
 	if self.frame is not None: self.actScreen.canvas.remove(self.frame)
 
@@ -327,7 +337,9 @@ class BasicDisplay:
     def setActive(self, active=True):
 	"add or remove active flag"
 	global current_call
-	print whoami(), self.screenIndex, active
+
+	Logger.debug(whoami()+': index=%d active=%d' % (self.screenIndex, active))
+
 	self.hidePlayer()
 
 	if current_call: return
@@ -349,8 +361,8 @@ class BasicDisplay:
 
     def printInfo(self):
 	"print class info"
-	print self.screenIndex,'area:',self.winPosition, 'IPaddr:', self.serverAddr,\
-	    'SIP:', self.sipcall, 'stream:', self.streamUrl
+	Logger.debug('Display: id=%d area:%s IP:%s SIPcall:%s stream:%s'\
+	    % (self.screenIndex, self.playerPosition, self.serverAddr, self.sipcall, self.streamUrl))
 
 
 # ##############################################################################
@@ -364,7 +376,7 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2 
+        global BUTTON_DOOR_1, BUTTON_DOOR_2
 	global APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
         global main_state, docall_button_global, mainLayout, scrmngr, config
 
@@ -391,7 +403,7 @@ class Indoor(FloatLayout):
         try:
 	    APP_NAME = config.get('about', 'app_name')
         except:
-            self.dbg('ERROR 3: read config file!')
+            Logger.warning('Indoor init: ERROR 3 = read config file!')
 
 	watches.APP_LABEL = APP_NAME
 
@@ -400,26 +412,24 @@ class Indoor(FloatLayout):
 	    if value in 'analog' or value in 'digital': WATCHES = value
 	    else: WATCHES = 'None'
         except:
-            self.dbg('ERROR 4: read config file!')
+            Logger.warning('Indoor init: ERROR 4 = read config file!')
 
         try:
 	    screen_saver = config.getint('command', 'screen_saver')
 	    if screen_saver > 0 and screen_saver < 120: SCREEN_SAVER = screen_saver * 60
-#            self.dbg(SCREEN_SAVER)
         except:
-            self.dbg('ERROR 5: read config file!')
+            Logger.warning('Indoor init: ERROR 5 = read config file!')
 
         try:
 	    self.dnd_mode = config.getint('command', 'dnd_mode') > 0
-#            self.dbg('DND: '+str(self.dnd_mode))
         except:
-            self.dbg('ERROR 6: read config file!')
+            Logger.warning('Indoor init: ERROR 6 = read config file!')
 
         try:
 	    br = config.getint('command', 'brightness')
 	    if br > 0 and br < 256: BRIGHTNESS = int(br * 2.55)
         except:
-            self.dbg('ERROR 7: read config file!')
+            Logger.warning('Indoor init: ERROR 7 = read config file!')
 	    BRIGHTNESS = 255
 
 	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
@@ -427,7 +437,7 @@ class Indoor(FloatLayout):
         try:
 	    RING_TONE = config.get('devices', 'ringtone').strip()
         except:
-            self.dbg('ERROR 11: read config file!')
+            Logger.warning('Indoor init: ERROR 11 = read config file!')
 	    RING_TONE = 'oldphone.wav'
 
 	itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
@@ -439,7 +449,7 @@ class Indoor(FloatLayout):
             BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
             BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
         except:
-            self.dbg('ERROR 8: read config file!')
+            Logger.warning('Indoor init: ERROR 8 = read config file!')
 
         self.ids.btnDoor1.text = BUTTON_DOOR_1
         self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
@@ -463,16 +473,14 @@ class Indoor(FloatLayout):
 	"define app screen"
 	global config, scr_mode
 
-	self.dbg(whoami())
+	Logger.debug(whoami())
 
 	scr_mode = 0
 	try:
 	    scr_mode = config.getint('gui', 'screen_mode')
 	except:
-            self.dbg('ERROR 9: read config file!')
+            Logger.warning('Indoor init_screen: ERROR 9 = read config file!')
 	    scr_mode = 0
-
-#	self.scrmngr.current = WAIT_SCR
 
 	if scr_mode == 1:
 	    wins = ['0,0,800,432']
@@ -492,6 +500,7 @@ class Indoor(FloatLayout):
 #	    try:
 #		relay = config.get('common', 'server_relay_'+str(i + 1)).strip()
 #	    except:
+#        	Logger.warning('Indoor init_screen: ERROR 12 = read config file!')
 #		relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 #
 #	    self.dbg(whoami() + ' relay: ' + str(relay))
@@ -509,7 +518,7 @@ class Indoor(FloatLayout):
 	"sip phone init"
         global acc, config
 
-	self.dbg(whoami())
+	Logger.debug(whoami())
 
         # Create library instance
         lib = pj.Lib()
@@ -521,7 +530,7 @@ class Indoor(FloatLayout):
 	try:
 	    accounttype = config.get('sip', 'sip_mode').strip()
 	except:
-            self.dbg('ERROR 10: read config file!')
+            Logger.warning('Indoor init_myphone: ERROR 10 = read config file!')
 
         try:
             # Init library with default config and some customized logging config
@@ -536,18 +545,15 @@ class Indoor(FloatLayout):
 
 	    # Create UDP transport which listens to any available port
 	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(5060))
-	    print "Listening on", transport.info().host, "port", transport.info().port
 
             # Start the library
             lib.start()
 
 	    cl = lib.enum_codecs()
 	    for c in cl:
-		self.dbg('CODEC: ' + c.name + ' priority: ' + str(c.priority))
+		Logger.debug(whoami() + ' CODEC: ' + c.name + ' priority: ' + str(c.priority))
 
 	    # Create local account
-            self.dbg(accounttype)
-
 	    if accounttype in 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
@@ -568,11 +574,12 @@ class Indoor(FloatLayout):
 		cb = MyAccountCallback(acc)
 		acc.set_callback(cb)
 
-            my_sip_uri = "sip:" + transport.info().host + ":" + str(transport.info().port)
-            print "Account", acc, "at URI", my_sip_uri, 'server', self.sipServerAddr
+	    Logger.info(whoami()+': Listening on %s port %d Account type=%s SIP server=%s'\
+		% (transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
 
         except pj.Error, e:
-            print "pj Exception: ",e
+            Logger.critical("pjSip Exception: " + e)
+
             lib.destroy()
             self.lib = lib = None
 
@@ -581,7 +588,7 @@ class Indoor(FloatLayout):
 	"state loop"
         global current_call, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
 
-#	self.dbg(whoami()+': '+str(current_call)+': '+str(self.info_state))
+#	Logger.debug(whoami()+': call='+str(current_call)+' state='+str(self.info_state))
 
         if not current_call is None: self.info_state = 0
 
@@ -613,7 +620,7 @@ class Indoor(FloatLayout):
 
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
-#		self.dbg( "Process" + str(idx) + " (" + str(p.pid) + ") is dead\nscreen:" + self.scrmngr.current+'/'+CAMERA_SCR )
+#		Logger.debug( "Process" + str(idx) + " (" + str(p.pid) + ") is dead" )
 		try:
 		    p.kill()
 		except:
@@ -626,7 +633,8 @@ class Indoor(FloatLayout):
 	"start screen timer"
 	global SCREEN_SAVER
 
-        self.dbg('ScrnEnter:'+str(SCREEN_SAVER))
+        Logger.debug('ScrnEnter: screen saver at %d sec' % SCREEN_SAVER)
+
 	if self.screenTimerEvent: Clock.unschedule(self.screenTimerEvent)
         if SCREEN_SAVER > 0:
 	    self.screenTimerEvent = Clock.schedule_once(self.return2clock, SCREEN_SAVER)
@@ -639,7 +647,8 @@ class Indoor(FloatLayout):
 	"swat screen to CLOCK"
 	global current_call, WATCHES
 
-        self.dbg(whoami() + ': ' + self.scrmngr.current + ' - ' + WATCHES)
+        Logger.debug(whoami() + ': %s --> %s' % (self.scrmngr.current, WATCHES))
+
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
 
@@ -653,14 +662,17 @@ class Indoor(FloatLayout):
 
     def finishScreenTiming(self):
 	"finist screen timer"
-        self.dbg('ScrnLeave')
+
+        Logger.debug('ScrnLeave')
+
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
 
 
     def swap2camera(self):
 	"swap screen to CAMERA"
-	self.dbg(whoami())
+
+        Logger.debug(whoami())
 
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
@@ -670,7 +682,7 @@ class Indoor(FloatLayout):
 	"swap screen to CAMERA"
 	global current_call
 
-	self.dbg(whoami() + str(current_call))
+        Logger.debug(whoami() + ': call=' + str(current_call))
 
 	if current_call is None: self.showPlayers()
 
@@ -680,12 +692,12 @@ class Indoor(FloatLayout):
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
 	global ring_event
 
-	self.dbg(whoami() + ' *** call: ' + str(current_call) + ' ' + str(main_state))
+	Logger.info(whoami() + ': call=' + str(current_call) + ' state=' + str(main_state))
 
 	if len(procs) == 0: return
 
         if current_call:
-	    self.dbg(whoami() + ' *** call state: ' + str(current_call.dump_status()))
+	    Logger.info(whoami() + ' call state: ' + str(current_call.dump_status()))
 
             if current_call.is_valid() and main_state == pj.CallState.EARLY:
 		Clock.unschedule(ring_event)
@@ -723,12 +735,14 @@ class Indoor(FloatLayout):
 
     def gotResponse(self, req, results):
 	"relay result"
-        print 'Relay: ', req, results
+        Logger.debug('Relay: req=' + req + ' res=' + results)
 
 
     def setRelayRQ(self, relay):
 	"send relay request"
         global active_display_index
+
+        Logger.trace('SetRelay: ' + relay)
 
 	if len(procs) == 0: return
 
@@ -738,21 +752,20 @@ class Indoor(FloatLayout):
 
     def callback_btn_door1(self):
 	"door 1 button"
-        self.dbg(BUTTON_DOOR_1)
+        Loger.debug(BUTTON_DOOR_1)
         self.setRelayRQ('relay1')
 
 
     def callback_btn_door2(self):
 	"door 2 button"
-        self.dbg(BUTTON_DOOR_2)
+        Logger.debug(BUTTON_DOOR_2)
         self.setRelayRQ('relay2')
 
 
     def callback_set_options(self):
 	"start settings"
-#	global procs
 
-        self.dbg(whoami() + " " + self.ids.btnSetOptions.text)
+        Logger.debug(whoami() + ": " + self.ids.btnSetOptions.text)
 
 #	self.hidePlayers()
 
@@ -767,7 +780,7 @@ class Indoor(FloatLayout):
 
 #    def openAppSettings(self, popup):
 #	"swap to Settings screen"
-#	self.dbg(whoami() + ': ' + popup.content.text)
+#	Logger.debug(whoami() + ': ' + popup.content.text)
 #
 #	if popup.content.text in '1234':
 #	    self.scrmngr.current = SETTINGS_SCR
@@ -780,7 +793,7 @@ class Indoor(FloatLayout):
 	"volume buttons"
 	global AUDIO_VOLUME, current_call
 
-	self.dbg(whoami() + ': ' + str(value) + ' ' + self.ids.btnScreenClock.text)
+	Logger.debug(whoami() + ': value=' + str(value) + ' btnTxt=' + self.ids.btnScreenClock.text)
 
 	if current_call is None:
 	    if value == 1:
@@ -804,11 +817,11 @@ class Indoor(FloatLayout):
 
     def restart_player_window(self, idx):
 	"process is bad - restart"
-	self.dbg(whoami()+': '+str(idx))
+
+	Logger.info(whoami()+': idx='+str(idx))
 
 	self.displays[idx].hidePlayer()
 	send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
-#	procs[idx].kill()
 	send_command(CMD_KILL + str(procs[idx].pid))
 
 
@@ -816,7 +829,7 @@ class Indoor(FloatLayout):
 	"process touch up event"
 	global active_display_index, current_call
 
-	self.dbg(whoami()+': '+str(self.loseNextTouch)+' '+str(touch))
+	Logger.debug(whoami()+': loseNext='+str(self.loseNextTouch)+' touch='+str(touch))
 #        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
 	if self.loseNextTouch:
 	    self.loseNextTouch = False
@@ -859,7 +872,8 @@ class Indoor(FloatLayout):
 
     def showPlayers(self):
 	"d-bus command to show video"
-	self.dbg(whoami())
+
+	Logger.debug(whoami())
 
 	for idx, proc in enumerate(procs):
 	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
@@ -880,7 +894,7 @@ class Indoor(FloatLayout):
 
     def hidePlayers(self):
 	"d-bus command to hide video"
-	self.dbg(whoami())
+	Logger.debug(whoami())
 
 	Thread(target=self.worker1).start()
 
@@ -889,7 +903,7 @@ class Indoor(FloatLayout):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
 	global AUDIO_VOLUME
 
-	self.dbg(whoami())
+	Logger.debug(whoami())
 
 	if visible:
 	    self.ids.btnScreenClock.text = '-'
@@ -906,7 +920,8 @@ class Indoor(FloatLayout):
     def findTargetWindow(self, addr):
 	"find target window according to calling address"
 	global active_display_index
-        self.dbg('find target window for:' + addr)
+
+        Logger.info('find target window: address=' + addr)
 
 	ret = False
 	self.infoText.text = addr
@@ -919,7 +934,6 @@ class Indoor(FloatLayout):
 		if not ret and d.sipcall in addr and d.sipcall != '':
 		    active_display_index = idx
 		    self.infoText.text = d.sipcall
-#		    self.dbg('target window:' + str(active_display_index))
 		    d.resizePlayer('80,10,720,390')
 		    ret = True
 		else:
@@ -931,14 +945,8 @@ class Indoor(FloatLayout):
 		self.restart_player_window(active_display_index)
 
 	self.scrmngr.current = CAMERA_SCR
-#	self.finishScreenTiming()
 
 	return ret
-
-
-    def dbg(self, info):
-	"debug outputs"
-        print info
 
 
 # ###############################################################
@@ -950,7 +958,7 @@ class IndoorApp(App):
     def build(self):
 	global config
 
-        self.dbg('Hello Indoor 2.0')
+        Logger.warning('Hello Indoor 2.0')
 
 	self.config = config
 
@@ -979,15 +987,11 @@ class IndoorApp(App):
 #	self.root.stop.set()
 
 
-    def dbg(self, info):
-        print info
-
-
     def build_config(self, cfg):
 	"build config"
 	global config
 
-        self.dbg(whoami())
+        Logger.debug(whoami())
 
 	config.setdefaults('command', {
 	    'screen_saver': 1,
@@ -1059,7 +1063,7 @@ class IndoorApp(App):
 	    uptime_seconds = float(f.readline().split()[0]) or 0
 	    uptime_string = str(timedelta(seconds = uptime_seconds))
 
-        self.dbg(whoami() + ': ' + uptime_string)
+        Logger.debug(whoami() + ': uptime=' + uptime_string)
 
 	return uptime_string
 
@@ -1067,6 +1071,8 @@ class IndoorApp(App):
     def get_volume_value(self):
 	"retrieve current volume level"
 	global AUDIO_VOLUME
+
+        Logger.debug(whoami())
 
 	s = get_info(VOLUMEINFO_SCRIPT).split()
 	if len(s) < 4:
@@ -1089,7 +1095,8 @@ class IndoorApp(App):
 	"display settings screen"
 	global config
 
-        self.dbg(whoami())
+        Logger.debug(whoami())
+
 	settings.register_type('buttons', SettingButtons)
 
 	config.set('devices', 'volume', AUDIO_VOLUME)
@@ -1176,7 +1183,7 @@ class IndoorApp(App):
 	"display settings"
 	global mainLayout
 
-        self.dbg(whoami())
+        Logger.debug(whoami())
 
 #        return super(IndoorApp, self).display_settings(settings)
 	mainLayout.ids.settings.add_widget(settings)
@@ -1186,7 +1193,7 @@ class IndoorApp(App):
 	"config item changed"
 	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME, mainLayout
 
-        print whoami(),':', section, key, value
+        Logger.info(whoami()+': sec=%s key=%s val=%s' %(section, key, value))
 	token = (section, key)
 	value = value.strip()
 
@@ -1251,6 +1258,9 @@ class IndoorApp(App):
 
     def popupClosed(self, popup):
 	"restart App after alert box"
+
+        Logger.debug(whoami())
+
 #	send_command('sync')
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
@@ -1264,8 +1274,7 @@ class IndoorApp(App):
 	"close button pressed"
 	global scrmngr, mainLayout, config
 
-        self.dbg(whoami())
-#        super(IndoorApp, self).close_settings()
+        Logger.debug(whoami())
 
 #	send_command('sync')
 
@@ -1288,7 +1297,9 @@ class IndoorApp(App):
 
     def myAlertBox(self, titl, txt, cb=None):
 	"Alert box"
-	self.dbg(whoami()+': '+titl+' '+txt)
+
+	Logger.debug(whoami()+': title='+titl+' msg='+txt)
+
 	box = BoxLayout(orientation='vertical', spacing=10)
 	box.add_widget(Label(text=txt, padding_y=80))
 	btn = Button(text='OK', size_hint=(1, 0.4))
@@ -1302,6 +1313,8 @@ class IndoorApp(App):
 
     def fixStart(self):
 	"bug fix"
+        Logger.debug(whoami())
+
 	send_command('pkill omxplayer')
 	send_command('pkill dbus-daemon')
 

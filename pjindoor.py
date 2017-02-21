@@ -197,6 +197,8 @@ class MyCallCallback(pj.CallCallback):
 
     def on_media_state(self):
 	"Notification when call's media state has changed"
+        global mainLayout
+
         if self.call.info().media_state == pj.MediaState.ACTIVE:
             # Connect the call to sound device
             call_slot = self.call.info().conf_slot
@@ -206,8 +208,10 @@ class MyCallCallback(pj.CallCallback):
         	Logger.debug("pjSip "+whoami()+": Media is now active")
 	    except pj.Error, e:
         	Logger.error("pjSip "+whoami()+": Media is inactive due to ERROR: " + str(e))
+		mainLayout.mediaErrorFlag = True
         else:
             Logger.debug("pjSip "+whoami()+": Media is inactive")
+	    mainLayout.mediaErrorFlag = False
 
 
     def callTimerWD(self, dt):
@@ -377,6 +381,7 @@ class Indoor(FloatLayout):
     outgoingCall = False
     dnd_mode = False
     appRestartEvent = None
+    mediaErrorFlag = False
 
     def __init__(self, **kwargs):
 	"app init"
@@ -732,7 +737,11 @@ class Indoor(FloatLayout):
 	    lck = self.lib.auto_lock()
 	    self.outgoingCall = True
 	    if make_call('sip:' + target + ':5060') is None:
-		txt = '--> ' + str(active_display_index + 1) + ' ERROR'
+		if self.mediaErrorFlag:
+		    txt = 'Audio ERROR'
+		else:
+		    txt = '--> ' + str(active_display_index + 1) + ' ERROR'
+		docall_button_global.color = COLOR_ERROR_CALL
 		docall_button_global.text = txt
 	    else:
 		self.setButtons(True)
@@ -865,9 +874,6 @@ class Indoor(FloatLayout):
 	    Logger.debug(whoami()+': touch=%d,%d double=%d triple=%d'\
 		% ( touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap))
 
-	if touch.is_triple_tap:
-	    self.checkTripleTap(touch)
-
 	if self.loseNextTouch:
 	    self.loseNextTouch = False
 	    return
@@ -877,7 +883,10 @@ class Indoor(FloatLayout):
 
 	if len(procs) == 0: return
 
-	if touch is not None and touch.is_double_tap:
+	if not touch is None and touch.is_triple_tap:
+	    self.checkTripleTap(touch)
+
+	if not touch is None and touch.is_double_tap:
 	    if not current_call and self.scrmngr.current in CAMERA_SCR:
 		self.restart_player_window(active_display_index)
 	    return
@@ -890,7 +899,7 @@ class Indoor(FloatLayout):
 #		print 'HUHUHUUUUUUUUUUU', touch.x, touch.y
 #		return
 
-	if touch is None or self.scrmngr.current not in CAMERA_SCR: # or current_call
+	if touch is None: # or self.scrmngr.current not in CAMERA_SCR: # or current_call
 	    self.loseNextTouch = True
 	    return
 

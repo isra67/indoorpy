@@ -17,7 +17,6 @@ import time
 
 from kivy.logger import Logger
 
-
 from constants import *
 
 ###############################################################
@@ -71,8 +70,7 @@ def send_dbus(dst,args):
 
     try:
 	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args) #, stderr=subprocess.STDOUT, shell=False)
-	# do something with output
-	Logger.debug(whoami()+': dst=%s args=[%s] out=%s' % (dst, ','.join(args), proc))
+	Logger.debug(whoami()+': dst=%s args=[%s]' % (dst, ','.join(args)))
 #	time.sleep(0.12)
     except subprocess.CalledProcessError, e:
 	Logger.warning(whoami()+': dst=%s args=[%s] ERR=%s' % (dst, ','.join(args), e.output))

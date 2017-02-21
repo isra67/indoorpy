@@ -9,13 +9,13 @@
 import kivy
 kivy.require('1.9.0')
 
-from kivy.logger import Logger, LoggerHistory
 
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import Config, ConfigParser
 from kivy.core.window import Window
 #from kivy.lang import Builder
+from kivy.logger import Logger, LoggerHistory
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
@@ -133,12 +133,14 @@ class MyCallCallback(pj.CallCallback):
 	if ci.role == 0: role = 'CALLER'
 	else: role = 'CALLEE'
 
-	Logger.info('pjSip on_state: Call width=%s is %s last code=%s (%s)'\
-	    % (ci.remote_uri, ci.state_text, str(ci.last_code), ci.last_reason))
+	Logger.info('pjSip on_state: Call width=%s is %s last code=%s (%s) as role=%s'\
+	    % (ci.remote_uri, ci.state_text, str(ci.last_code), ci.last_reason, role))
 ##        print "Call with", ci.remote_uri, "is", ci.state_text, # ci.state,
 ##        print "last code=", ci.last_code, "(" + ci.last_reason + ")",
 #	print "as", role, 'sip_call_id=', ci.sip_call_id
 #	print ' *** call state:', self.call.dump_status()
+	Logger.debug('pjSip on_state: outgoing call=' + str(mainLayout.outgoingCall)+\
+	    ' current call='+str(current_call))
 
         main_state = ci.state
         transparency_value = 0
@@ -189,6 +191,11 @@ class MyCallCallback(pj.CallCallback):
 	    Logger.info('pjSip call status:' + self.call.dump_status())
 
         if main_state == pj.CallState.CALLING:
+	    Logger.debug('pjSip call: CALLING state %s <<>> %s' %(str(current_call), str(self.call)))
+	    if not current_call is None:
+		Logger.warning('pjSip bad call: CALLING state %s <<>> %s' %(str(current_call), str(self.call)))
+		self.call.hangup()
+		return
 	    current_call = self.call
             docall_button_global.color = COLOR_ANSWER_CALL
             docall_button_global.text = BUTTON_CALL_HANGUP
@@ -199,10 +206,13 @@ class MyCallCallback(pj.CallCallback):
         if self.call.info().media_state == pj.MediaState.ACTIVE:
             # Connect the call to sound device
             call_slot = self.call.info().conf_slot
-            pj.Lib.instance().conf_connect(call_slot, 0)
-            pj.Lib.instance().conf_connect(0, call_slot)
-            Logger.debug("pjSip "+whoami()+": Media is now active")
-#        else:
+	    try:
+        	pj.Lib.instance().conf_connect(call_slot, 0)
+        	pj.Lib.instance().conf_connect(0, call_slot)
+        	Logger.debug("pjSip "+whoami()+": Media is now active")
+	    except pj.Error, e:
+		Logger.error("pjSip "+whoami()+" Exception: " + str(e))
+        else:
             Logger.debug("pjSip "+whoami()+": Media is inactive")
 
 
@@ -246,7 +256,7 @@ def make_call(uri):
     try:
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
-        Logger.error("pjSip "+whoami()+" Exception: " + e)
+        Logger.error("pjSip "+whoami()+" Exception: " + str(e))
 
     return None
 
@@ -692,7 +702,8 @@ class Indoor(FloatLayout):
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
 	global ring_event
 
-	Logger.info(whoami() + ': call=' + str(current_call) + ' state=' + str(main_state))
+	Logger.info(whoami() + ': call=' + str(current_call) + ' state=' + str(main_state) +\
+	    ' outgoing=' + str(self.outgoingCall))
 
 	if len(procs) == 0: return
 

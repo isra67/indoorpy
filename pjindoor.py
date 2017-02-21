@@ -133,21 +133,17 @@ class MyCallCallback(pj.CallCallback):
 	if ci.role == 0: role = 'CALLER'
 	else: role = 'CALLEE'
 
-	Logger.info('pjSip on_state: Call width=%s is %s last code=%s (%s) as role=%s'\
-	    % (ci.remote_uri, ci.state_text, str(ci.last_code), ci.last_reason, role))
-##        print "Call with", ci.remote_uri, "is", ci.state_text, # ci.state,
-##        print "last code=", ci.last_code, "(" + ci.last_reason + ")",
-#	print "as", role, 'sip_call_id=', ci.sip_call_id
-#	print ' *** call state:', self.call.dump_status()
-	Logger.debug('pjSip on_state: outgoing call=' + str(mainLayout.outgoingCall)+\
-	    ' current call='+str(current_call))
+	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
+	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
+	Logger.debug('pjSip on_state: sip_call_id='+ci.sip_call_id+'  outgoing call='\
+	    + str(mainLayout.outgoingCall) + ' current call='+str(current_call))
 
         main_state = ci.state
         transparency_value = 0
 
         if main_state == pj.CallState.EARLY:
-	    if not ring_event:
-		mainLayout.findTargetWindow(ci.remote_uri)
+	    mainLayout.findTargetWindow(ci.remote_uri)
+	    if not ring_event and not mainLayout.outgoingCall:
 		ring_event = Clock.schedule_interval(playWAV, 3.5)
 		playWAV(3.5)
         else:
@@ -156,7 +152,6 @@ class MyCallCallback(pj.CallCallback):
 		ring_event = None
 		stopWAV()
 
-#	if not mainLayout.outgoingCall and ci.role == 0:
 	if self.sip_call_id_last is ci.sip_call_id:
 	    Logger.error('pjSip '+whoami()+': Unwanted message='+ci.state_text+' from '+ci.remote_uri+' as '+role)
 	    return
@@ -191,7 +186,6 @@ class MyCallCallback(pj.CallCallback):
 	    Logger.info('pjSip call status:' + self.call.dump_status())
 
         if main_state == pj.CallState.CALLING:
-	    Logger.debug('pjSip call: CALLING state %s <<>> %s' %(str(current_call), str(self.call)))
 	    if not current_call is None:
 		Logger.warning('pjSip bad call: CALLING state %s <<>> %s' %(str(current_call), str(self.call)))
 		self.call.hangup()
@@ -211,7 +205,7 @@ class MyCallCallback(pj.CallCallback):
         	pj.Lib.instance().conf_connect(0, call_slot)
         	Logger.debug("pjSip "+whoami()+": Media is now active")
 	    except pj.Error, e:
-		Logger.error("pjSip "+whoami()+" Exception: " + str(e))
+        	Logger.error("pjSip "+whoami()+": Media is inactive due to ERROR: " + str(e))
         else:
             Logger.debug("pjSip "+whoami()+": Media is inactive")
 
@@ -239,7 +233,7 @@ class MyCallCallback(pj.CallCallback):
 
 	if not current_call is None:
 	    try:
-		current_call.hangup()
+		if current_call.is_valid(): current_call.hangup()
 	    except:
 		pass
 	    current_call = None
@@ -382,6 +376,7 @@ class Indoor(FloatLayout):
     lib = None
     outgoingCall = False
     dnd_mode = False
+    appRestartEvent = None
 
     def __init__(self, **kwargs):
 	"app init"
@@ -657,7 +652,7 @@ class Indoor(FloatLayout):
 	"swat screen to CLOCK"
 	global current_call, WATCHES
 
-        Logger.debug(whoami() + ': %s --> %s' % (self.scrmngr.current, WATCHES))
+        Logger.info(whoami() + ': %s --> %s' % (self.scrmngr.current, WATCHES))
 
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
@@ -682,7 +677,7 @@ class Indoor(FloatLayout):
     def swap2camera(self):
 	"swap screen to CAMERA"
 
-        Logger.debug(whoami())
+        Logger.info(whoami())
 
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
@@ -711,7 +706,7 @@ class Indoor(FloatLayout):
 	    Logger.info(whoami() + ' call state: ' + str(current_call.dump_status()))
 
             if current_call.is_valid() and main_state == pj.CallState.EARLY:
-		Clock.unschedule(ring_event)
+		if not ring_event is None: Clock.unschedule(ring_event)
 		ring_event = None
                 stopWAV()
 
@@ -836,12 +831,43 @@ class Indoor(FloatLayout):
 	send_command(CMD_KILL + str(procs[idx].pid))
 
 
+    def supporter1(self, dt):
+	"clear restart flag"
+	Logger.debug(whoami()+ ': clear restart flag')
+	self.appRestartEvent = None
+
+
+    def checkTripleTap(self,touch):
+	"check if triple tap is in valid area, if yes -> finish app"
+
+	Logger.info(whoami())
+
+	x = touch.x
+	y = touch.y
+	if x < 50 and y > 430:
+	    if self.appRestartEvent is None:
+		self.appRestartEvent = Clock.schedule_once(self.supporter1, 5.)
+	    else:
+		Clock.unschedule(self.appRestartEvent)
+		self.appRestartEvent = None
+
+	if x > 730 and y > 430 and not self.appRestartEvent is None:
+	    Logger.error(whoami() + ': valid triple tap -> restart')
+	    App.get_running_app().stop()
+
+
     def on_touch_up(self, touch):
 	"process touch up event"
 	global active_display_index, current_call
 
-	Logger.debug(whoami()+': loseNext='+str(self.loseNextTouch)+' touch='+str(touch))
-#        print 'touchUp: ', touch.x, touch.y, touch.is_double_tap
+	Logger.info(whoami()+': loseNext='+str(self.loseNextTouch))
+	if not touch is None:
+	    Logger.debug(whoami()+': touch=%d,%d double=%d triple=%d'\
+		% ( touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap))
+
+	if touch.is_triple_tap:
+	    self.checkTripleTap(touch)
+
 	if self.loseNextTouch:
 	    self.loseNextTouch = False
 	    return

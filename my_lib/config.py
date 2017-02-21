@@ -7,6 +7,7 @@
 # ###############################################################
 
 from kivy.config import Config, ConfigParser
+from kivy.logger import Logger
 
 from constants import *
 
@@ -26,18 +27,18 @@ from constants import *
 
 def get_config():
     "nacitanie konfiguracie"
-    print 'get_config'
+    Logger.debug('get_config')
 
     config = ConfigParser()
     try:
         config.read('./' + CONFIG_FILE)
     except:
-        print('ERROR 1: read config file!')
+        Logger.info('get_config: ERROR 1 - read config file!')
 
 	try:
 	    config.read(dirname(__file__) + '/' + CONFIG_FILE)
 	except:
-	    print('ERROR 2: read config file!')
+	    Logger.warning('get_config: ERROR 2 - read config file!')
 	    return None
 
     return config

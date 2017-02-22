@@ -11,6 +11,7 @@ kivy.require('1.9.0')
 
 
 from kivy.app import App
+from kivy.adapters.listadapter import ListAdapter
 from kivy.clock import Clock
 from kivy.config import Config, ConfigParser
 from kivy.core.window import Window
@@ -21,6 +22,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.listview import ListView, ListItemLabel
 from kivy.uix.popup import Popup
 from kivy.uix.settings import Settings, SettingsWithSidebar
 from kivy.uix.scatter import Scatter
@@ -78,7 +80,6 @@ def kill_subprocesses():
 
     send_command('pkill omxplayer')
     send_command('pkill dbus-daemon')
-#    print(LoggerHistory.history)
 
 
 # ###############################################################
@@ -529,6 +530,16 @@ class Indoor(FloatLayout):
 	self.displays[0].setActive()
 
 
+    def setMediaConfig(self):
+	mc = pj.MediaConfig()
+	mc.quality = 0 #8
+	mc.ec_tail_len = 0 #200
+	mc.clock_rate = 44100 #16000
+	Logger.warning(whoami() + ': quality:%d ec_tail_len:%d clock_rater:%d'\
+	    % (mc.quality, mc.ec_tail_len, mc.clock_rate))
+	return mc
+
+
     def init_myphone(self):
 	"sip phone init"
         global acc, config
@@ -549,7 +560,8 @@ class Indoor(FloatLayout):
 
         try:
             # Init library with default config and some customized logging config
-            lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb))
+            lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb),\
+		    media_cfg=self.setMediaConfig())
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -926,7 +938,7 @@ class Indoor(FloatLayout):
     def showPlayers(self):
 	"d-bus command to show video"
 
-	Logger.debug(whoami())
+	Logger.debug(whoami()+': ')
 
 	for idx, proc in enumerate(procs):
 	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
@@ -947,7 +959,7 @@ class Indoor(FloatLayout):
 
     def hidePlayers(self):
 	"d-bus command to hide video"
-	Logger.debug(whoami())
+	Logger.debug(whoami()+': ')
 
 	Thread(target=self.worker1).start()
 
@@ -956,7 +968,7 @@ class Indoor(FloatLayout):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
 	global AUDIO_VOLUME
 
-	Logger.debug(whoami())
+	Logger.debug(whoami()+': ')
 
 	if visible:
 	    self.ids.btnScreenClock.text = '-'
@@ -1044,7 +1056,7 @@ class IndoorApp(App):
 	"build config"
 	global config
 
-        Logger.debug(whoami())
+        Logger.debug(whoami()+': ')
 
 	config.setdefaults('command', {
 	    'screen_saver': 1,
@@ -1125,7 +1137,7 @@ class IndoorApp(App):
 	"retrieve current volume level"
 	global AUDIO_VOLUME
 
-        Logger.debug(whoami())
+        Logger.debug(whoami()+': ')
 
 	s = get_info(VOLUMEINFO_SCRIPT).split()
 	if len(s) < 4:
@@ -1148,7 +1160,7 @@ class IndoorApp(App):
 	"display settings screen"
 	global config
 
-        Logger.debug(whoami())
+        Logger.debug(whoami()+': ')
 
 	settings.register_type('buttons', SettingButtons)
 
@@ -1236,7 +1248,7 @@ class IndoorApp(App):
 	"display settings"
 	global mainLayout
 
-        Logger.debug(whoami())
+        Logger.debug(whoami()+': ')
 
 #        return super(IndoorApp, self).display_settings(settings)
 	mainLayout.ids.settings.add_widget(settings)
@@ -1298,7 +1310,14 @@ class IndoorApp(App):
 		self.changeInet = True
 	elif token == ('service', 'buttonpress'):
 	    if 'button_status' == value:
-		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value()) # Alert box
+		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value())
+	elif token == ('service', 'buttonlogs'):
+	    if 'button_loghist' == value:
+	        # LoggerHistory.history:
+	        recent_log = []
+	        for record in reversed(LoggerHistory.history):
+	            recent_log.append(record.msg)
+		self.myAlertListBox('Log history', recent_log)
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed)
@@ -1313,7 +1332,7 @@ class IndoorApp(App):
     def popupClosed(self, popup):
 	"restart App after alert box"
 
-        Logger.debug(whoami())
+        Logger.debug(whoami()+': ')
 
 	kill_subprocesses()
 
@@ -1329,9 +1348,7 @@ class IndoorApp(App):
 	"close button pressed"
 	global scrmngr, mainLayout, config
 
-        Logger.debug(whoami())
-
-#	send_command('sync')
+        Logger.debug(whoami()+': ')
 
 	mainLayout.ids.settings.clear_widgets()
 
@@ -1362,6 +1379,43 @@ class IndoorApp(App):
 	p = Popup(title=titl, content=box, size_hint=(0.8, 0.6), auto_dismiss=ad)
 	if cb is None: cb = p.dismiss
 	btn.bind(on_press=cb)
+	p.bind(on_press=cb)
+	p.open()
+
+
+    def myAlertListBox(self, titl, ldata, cb=None, ad=True):
+	"Alert box"
+
+	Logger.debug(whoami()+': title='+titl)
+
+	box = BoxLayout(orientation='vertical', spacing=5)
+
+#	listdata = []
+#	for t in ldata:
+#	    t = t.replace('[','*').replace(']','*')
+#	    print '**'+t
+#	    listdata.append(Label(text=t))#, halign='left'))
+
+	args_converter = lambda row_index, rec: {'text': rec['text'],
+                                         'size_hint_y': None,
+                                         'height': 25}
+
+	list_adapter = ListAdapter(data=ldata,
+                           args_converter=args_converter,
+                           cls=ListItemLabel,
+                           selection_mode='single',
+                           allow_empty_selection=True)
+
+#	list_view = ListView(item_strings=ldata, padding_y=10)
+	list_view = ListView(adapter=list_adapter, padding_y=10)
+	box.add_widget(list_view)
+
+#	btn = Button(text='OK', size_hint=(1, 0.3))
+#	box.add_widget(btn)
+#	btn.bind(on_press=cb)
+
+	p = Popup(title=titl, content=box, size_hint=(0.8, 0.9), auto_dismiss=ad)
+	if cb is None: cb = p.dismiss
 	p.bind(on_press=cb)
 	p.open()
 

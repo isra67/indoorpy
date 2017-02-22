@@ -27,7 +27,7 @@ from constants import *
 
 def get_config():
     "nacitanie konfiguracie"
-    Logger.debug('get_config')
+    Logger.debug('get_config: ')
 
     config = ConfigParser()
     try:

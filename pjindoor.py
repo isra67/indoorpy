@@ -65,13 +65,13 @@ config = get_config()
 def kill_subprocesses():
     "tidy up at exit or break"
 
-    Logger.info(__name__ +': destroy lib at exit')
+    Logger.info(whoami() +': destroy lib at exit')
     try:
 	pj.Lib.destroy()
     except:
 	pass
 
-    Logger.info(__name__ +': kill subprocesses at exit')
+    Logger.info(whoami() +': kill subprocesses at exit')
     for proc in procs:
 	try:
             proc.kill()
@@ -111,12 +111,6 @@ class MyAccountCallback(pj.AccountCallback):
         current_call.set_callback(call_cb)
 
         current_call.answer(180)
-
-
-def log_cb(level, str, len):
-    "pjSip logging callback"
-#    print str,
-    Logger.info('pjSip cb: ' + str)
 
 
 class MyCallCallback(pj.CallCallback):
@@ -530,16 +524,6 @@ class Indoor(FloatLayout):
 	self.displays[0].setActive()
 
 
-    def setMediaConfig(self):
-	mc = pj.MediaConfig()
-	mc.quality = 0 #8
-	mc.ec_tail_len = 0 #200
-	mc.clock_rate = 44100 #16000
-	Logger.warning(whoami() + ': quality:%d ec_tail_len:%d clock_rater:%d'\
-	    % (mc.quality, mc.ec_tail_len, mc.clock_rate))
-	return mc
-
-
     def init_myphone(self):
 	"sip phone init"
         global acc, config
@@ -549,8 +533,6 @@ class Indoor(FloatLayout):
         # Create library instance
         lib = pj.Lib()
 	self.lib = lib
-#	uacfg = lib.ua_cfg
-#	self.dbg('PJSIP max_calls: ' + str(uacfg.max_calls))
 
 	accounttype = 'peer-to-peer'
 	try:
@@ -561,7 +543,8 @@ class Indoor(FloatLayout):
         try:
             # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb),\
-		    media_cfg=self.setMediaConfig())
+		    media_cfg=setMediaConfig())
+#		    media_cfg=self.setMediaConfig())
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -1311,13 +1294,13 @@ class IndoorApp(App):
 	elif token == ('service', 'buttonpress'):
 	    if 'button_status' == value:
 		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value())
-	elif token == ('service', 'buttonlogs'):
-	    if 'button_loghist' == value:
-	        # LoggerHistory.history:
-	        recent_log = []
-	        for record in reversed(LoggerHistory.history):
-	            recent_log.append(record.msg)
-		self.myAlertListBox('Log history', recent_log)
+#	elif token == ('service', 'buttonlogs'):
+#	    if 'button_loghist' == value:
+#	        # LoggerHistory.history:
+#	        recent_log = []
+#	        for record in reversed(LoggerHistory.history):
+#	            recent_log.append(record.msg)
+#		self.myAlertListBox('Log history', recent_log)
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed)
@@ -1337,9 +1320,7 @@ class IndoorApp(App):
 	kill_subprocesses()
 
 #	send_command('sync')
-#	send_command('pkill omxplayer')
-#	send_command('pkill dbus-daemon')
-	send_command('pkill python')
+#	send_command('pkill python')
 
 	App.get_running_app().stop()
 
@@ -1369,8 +1350,11 @@ class IndoorApp(App):
 
     def myAlertBox(self, titl, txt, cb=None, ad=True):
 	"Alert box"
+	global scrmngr
 
 	Logger.debug(whoami()+': title='+titl+' msg='+txt)
+
+	if not cb is None: scrmngr.current = WAIT_SCR
 
 	box = BoxLayout(orientation='vertical', spacing=10)
 	box.add_widget(Label(text=txt, padding_y=80))
@@ -1383,41 +1367,42 @@ class IndoorApp(App):
 	p.open()
 
 
+    """
     def myAlertListBox(self, titl, ldata, cb=None, ad=True):
 	"Alert box"
+	LJUST = 80
 
 	Logger.debug(whoami()+': title='+titl)
 
-	box = BoxLayout(orientation='vertical', spacing=5)
+	box = FloatLayout() #orientation='vertical', spacing=5, align='left')
 
-#	listdata = []
-#	for t in ldata:
-#	    t = t.replace('[','*').replace(']','*')
-#	    print '**'+t
-#	    listdata.append(Label(text=t))#, halign='left'))
+	data = [{'text': t[:LJUST] + '...' if len(t) > LJUST else t.ljust(LJUST), 'is_selected': False} for t in ldata]
 
-	args_converter = lambda row_index, rec: {'text': rec['text'],
-                                         'size_hint_y': None,
-                                         'height': 25}
+	args_converter = lambda row_index, rec:\
+	    {'text': rec['text'], 'size_hint': (None, None), 'height': 25} #, 'width': 600}
 
-	list_adapter = ListAdapter(data=ldata,
+	list_adapter = ListAdapter(data=data,
                            args_converter=args_converter,
                            cls=ListItemLabel,
                            selection_mode='single',
                            allow_empty_selection=True)
 
-#	list_view = ListView(item_strings=ldata, padding_y=10)
-	list_view = ListView(adapter=list_adapter, padding_y=10)
+#	list_view = ListView(adapter=list_adapter) #, size_hint=(1,1)) #, pos=(0,0), padding_y=10, halign='left')
+	list_view = ListView(item_strings=ldata, size_hint=(1,1))
 	box.add_widget(list_view)
 
-#	btn = Button(text='OK', size_hint=(1, 0.3))
-#	box.add_widget(btn)
-#	btn.bind(on_press=cb)
+#	for t in ldata:
+#	    box.add_widget(Label(text=t, halign='left', size_hint=(1,None), height=25))
 
-	p = Popup(title=titl, content=box, size_hint=(0.8, 0.9), auto_dismiss=ad)
+	btn = Button(text='OK', size_hint=(None, None), width=128, height=48, pos_hint_y= .5)
+	box.add_widget(btn)
+
+	p = Popup(title=titl, content=box, size_hint=(0.9, 0.9), auto_dismiss=ad)
 	if cb is None: cb = p.dismiss
+	btn.bind(on_press=cb)
 	p.bind(on_press=cb)
 	p.open()
+    """
 
 
 # ###############################################################

@@ -16,6 +16,9 @@ pustaj() {
 
 sleep 1
 
+clear > /dev/tty1
+setterm -cursor off > /dev/tty1
+
 ## working dir
 cd /root/indoorpy
 ./hid_init.sh

@@ -10,6 +10,9 @@ from config import *
 # ### definitions for settings screen ###
 from settingsjson import *
 
+# ### SIP ###
+from settingssip import *
+
 # ### tools ###
 from itools import *
 

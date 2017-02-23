@@ -1,24 +1,25 @@
 #! /bin/bash
 
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-pustaj() {
-	while true
-	do
-		## working dir
-		cd /root/test_stream/indoor
-
-		## OmxPlayer App
-#		/usr/bin/omxplayer --no-osd --no-keys --win '1 1 799 429' http://192.168.1.253:8080/stream/video.h264 > /dev/null
-#		/usr/bin/omxplayer --no-osd --no-keys --live --win '1 1 799 429' http://192.168.1.250:80/video.mjpg > /dev/null
-		/usr/bin/omxplayer --no-osd --layer 1 --no-keys --live --win '1 1 799 429' http://192.168.1.250:80/video.mjpg > /dev/null
-		sleep 15
-	done
-}
-
-sleep 3
+# #################################################################################
+#
+# Indoor system script
+#       update files from repository
+#
+# #################################################################################
 
 ## working dir
-#cd /home/pi/is-kivy-test
+cd /root/indoorpy
 
-pustaj >& /dev/null &
+## backup INI file
+cp -f indoor.ini /tmp
+
+## synchronize
+git fetch --all
+git reset --hard origin/master
+git clean -dn
+
+## remove unnecessary files
+rm -f my_lib/*.py
+
+## restore INI file
+cp -u /tmp/indoor.ini /root/indoorpy

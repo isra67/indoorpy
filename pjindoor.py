@@ -15,7 +15,7 @@ from kivy.adapters.listadapter import ListAdapter
 from kivy.clock import Clock
 from kivy.config import Config, ConfigParser
 from kivy.core.window import Window
-#from kivy.lang import Builder
+from kivy.lang import Builder
 from kivy.logger import Logger, LoggerHistory
 from kivy.network.urlrequest import UrlRequest
 from kivy.uix.floatlayout import FloatLayout
@@ -87,6 +87,10 @@ def kill_subprocesses():
 # Classes
 #
 # ###############################################################
+
+class MyListViewLabel(Label):
+    pass
+
 
 class MyAccountCallback(pj.AccountCallback):
     "Callback to receive events from account"
@@ -544,7 +548,6 @@ class Indoor(FloatLayout):
             # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb),\
 		    media_cfg=setMediaConfig())
-#		    media_cfg=self.setMediaConfig())
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -654,7 +657,7 @@ class Indoor(FloatLayout):
 
 
     def return2clock(self, *args):
-	"swat screen to CLOCK"
+	"swap screen to CLOCK"
 	global current_call, WATCHES
 
         Logger.info(whoami() + ': %s --> %s' % (self.scrmngr.current, WATCHES))
@@ -1010,13 +1013,11 @@ class IndoorApp(App):
 
 	self.config = config
 
-##        Config.set('kivy', 'keyboard_mode','')
-#	lbl = 'Configuration keyboard_mode is %r, keyboard_layout is %r' % (
-#	    Config.get('kivy', 'keyboard_mode'),
-#	    Config.get('kivy', 'keyboard_layout'))
-#        self.dbg(lbl)
-
 	kill_subprocesses()
+
+##        Config.set('kivy', 'keyboard_mode','')
+        Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r'\
+	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout')))
 
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
@@ -1294,13 +1295,11 @@ class IndoorApp(App):
 	elif token == ('service', 'buttonpress'):
 	    if 'button_status' == value:
 		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value())
-#	elif token == ('service', 'buttonlogs'):
-#	    if 'button_loghist' == value:
-#	        # LoggerHistory.history:
-#	        recent_log = []
-#	        for record in reversed(LoggerHistory.history):
-#	            recent_log.append(record.msg)
-#		self.myAlertListBox('Log history', recent_log)
+	elif token == ('service', 'buttonlogs'):
+	    if 'button_loghist' == value:
+	        # LoggerHistory.history:
+	        recent_log = [('%d %s' % (record.levelno, record.msg)) for record in LoggerHistory.history] #reversed(LoggerHistory.history
+		self.myAlertListBox('Log history', recent_log)
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed, False)
@@ -1321,7 +1320,6 @@ class IndoorApp(App):
 
 #	send_command('sync')
 #	send_command('pkill python')
-
 	App.get_running_app().stop()
 
 
@@ -1354,7 +1352,7 @@ class IndoorApp(App):
 
 	Logger.debug(whoami()+': title='+titl+' msg='+txt)
 
-	if not cb is None: 
+	if not cb is None:
 	    scrmngr.current = WAIT_SCR
 	    txt = txt + '\n\nPress OK'
 
@@ -1369,42 +1367,44 @@ class IndoorApp(App):
 	p.open()
 
 
-    """
     def myAlertListBox(self, titl, ldata, cb=None, ad=True):
 	"Alert box"
-	LJUST = 80
+	LJUST = 83
 
 	Logger.debug(whoami()+': title='+titl)
 
-	box = FloatLayout() #orientation='vertical', spacing=5, align='left')
+	box = BoxLayout(orientation='vertical', spacing=5)
 
-	data = [{'text': t[:LJUST] + '...' if len(t) > LJUST else t.ljust(LJUST), 'is_selected': False} for t in ldata]
+	# text color:
+	c = [int(t[:2]) for t in ldata]
+	clr = []
+	for x in c:
+	    y = (1,1,1,1)
+	    if x < 11: y = (1,1,1,1)
+	    elif x < 21: y = (.5,1,1,1)
+	    elif x < 31: y = (.5,.5,1,1)
+	    else: y = (1,.5,0,1)
+	    clr.append(y)
 
-	args_converter = lambda row_index, rec:\
-	    {'text': rec['text'], 'size_hint': (None, None), 'height': 25} #, 'width': 600}
+	# justify text:
+	data = [t[:LJUST] + '...' if len(t) > LJUST else t[:] for t in ldata]
 
-	list_adapter = ListAdapter(data=data,
-                           args_converter=args_converter,
-                           cls=ListItemLabel,
-                           selection_mode='single',
-                           allow_empty_selection=True)
+	args_converter = lambda row_idx, rec: {'text': rec,
+                                            'size_hint_y': None,
+					    'color': clr[row_idx],
+                                            'height': 25}
 
-#	list_view = ListView(adapter=list_adapter) #, size_hint=(1,1)) #, pos=(0,0), padding_y=10, halign='left')
-	list_view = ListView(item_strings=ldata, size_hint=(1,1))
+	list_adapter = ListAdapter(data=data, cls=MyListViewLabel,
+			    args_converter=args_converter,
+			    selection_mode='single', allow_empty_selection=True)
+
+	list_view = ListView(adapter=list_adapter)
 	box.add_widget(list_view)
 
-#	for t in ldata:
-#	    box.add_widget(Label(text=t, halign='left', size_hint=(1,None), height=25))
-
-	btn = Button(text='OK', size_hint=(None, None), width=128, height=48, pos_hint_y= .5)
-	box.add_widget(btn)
-
-	p = Popup(title=titl, content=box, size_hint=(0.9, 0.9), auto_dismiss=ad)
-	if cb is None: cb = p.dismiss
-	btn.bind(on_press=cb)
-	p.bind(on_press=cb)
+	p = Popup(title=titl, content=box, size_hint=(0.85, 0.95), auto_dismiss=ad)
+#	if cb is None: cb = p.dismiss
+#	p.bind(on_press=cb)
 	p.open()
-    """
 
 
 # ###############################################################

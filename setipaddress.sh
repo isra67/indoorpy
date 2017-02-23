@@ -1,10 +1,15 @@
 #! /bin/bash
 
+# #################################################################################
+#
+# Indoor system script
+#	set IP address (network settings)
+#
+# #################################################################################
+
 IFILE="/etc/network/interfaces"
 DFILE="/etc/resolv.conf"
 DNS=`cat $DFILE | grep "nameserver $7" | awk 'NR==1 {print $2}'`
-
-#echo $1 $2 $3 $4 $5
 
 # file backup
 cat $IFILE > "$IFILE.backup"
@@ -35,9 +40,7 @@ else
   echo "iface eth0 inet static" >> $IFILE
   echo "address $2" >> $IFILE
   echo "netmask $3" >> $IFILE
-#  echo "broadcast $4" >> $IFILE
   echo "gateway $4" >> $IFILE
-#  echo "network $6" >> $IFILE
 
   # DNS setting
   if [ $5 = "" ]; then
@@ -45,7 +48,6 @@ else
   else
     echo "nameserver $5" > $DFILE
   fi
-
 fi
 
 /etc/init.d/networking restart

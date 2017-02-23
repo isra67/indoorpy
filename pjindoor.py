@@ -750,7 +750,7 @@ class Indoor(FloatLayout):
 
     def gotResponse(self, req, results):
 	"relay result"
-        Logger.debug('Relay: req=' + req + ' res=' + results)
+        Logger.debug('Relay: req=' + str(req) + ' res=' + results)
 
 
     def setRelayRQ(self, relay):
@@ -767,7 +767,7 @@ class Indoor(FloatLayout):
 
     def callback_btn_door1(self):
 	"door 1 button"
-        Loger.debug(BUTTON_DOOR_1)
+        Logger.debug(BUTTON_DOOR_1+':')
         self.setRelayRQ('relay1')
 
 
@@ -1303,7 +1303,7 @@ class IndoorApp(App):
 #		self.myAlertListBox('Log history', recent_log)
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
-		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed)
+		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed, False)
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
 	elif 'gui' in section or token == ('sip', 'sip_mode'):
@@ -1412,4 +1412,5 @@ class IndoorApp(App):
 # ###############################################################
 
 if __name__ == '__main__':
+    send_command('./clrscr.sh')
     IndoorApp().run()

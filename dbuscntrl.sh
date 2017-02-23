@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# #################################################################################
+#
+# Indoor system script
+#	omxplayer dbus-control
+#
+# #################################################################################
+
 #set -x
 
 OMXPLAYER_DBUS_ADDR="/tmp/omxplayerdbus.${USER:-root}"

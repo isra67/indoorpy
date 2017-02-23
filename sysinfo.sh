@@ -1,4 +1,12 @@
 #! /bin/bash
+
+# #################################################################################
+#
+# Indoor system script
+#	get basic system info: date, RPi S/N, network settings
+#
+# #################################################################################
+
 SERIAL=`cat /proc/cpuinfo | grep -i '^serial' | grep -Eo '[a-fA-F0-9]{16}$'`
 DAT=$(date "+%Y-%m-%d")
 IP_ADDR=`hostname -I`

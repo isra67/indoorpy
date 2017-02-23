@@ -1354,7 +1354,9 @@ class IndoorApp(App):
 
 	Logger.debug(whoami()+': title='+titl+' msg='+txt)
 
-	if not cb is None: scrmngr.current = WAIT_SCR
+	if not cb is None: 
+	    scrmngr.current = WAIT_SCR
+	    txt = txt + '\n\nPress OK'
 
 	box = BoxLayout(orientation='vertical', spacing=10)
 	box.add_widget(Label(text=txt, padding_y=80))

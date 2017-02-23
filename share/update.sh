@@ -22,4 +22,4 @@ git clean -dn
 rm -f my_lib/*.py
 
 ## restore INI file
-cp -u /tmp/indoor.ini /root/indoorpy
+cp /tmp/indoor.ini /root/indoorpy

@@ -264,7 +264,13 @@ settings_about = json.dumps([
      'desc': 'Raspberry Pi serial number',
      'section': 'about',
      'disabled': True,
-     'key': 'serial'}
+     'key': 'serial'},
+    {'type': 'string',
+     'title': 'Licence key',
+     'desc': 'Application licence key',
+     'section': 'about',
+     'disabled': False,
+     'key': 'licencekey'}
 ])
 
 # service function

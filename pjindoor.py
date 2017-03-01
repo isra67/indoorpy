@@ -547,7 +547,7 @@ class Indoor(FloatLayout):
         try:
             # Init library with default config and some customized logging config
             lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb),\
-		    media_cfg=setMediaConfig())
+		    media_cfg = setMediaConfig(), licence=1)
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -591,10 +591,13 @@ class Indoor(FloatLayout):
 		% (transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
 
         except pj.Error, e:
-            Logger.critical("pjSip Exception: " + e.output)
+            Logger.critical("pjSip Exception: " + str(e))
 
             lib.destroy()
             self.lib = lib = None
+	    docall_button_global.text = "No Licence"
+	    docall_button_global.color = COLOR_ERROR_CALL
+	    docall_button_global.disabled = True
 
 
     def info_state_loop(self, dt):
@@ -618,7 +621,7 @@ class Indoor(FloatLayout):
 	    self.testPlayerIdx %= len(self.displays)
         elif self.info_state == 2:
             self.info_state = 0
-	    if self.scrmngr.current in CAMERA_SCR:
+	    if not self.lib is None and self.scrmngr.current in CAMERA_SCR:
 		docall_button_global.text = BUTTON_DO_CALL
 		if self.dnd_mode: docall_button_global.text = BUTTON_DO_CALL + ' (DND)'
 		docall_button_global.color = COLOR_BUTTON_BASIC
@@ -937,6 +940,7 @@ class Indoor(FloatLayout):
 
     def worker1(self):
 	"thread - hide video"
+
 	for idx, proc in enumerate(procs):
 	    self.displays[idx].hidePlayer()
 	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
@@ -1084,6 +1088,7 @@ class IndoorApp(App):
 	config.setdefaults('about', {
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
+	    'licencekey': '0000-000000-0000-000000-0000',
 	    'serial': s[1] })
 	config.set('about', 'serial', s[1])
 
@@ -1305,7 +1310,7 @@ class IndoorApp(App):
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed, False)
 	elif token == ('system', 'inet'):
 	    self.changeInet = True
-	elif 'gui' in section or token == ('sip', 'sip_mode'):
+	elif 'gui' in section or token == ('about', 'licencekey') or token == ('sip', 'sip_mode'):
 	    self.restartAppFlag = True
 #	    self.destroy_settings()
 #	    self.open_settings()

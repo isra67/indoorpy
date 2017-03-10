@@ -7,47 +7,28 @@
 #
 # #################################################################################
 
-IFILE="/etc/network/interfaces"
-DFILE="/etc/resolv.conf"
-DNS=`cat $DFILE | grep "nameserver $7" | awk 'NR==1 {print $2}'`
+CFG_FILE="/etc/dhcpcd.conf"
+IFACE="eth0"
+SERVICE="dhcpcd"
 
 # file backup
-cat $IFILE > "$IFILE.backup"
-cat $DFILE > "$DFILE.backup"
+cat $CFG_FILE > "../tmp/DHCPCD.backup"
 
-echo "\n" > $DFILE
+# vymazem staticke nastavenie
+sed --in-place "/^interface\ $IFACE/d; /^static/d" $CFG_FILE
 
-
-# IP setting
-echo "# ###################################################################" > $IFILE
-echo "#   !!! Do not edit manualy !!!   ***   !!! Neupravujte rucne !!!   #" >> $IFILE
-echo "# ###################################################################" >> $IFILE
-echo "" >> $IFILE
-echo "# This file describes the network interfaces available on your system" >> $IFILE
-echo "# and how to activate them. For more information, see interfaces(5)." >> $IFILE
-echo "" >> $IFILE
-echo "# The loopback network interface" >> $IFILE
-echo "auto lo" >> $IFILE
-echo "iface lo inet loopback" >> $IFILE
-echo "" >> $IFILE
-echo "# The primary network interface" >> $IFILE
-echo "auto eth0" >> $IFILE
-echo "allow-hotplug eth0" >> $IFILE
-
-if [ $1 = "dhcp" ]; then
-  echo "iface eth0 inet dhcp" >> $IFILE
-else
-  echo "iface eth0 inet static" >> $IFILE
-  echo "address $2" >> $IFILE
-  echo "netmask $3" >> $IFILE
-  echo "gateway $4" >> $IFILE
-
-  # DNS setting
-  if [ $5 = "" ]; then
-    echo "nic"
-  else
-    echo "nameserver $5" > $DFILE
-  fi
+# ak je staticke nastavebnie, tak to pridam
+if [ $1 = "static" ]; then
+	NETMASK_BITS=`netmask $2/$3 | cut -f2 -d/`
+	echo "interface $IFACE" >> $CFG_FILE
+	echo "static ip_address=$2/$NETMASK_BITS" >> $CFG_FILE
+	if [ -n $4 ]; then
+		echo "static routers=$4" >> $CFG_FILE
+	fi
+	if [ -n $5 ]; then
+		echo "static domain_name_servers=$5" >> $CFG_FILE
+	fi
 fi
 
-/etc/init.d/networking restart
+ifconfig $IFACE 0.0.0.0
+systemctl restart $SERVICE.service

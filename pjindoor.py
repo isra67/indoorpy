@@ -18,9 +18,12 @@ from kivy.core.window import Window
 from kivy.lang import Builder
 from kivy.logger import Logger, LoggerHistory
 from kivy.network.urlrequest import UrlRequest
+from kivy.properties import ListProperty
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.button import Button
+from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.listview import ListView, ListItemLabel
 from kivy.uix.popup import Popup
@@ -79,7 +82,7 @@ def kill_subprocesses():
 	    pass
 
     send_command('pkill omxplayer')
-    send_command('pkill dbus-daemon')
+#    send_command('pkill dbus-daemon')
 
 
 # ###############################################################
@@ -91,6 +94,23 @@ def kill_subprocesses():
 class MyListViewLabel(Label):
     pass
 
+
+class ImageButton(ButtonBehavior, Image):
+    pass
+
+
+"""
+    def __init__(self, **kwargs):
+        super(ImageButton, self).__init__(**kwargs)
+#        self.source = 'imgs/green-phone.png'
+
+    def on_press(self):
+#        self.source = 'atlas://data/images/defaulttheme/checkbox_on'
+        print ('pressed')
+
+#    def on_release(self):
+#        self.source = 'atlas://data/images/defaulttheme/checkbox_off'
+"""
 
 class MyAccountCallback(pj.AccountCallback):
     "Callback to receive events from account"
@@ -134,8 +154,7 @@ class MyCallCallback(pj.CallCallback):
         global main_state, mainLayout, docall_button_global
 
 	ci = self.call.info()
-	if ci.role == 0: role = 'CALLER'
-	else: role = 'CALLEE'
+	role = 'CALLER' if ci.role == 0 else 'CALLEE'
 
 	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
 	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
@@ -166,16 +185,18 @@ class MyCallCallback(pj.CallCallback):
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
 	    if not mainLayout.outgoingCall:
-		docall_button_global.color = COLOR_ANSWER_CALL
-		docall_button_global.text = BUTTON_CALL_ANSWER
+#		docall_button_global.color = COLOR_ANSWER_CALL
+#		docall_button_global.text = BUTTON_CALL_ANSWER
+		docall_button_global.source = 'imgs/orange-phone.png'
 	    mainLayout.setButtons(True)
 	    mainLayout.finishScreenTiming()
 
         if main_state == pj.CallState.DISCONNECTED:
             current_call = None
 	    mainLayout.setButtons(False)
-            docall_button_global.color = COLOR_NOMORE_CALL
-            docall_button_global.text = BUTTON_DO_CALL
+#            docall_button_global.color = COLOR_NOMORE_CALL
+#            docall_button_global.text = BUTTON_DO_CALL
+	    docall_button_global.source = 'imgs/green-phone.png'
 	    mainLayout.startScreenTiming()
 	    mainLayout.showPlayers()
 	    mainLayout.outgoingCall = False
@@ -185,8 +206,9 @@ class MyCallCallback(pj.CallCallback):
 		self.callTimerEvent = None
 
         if main_state == pj.CallState.CONFIRMED:
-            docall_button_global.color = COLOR_HANGUP_CALL
-            docall_button_global.text = BUTTON_CALL_HANGUP
+#            docall_button_global.color = COLOR_HANGUP_CALL
+#            docall_button_global.text = BUTTON_CALL_HANGUP
+	    docall_button_global.source = 'imgs/blue-phone.png'
 	    Logger.info('pjSip call status:' + self.call.dump_status())
 
         if main_state == pj.CallState.CALLING:
@@ -195,8 +217,9 @@ class MyCallCallback(pj.CallCallback):
 		self.call.hangup()
 		return
 	    current_call = self.call
-            docall_button_global.color = COLOR_ANSWER_CALL
-            docall_button_global.text = BUTTON_CALL_HANGUP
+#            docall_button_global.color = COLOR_ANSWER_CALL
+#            docall_button_global.text = BUTTON_CALL_HANGUP
+	    docall_button_global.source = 'imgs/orange-phone.png'
 
 
     def on_media_state(self):
@@ -228,8 +251,9 @@ class MyCallCallback(pj.CallCallback):
 	self.callTimerEvent = None
 	main_state = pj.CallState.DISCONNECTED
 	mainLayout.setButtons(False)
-        docall_button_global.color = COLOR_NOMORE_CALL
-        docall_button_global.text = BUTTON_DO_CALL
+#        docall_button_global.color = COLOR_NOMORE_CALL
+#        docall_button_global.text = BUTTON_DO_CALL
+	docall_button_global.source = 'imgs/green-phone.png'
 	mainLayout.startScreenTiming()
 	mainLayout.showPlayers()
 	mainLayout.outgoingCall = False
@@ -245,8 +269,6 @@ class MyCallCallback(pj.CallCallback):
 	    except:
 		pass
 	    current_call = None
-
-#	App.get_running_app().stop()
 
 
 def make_call(uri):
@@ -269,6 +291,8 @@ class BasicDisplay:
     "basic screen class"
     def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd):
 	"display area init"
+	global scr_mode
+
 	self.screenIndex = len(procs)
 	self.winPosition = winpos.split(',')
 	self.winPosition = [int(i) for i in self.winPosition]
@@ -287,9 +311,21 @@ class BasicDisplay:
 
 	procs.append(self.initPlayer())
 
-	self.color = None
-	self.frame = None
-	self.actScreen = mainLayout.ids.camera
+	self.color = INACTIVE_DISPLAY_BACKGROUND
+
+	if scr_mode == 1:
+	    self.actScreen = mainLayout.ids.videoLabel1
+	elif scr_mode == 2:
+	    self.actScreen = mainLayout.ids.videoLabel1 if self.screenIndex == 0 else\
+		mainLayout.ids.videoLabel3
+	elif scr_mode == 3:
+	    self.actScreen = mainLayout.ids.videoLabel1 if self.screenIndex == 0 else\
+		mainLayout.ids.videoLabel2
+	else:
+	    self.actScreen = mainLayout.ids.videoLabel1 if self.screenIndex == 0 else\
+		mainLayout.ids.videoLabel2 if self.screenIndex == 1 else\
+		mainLayout.ids.videoLabel3 if self.screenIndex == 2 else\
+		mainLayout.ids.videoLabel4
 
 	self.printInfo()
 	self.setActive(False)
@@ -298,22 +334,29 @@ class BasicDisplay:
     def testTouchArea(self, x, y):
 	"test if touch is in display area"
 	y = 480 - y                        # touch position is from bottom to up
-	retx = False
-	rety = False
-	if self.winPosition[0] < x and self.winPosition[2] > x : retx = True
-	if self.winPosition[1] < y and self.winPosition[3] > y : rety = True
-	return retx and rety
+	retx = self.winPosition[0] < x and self.winPosition[2] > x
+	rety = self.winPosition[1] < y and self.winPosition[3] > y
+	ret = retx and rety
+	Logger.trace('%s: winID=%d ret=%d' % (whoami(), self.screenIndex, ret))
+	return ret
 
 
     def initPlayer(self):
 	"start video player"
 
 	Logger.debug(whoami()+':')
+	try:
+	    if len(itools.omxl) and DBUS_PLAYERNAME + str(self.screenIndex) in itools.omxl:
+		del itools.omxl[DBUS_PLAYERNAME + str(self.screenIndex)]
+	except:
+	    pass
 
-	return subprocess.Popen(['omxplayer', '--live', '--no-osd',\
-	    '--dbus_name',DBUS_PLAYERNAME + str(self.screenIndex),\
-	    '--layer', '1', '--no-keys', '--win', ','.join(self.playerPosition), self.streamUrl],\
-	    stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE) #, close_fds = True)
+	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys',\
+	    '--dbus_name', DBUS_PLAYERNAME + str(self.screenIndex),\
+	    '--aspect-mode', 'fill', '--display','0',\
+	    '--orientation', '180',\
+	    '--layer', '1', '--win', ','.join(self.playerPosition), self.streamUrl],\
+	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
 
     def resizePlayer(self,newpos=''):
@@ -327,8 +370,7 @@ class BasicDisplay:
 	if scr_mode == 1: return
 
 	pos = []
-	if not len(newpos): pos = self.playerPosition
-	else: pos = newpos.split(',')
+	pos = newpos.split(',') if len(newpos) else self.playerPosition
 
         if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), ['setvideopos'] + pos):
 	    mainLayout.restart_player_window(self.screenIndex)
@@ -339,36 +381,21 @@ class BasicDisplay:
 
 	Logger.debug(whoami()+':')
 
-	if self.color is not None: self.actScreen.canvas.remove(self.color)
-	if self.frame is not None: self.actScreen.canvas.remove(self.frame)
-
-	self.color = None
-	self.frame = None
+	self.color = INACTIVE_DISPLAY_BACKGROUND
+	self.actScreen.bgcolor = self.color
 
 
     def setActive(self, active=True):
 	"add or remove active flag"
-	global current_call
+	global current_call, scr_mode
 
-	Logger.debug(whoami()+': index=%d active=%d' % (self.screenIndex, active))
-
-	self.hidePlayer()
+	Logger.debug('%s: index=%d active=%d scr_mode=%d' % (whoami(), self.screenIndex, active, scr_mode))
 
 	if current_call: return
 
-	if active:
-	    self.color = ACTIVE_DISPLAY_BACKGROUND
-	else:
-	    self.color = INACTIVE_DISPLAY_BACKGROUND
+	self.color = ACTIVE_DISPLAY_BACKGROUND if active and (scr_mode != 1) else INACTIVE_DISPLAY_BACKGROUND
 
-	w = self.winPosition[2] - self.winPosition[0] # width
-	h = self.winPosition[3] - self.winPosition[1] # height
-	ltx = self.winPosition[0]
-	lty = 480 - self.winPosition[1] - h           # touch position is from bottom to up
-
-	self.frame = Rectangle(pos=(ltx, lty), size=(w, h))
-	self.actScreen.canvas.add(self.color)
-	self.actScreen.canvas.add(self.frame)
+	self.actScreen.bgcolor = self.color
 
 
     def printInfo(self):
@@ -498,12 +525,23 @@ class Indoor(FloatLayout):
 
 	if scr_mode == 1:
 	    wins = ['0,0,800,432']
+	    self.ids.cameras1.remove_widget(self.ids.videoLabel2)
+	    self.ids.cameras2.remove_widget(self.ids.videoLabel3)
+	    self.ids.cameras2.remove_widget(self.ids.videoLabel4)
+	    self.ids.cameras.remove_widget(self.ids.cameras2)
 	elif scr_mode == 2:
 	    wins = ['0,0,800,216', '0,216,800,432']
+	    self.ids.cameras1.remove_widget(self.ids.videoLabel2)
+	    self.ids.cameras2.remove_widget(self.ids.videoLabel4)
 	elif scr_mode == 3:
 	    wins = ['0,0,400,432', '400,0,800,432']
+	    self.ids.cameras2.remove_widget(self.ids.videoLabel3)
+	    self.ids.cameras2.remove_widget(self.ids.videoLabel4)
+	    self.ids.cameras.remove_widget(self.ids.cameras2)
 	else:
 	    wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
+
+        Logger.warning('win1 size: ' + str(self.ids.cameras1.size) + ' ' + str(wins))
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
@@ -523,6 +561,11 @@ class Indoor(FloatLayout):
 	    self.displays.append(displ)
 
 	self.scrmngr.current = CAMERA_SCR
+
+	# prepare settings:
+	App.get_running_app().open_settings()
+	App.get_running_app().close_settings()
+
 	self.setButtons(False)
 
 	self.displays[0].setActive()
@@ -553,7 +596,6 @@ class Indoor(FloatLayout):
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 	    # bug fix: bad PJSIP start - port in use with another process
-	    send_command('pkill dbus-daemon')
 	    send_command("netstat -tulpn | grep :5060 | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	    # Create UDP transport which listens to any available port
@@ -598,23 +640,27 @@ class Indoor(FloatLayout):
 	    docall_button_global.text = "No Licence"
 	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
+	    docall_button_global.source = None
 
 
     def info_state_loop(self, dt):
 	"state loop"
-        global current_call, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
+        global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
 
 #	Logger.debug(whoami()+': call='+str(current_call)+' state='+str(self.info_state))
 
         if not current_call is None: self.info_state = 0
 
         if self.info_state == 0:
-            if current_call is None: self.info_state = 1
+            if current_call is None:
+		self.info_state = 1
+	    else:
+        	if not send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(255)]):
+		    self.restart_player_window(active_display_index)
         elif self.info_state == 1:
             self.info_state = 2
 	    # test if player is alive:
-	    if self.scrmngr.current in CAMERA_SCR: val = 255
-	    else: val = 0
+	    val = 255 if self.scrmngr.current in CAMERA_SCR else 0
             if not send_dbus(DBUS_PLAYERNAME + str(self.testPlayerIdx), TRANSPARENCY_VIDEO_CMD + [str(val)]):
 		self.restart_player_window(self.testPlayerIdx)
 	    self.testPlayerIdx += 1
@@ -626,6 +672,12 @@ class Indoor(FloatLayout):
 		if self.dnd_mode: docall_button_global.text = BUTTON_DO_CALL + ' (DND)'
 		docall_button_global.color = COLOR_BUTTON_BASIC
 		self.setButtons(False)
+
+	if self.lib is None:
+	    docall_button_global.text = "No Licence"
+	    docall_button_global.color = COLOR_ERROR_CALL
+	    docall_button_global.disabled = True
+	    docall_button_global.source = None
 
 
     def infinite_loop(self, dt):
@@ -795,8 +847,8 @@ class Indoor(FloatLayout):
 #              size_hint=(0.6, 0.6),
 #              on_dismiss=self.openAppSettings).open()
 
-	self.scrmngr.current = SETTINGS_SCR
 	App.get_running_app().open_settings()
+	self.scrmngr.current = SETTINGS_SCR
 
 
 #    def openAppSettings(self, popup):
@@ -885,7 +937,7 @@ class Indoor(FloatLayout):
 	    return
 
 #	if not self.collide_point(*touch.pos): return
-#	print whoami(), self.collide_point(*touch.pos)
+#	Logger.debug( whoami() +': '+ str(self.collide_point(*touch.pos)))
 
 	if len(procs) == 0: return
 
@@ -902,7 +954,7 @@ class Indoor(FloatLayout):
 #	for child in self.walk():
 #	    if child is self: continue
 #	    if child.collide_point(*touch.pos):
-#		print 'HUHUHUUUUUUUUUUU', touch.x, touch.y
+#		Logger.trace('%s: child colide point = %d, %d' %(whoami(), touch.x, touch.y))
 #		return
 
 	if touch is None:
@@ -938,20 +990,29 @@ class Indoor(FloatLayout):
 	self.displays[active_display_index].setActive()
 
 
-    def worker1(self):
-	"thread - hide video"
-
+    def worker1serial(self):
+	"thread - hide video serial"
 	for idx, proc in enumerate(procs):
 	    self.displays[idx].hidePlayer()
 	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
 		self.restart_player_window(idx)
 
+    def worker1(self, idx=0):
+	"thread - hide video parallel"
+	self.displays[idx].hidePlayer()
+	if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
+	    self.restart_player_window(idx)
 
-    def hidePlayers(self):
+
+    def hidePlayers(self, serial=False):
 	"d-bus command to hide video"
 	Logger.debug(whoami()+': ')
 
-	Thread(target=self.worker1).start()
+	if serial:
+	    Thread(target=self.worker1serial).start()
+	else:
+	    for idx, proc in enumerate(procs):
+		Thread(target=self.worker1, kwargs={'idx': idx}).start()
 
 
     def setButtons(self, visible):
@@ -1063,7 +1124,7 @@ class IndoorApp(App):
 	    'volume': 100 })
 	config.setdefaults('gui', {
 	    'screen_mode': 0,
-	    'btn_docall': 'Do Call',
+	    'btn_docall': 'Make Call',
 	    'btn_call_answer': 'Answer Call',
 	    'btn_call_hangup': 'HangUp Call',
 	    'btn_door_1': 'Open Door 1',
@@ -1089,6 +1150,7 @@ class IndoorApp(App):
 	    'app_name': 'Indoor 2.0',
 	    'app_ver': '2.0.0.0',
 	    'licencekey': '0000-000000-0000-000000-0000',
+	    'regaddress': '',
 	    'serial': s[1] })
 	config.set('about', 'serial', s[1])
 
@@ -1246,9 +1308,8 @@ class IndoorApp(App):
     def on_config_change(self, cfg, section, key, value):
 	"config item changed"
 	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME, mainLayout
-#	global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP, BUTTON_DOOR_1, BUTTON_DOOR_2
 
-        Logger.info(whoami()+': sec=%s key=%s val=%s' %(section, key, value))
+        Logger.info(whoami()+': sec=%s key=%s val=%s' % (section, key, value))
 	token = (section, key)
 	value = value.strip()
 
@@ -1300,11 +1361,16 @@ class IndoorApp(App):
 	elif token == ('service', 'buttonpress'):
 	    if 'button_status' == value:
 		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value())
+	elif token == ('about', 'buttonregs'):
+	    if 'button_regs' == value:
+		send_regs_request(registration.REGISTRATION_URL_ADDRESS,\
+		    [self.config.get('about','serial'), self.config.get('about','regaddress'), self.config.get('about','licencekey')])
+		self.myAlertBox('Registration', 'Your licence key will come to your email address till 3 working days')
 	elif token == ('service', 'buttonlogs'):
 	    if 'button_loghist' == value:
 	        # LoggerHistory.history:
 	        recent_log = [('%d %s' % (record.levelno, record.msg)) for record in LoggerHistory.history] #reversed(LoggerHistory.history
-		self.myAlertListBox('Log history', recent_log)
+		self.myAlertListBox('Log messages history', recent_log)
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed, False)
@@ -1323,8 +1389,6 @@ class IndoorApp(App):
 
 	kill_subprocesses()
 
-#	send_command('sync')
-#	send_command('pkill python')
 	App.get_running_app().stop()
 
 
@@ -1419,5 +1483,4 @@ class IndoorApp(App):
 # ###############################################################
 
 if __name__ == '__main__':
-    send_command('./clrscr.sh')
     IndoorApp().run()

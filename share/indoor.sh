@@ -16,7 +16,15 @@ pustaj() {
 
 sleep 1
 
-## working dir
+## RPi 2 - set CPU performance:
+for cpucore in /sys/devices/system/cpu/cpu?;
+do
+[[ -f "$cpucore" ]] || echo "performance" | tee /sys/devices/system/cpu/cpu${cpucore:(-1)}/cpufreq/scaling_governor >/dev/null;
+done
+
+sleep 1
+
+## Audio setting:
 cd /root/indoorpy
 ./hid_init.sh
 

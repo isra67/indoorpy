@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+from omxcontrol import *
+
 from kivy.logger import Logger
 
 from constants import *
@@ -31,6 +33,7 @@ from constants import *
 
 PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE  #'aplay -q -N -f cd -D plughw:0,0 sounds/oldphone.wav'
 
+omxl = {}
 
 # ###############################################################
 #
@@ -65,19 +68,44 @@ def stopWAV():
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
 
+##    return send_dbus_old(dst,args)
+
+    try:
+	if omxl[dst] is None: omxl[dst] = OmxControl(user='root',name=dst)
+    except:
+	omxl[dst] = OmxControl(user='root',name=dst)
+
+    omx = omxl[dst]
+
+    try:
+	if args[0] is 'setalpha':
+	    #omx.setAlpha(args[1])
+	    if not '255' in args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
+	    else: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
+	else:
+	    omx.videoPos(args[1:])
+    except OmxControlError as ex:
+	Logger.warning(whoami()+': dst=%s args=[%s] ERR=%s' % (dst, ','.join(args), ex.message))
+	return False
+
+    return True
+
+"""
+def send_dbus_old(dst,args):
+    "send DBUS command to omxplayer"
+
 #    subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args)
 #    return True
 
     try:
 	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args) #, stderr=subprocess.STDOUT, shell=False)
 	Logger.debug(whoami()+': dst=%s args=[%s]' % (dst, ','.join(args)))
-#	time.sleep(0.12)
     except subprocess.CalledProcessError, e:
 	Logger.warning(whoami()+': dst=%s args=[%s] ERR=%s' % (dst, ','.join(args), e.output))
 	return False
 
     return True
-
+"""
 
 # ##############################################################################
 

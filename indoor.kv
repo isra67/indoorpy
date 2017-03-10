@@ -7,6 +7,10 @@
     door2buton: btnDoor2
     settingsbutton: btnSetOptions
     scrClockButton: btnScreenClock
+    videoLabel1: videoLabel1
+    videoLabel2: videoLabel2
+    videoLabel3: videoLabel3
+    videoLabel4: videoLabel4
 
     ScreenManager:
         size_hint: 1, 1
@@ -56,57 +60,108 @@
             name: 'camera'
             id: camera
             on_pre_enter: root.startScreenTiming()
-            on_enter: root.enterCameraScreen() #root.showPlayers()
+            on_enter: root.enterCameraScreen()
             on_leave: root.finishScreenTiming()
             on_pre_leave: root.hidePlayers()
 
-            FloatLayout:
-	        Label:
-	            id: txtBasicLabel
-	            text: 'Wait...'
-	            height: '44dp'
-	            font_size: '40dp'
-	            pos: 0,50
-	            halign: 'center'
-	            size_hint_y: None
+            BoxLayout:
+                id: cameras
+                orientation: 'vertical'
+                size_hint: 1,.9
+                pos: 0, 48
 
-	        BoxLayout:
-	            orientation: 'horizontal'
-	            size_hint_y: None
-	            height: '48dp'
-	            size: self.size
+                BoxLayout:
+                    id: cameras1
+                    orientation: 'horizontal'
 
-	            Button:
-	                id: btnScreenClock
-	                text: 'C'
-	                font_size: '24dp'
-	                size_hint: .25, 1
-	                on_press: root.callback_set_voice(-1)
-	            Button:
-	                id: btnDoor1
-	                text: 'Open Door 1'
-	                font_size: '24dp'
-	                on_press: root.callback_btn_door1()
-	            Button:
-	                id: btnDoCall
-	                text: 'Do Call'
-	                font_size: '24dp'
-	                on_press: root.callback_btn_docall()
-	            Button:
-	                id: btnDoor2
-	                text: 'Open Door 2'
-	                font_size: '24dp'
-	                on_press: root.callback_btn_door2()
-	            Button:
-	                id: btnSetOptions
-	                text: 'S'
-	                font_size: '24dp'
-	                size_hint: .25, 1
-	                on_press: root.callback_set_voice(1)
+                    VideoLabel:
+                        id: videoLabel1
+                    VideoLabel:
+                        id: videoLabel2
+
+                BoxLayout:
+                    id: cameras2
+                    orientation: 'horizontal'
+
+                    VideoLabel:
+                        id: videoLabel3
+                    VideoLabel:
+                        id: videoLabel4
+
+
+#            FloatLayout:
+            Label:
+                id: txtBasicLabel
+                text: 'Wait...'
+                height: '44dp'
+                font_size: '40dp'
+                pos: 0,50
+                halign: 'center'
+                size_hint_y: None
+
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: '48dp'
+                size: self.size
+
+                ImageButton:
+                    id: btnScreenClock
+                    text: 'C'
+                    source: 'imgs/screen-off.png'
+                    font_size: '24dp'
+                    size_hint: .25, 1
+                    on_press: root.callback_set_voice(-1)
+                ImageButton:
+                    id: btnDoor1
+                    text: 'Open Door 1'
+                    source: 'imgs/unlock.png'
+                    font_size: '24dp'
+                    on_press: root.callback_btn_door1()
+                ImageButton:
+                    id: btnDoCall
+                    text: 'Do Call'
+                    source: 'imgs/green-phone.png'
+                    font_size: '24dp'
+                    on_press: root.callback_btn_docall()
+                ImageButton:
+                    id: btnDoor2
+                    text: 'Open Door 2'
+                    source: 'imgs/unlock.png'
+                    font_size: '24dp'
+                    on_press: root.callback_btn_door2()
+                ImageButton:
+                    id: btnSetOptions
+                    text: 'S'
+                    source: 'imgs/settings.png'
+                    font_size: '24dp'
+                    size_hint: .25, 1
+                    on_press: root.callback_set_voice(1)
 
         SetScreen:
             name: 'settings'
             id: settings
+
+
+# wait for video label:
+
+<VideoLabel@Label>:
+    text: 'Wait...'
+    font_size: self.height/4
+    color: 0.3,0.3,0.9,0.9
+    bgcolor: 0,0,0
+    canvas.before:
+        Color:
+            rgb: self.bgcolor
+        Rectangle:
+            size: self.size
+            pos: self.pos
+
+
+# image button:
+
+<ImageButton>:
+    min_state_time: 0.5
 
 
 #CLOCK:

@@ -270,7 +270,18 @@ settings_about = json.dumps([
      'desc': 'Application licence key',
      'section': 'about',
      'disabled': False,
-     'key': 'licencekey'}
+     'key': 'licencekey'},
+    {'type': 'string',
+     'title': 'Registration email address',
+     'desc': 'Enter valid email address to obtain the application licence key',
+     'section': 'about',
+     'disabled': False,
+     'key': 'regaddress'},
+    {"type": "buttons",
+     "title": "Send registration request","desc": "Send registration request to obtain the licence key",
+     "section": "about",
+     "key": "buttonregs",
+     "buttons": [{"title":"Registration","id":"button_regs"}]}
 ])
 
 # service function

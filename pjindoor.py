@@ -38,8 +38,10 @@ import datetime
 from datetime import timedelta
 import json
 
+import errno
 import signal
 import socket
+import fcntl
 import subprocess
 from threading import Thread
 import time
@@ -67,6 +69,7 @@ config = get_config()
 @atexit.register
 def kill_subprocesses():
     "tidy up at exit or break"
+    global mainLayout
 
     Logger.info(whoami() +': destroy lib at exit')
     try:
@@ -91,26 +94,6 @@ def kill_subprocesses():
 #
 # ###############################################################
 
-class MyListViewLabel(Label):
-    pass
-
-
-class ImageButton(ButtonBehavior, Image):
-    pass
-
-
-"""
-    def __init__(self, **kwargs):
-        super(ImageButton, self).__init__(**kwargs)
-#        self.source = 'imgs/green-phone.png'
-
-    def on_press(self):
-#        self.source = 'atlas://data/images/defaulttheme/checkbox_on'
-        print ('pressed')
-
-#    def on_release(self):
-#        self.source = 'atlas://data/images/defaulttheme/checkbox_off'
-"""
 
 class MyAccountCallback(pj.AccountCallback):
     "Callback to receive events from account"
@@ -118,8 +101,8 @@ class MyAccountCallback(pj.AccountCallback):
         pj.AccountCallback.__init__(self, account)
 
 
-    # Notification on incoming call
     def on_incoming_call(self, call):
+	"Notification on incoming call"
         global current_call, mainLayout
 
 	Logger.trace(whoami() +': DND mode = '+ str(mainLayout.dnd_mode))
@@ -187,7 +170,7 @@ class MyCallCallback(pj.CallCallback):
 	    if not mainLayout.outgoingCall:
 #		docall_button_global.color = COLOR_ANSWER_CALL
 #		docall_button_global.text = BUTTON_CALL_ANSWER
-		docall_button_global.source = 'imgs/orange-phone.png'
+		docall_button_global.imgpath = ANSWER_CALL_IMG
 	    mainLayout.setButtons(True)
 	    mainLayout.finishScreenTiming()
 
@@ -196,8 +179,9 @@ class MyCallCallback(pj.CallCallback):
 	    mainLayout.setButtons(False)
 #            docall_button_global.color = COLOR_NOMORE_CALL
 #            docall_button_global.text = BUTTON_DO_CALL
-	    docall_button_global.source = 'imgs/green-phone.png'
+	    docall_button_global.imgpath = MAKE_CALL_IMG
 	    mainLayout.startScreenTiming()
+	    mainLayout.del_sliders()
 	    mainLayout.showPlayers()
 	    mainLayout.outgoingCall = False
 	    self.sip_call_id_last = ci.sip_call_id
@@ -208,7 +192,7 @@ class MyCallCallback(pj.CallCallback):
         if main_state == pj.CallState.CONFIRMED:
 #            docall_button_global.color = COLOR_HANGUP_CALL
 #            docall_button_global.text = BUTTON_CALL_HANGUP
-	    docall_button_global.source = 'imgs/blue-phone.png'
+	    docall_button_global.imgpath = HANGUP_CALL_IMG
 	    Logger.info('pjSip call status:' + self.call.dump_status())
 
         if main_state == pj.CallState.CALLING:
@@ -219,7 +203,7 @@ class MyCallCallback(pj.CallCallback):
 	    current_call = self.call
 #            docall_button_global.color = COLOR_ANSWER_CALL
 #            docall_button_global.text = BUTTON_CALL_HANGUP
-	    docall_button_global.source = 'imgs/orange-phone.png'
+	    docall_button_global.imgpath = ANSWER_CALL_IMG
 
 
     def on_media_state(self):
@@ -253,7 +237,7 @@ class MyCallCallback(pj.CallCallback):
 	mainLayout.setButtons(False)
 #        docall_button_global.color = COLOR_NOMORE_CALL
 #        docall_button_global.text = BUTTON_DO_CALL
-	docall_button_global.source = 'imgs/green-phone.png'
+	docall_button_global.imgpath = MAKE_CALL_IMG
 	mainLayout.startScreenTiming()
 	mainLayout.showPlayers()
 	mainLayout.outgoingCall = False
@@ -281,6 +265,7 @@ def make_call(uri):
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
         Logger.error("pjSip "+whoami()+" Exception: " + str(e))
+	mainLayout.mediaErrorFlag = True
 
     return None
 
@@ -291,7 +276,7 @@ class BasicDisplay:
     "basic screen class"
     def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd):
 	"display area init"
-	global scr_mode
+	global scr_mode, mainLayout
 
 	self.screenIndex = len(procs)
 	self.winPosition = winpos.split(',')
@@ -310,6 +295,11 @@ class BasicDisplay:
 	self.playerPosition = [str(i) for i in self.playerPosition]
 
 	procs.append(self.initPlayer())
+
+	self.socket = None
+	self.bgrThread = Thread(target=self.tcpip_worker, kwargs={'addr': servaddr})
+	self.bgrThread.daemon = True
+	self.bgrThread.start()
 
 	self.color = INACTIVE_DISPLAY_BACKGROUND
 
@@ -353,13 +343,12 @@ class BasicDisplay:
 
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys',\
 	    '--dbus_name', DBUS_PLAYERNAME + str(self.screenIndex),\
-	    '--aspect-mode', 'fill', '--display','0',\
-	    '--orientation', '180',\
+	    '--aspect-mode', 'fill', '--display','0', '--orientation', '0',\
 	    '--layer', '1', '--win', ','.join(self.playerPosition), self.streamUrl],\
 	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
 
-    def resizePlayer(self,newpos=''):
+    def resizePlayer(self, newpos=''):
 	"resize video player area"
 	global mainLayout, scr_mode
 
@@ -372,8 +361,90 @@ class BasicDisplay:
 	pos = []
 	pos = newpos.split(',') if len(newpos) else self.playerPosition
 
-        if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), ['setvideopos'] + pos):
-	    mainLayout.restart_player_window(self.screenIndex)
+	self.dbus_command(['setvideopos'] + pos)
+
+
+    def tcpip_worker(self, addr):
+	"TCPIP thread"
+	Logger.debug('%s: (%d) %s' % (whoami(), self.screenIndex, addr))
+
+	SERVER_REQ = 'GET /events.txt HTTP/1.1\n\n'
+
+	if ':' in addr:
+	    b = addr.split(':')
+	    a = (b[0],int(b[1]))
+	else:
+	    a = (addr, 80)
+
+	try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect(a)
+	    time.sleep(1)
+	    fcntl.fcntl(self.socket, fcntl.F_SETFL, os.O_NONBLOCK)
+	    time.sleep(1)
+	    self.socket.send(SERVER_REQ)
+        except IOError as e:
+            Logger.warning('%s: (%d) %s CONNECT ERROR %s' % (whoami(), self.screenIndex, addr, str(e)))
+	    return
+
+	msg = ''
+	noDataCounter = 0
+	while True:
+	    try:
+		msg = self.socket.recv(4096) if not self.socket is None else ''
+	    except socket.error, e:
+		err = e.args[0]
+		if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+		    time.sleep(1)				# No data available
+		    noDataCounter += 1
+		    if noDataCounter > 40: break		# try reconnect
+		    continue
+		else:
+		    # a "real" error occurred
+		    Logger.warning('%s: (%d) %s  ERROR: %s' % (whoami(), self.screenIndex, addr, str(e)))
+		    msg = ''
+        	    break
+
+	    if not msg is '':
+		# got a message, do something :)
+		noDataCounter = 0
+		if not msg is '' and '[' in msg and ']' in msg:
+		    m = msg.splitlines()	# split to separate lines
+		    l = m[m.index('') + 1:]	# skip over header part
+		    Logger.info('%s: (%d) %s' % (whoami(), self.screenIndex, str(l)))
+		    ####### TODO:
+
+
+	    else:
+		Logger.warning('%s: (%d) Reinit connection: %s' % (whoami(), self.screenIndex, addr))
+		try:
+		    self.socket.close()
+		except: pass
+
+		try:
+		    time.sleep(5)
+		    self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		    self.socket.connect(a)
+		    time.sleep(1)
+		    fcntl.fcntl(self.socket, fcntl.F_SETFL, os.O_NONBLOCK)
+		    time.sleep(1)
+		    self.socket.send(SERVER_REQ)
+		except:
+		    self.socket = None
+		    time.sleep(5)
+
+
+    def dbus_worker(self, params):
+	"DBUS thread"
+	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
+	    self.restart_player_window(self.screenIndex)
+
+
+    def dbus_command(self, params=[]):
+	"d-bus command"
+	Logger.debug(whoami()+': ' + str(params))
+
+	Thread(target=self.dbus_worker, kwargs={'params': params}).start()
 
 
     def hidePlayer(self):
@@ -413,6 +484,9 @@ class Indoor(FloatLayout):
     dnd_mode = False
     appRestartEvent = None
     mediaErrorFlag = False
+    popupSettings = None
+    volslider = None
+    micslider = None
 
     def __init__(self, **kwargs):
 	"app init"
@@ -492,19 +566,22 @@ class Indoor(FloatLayout):
         except:
             Logger.warning('Indoor init: ERROR 8 = read config file!')
 
-        self.ids.btnDoor1.text = BUTTON_DOOR_1
-        self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
-        self.ids.btnDoor2.text = BUTTON_DOOR_2
-        self.ids.btnDoor2.color = COLOR_BUTTON_BASIC
+#        self.ids.btnDoor1.text = BUTTON_DOOR_1
+#        self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
+#        self.ids.btnDoor2.text = BUTTON_DOOR_2
+#        self.ids.btnDoor2.color = COLOR_BUTTON_BASIC
         docall_button_global = self.ids.btnDoCall
-        docall_button_global.text = BUTTON_DO_CALL
-        docall_button_global.color = COLOR_BUTTON_BASIC
+#        docall_button_global.text = BUTTON_DO_CALL
+#        docall_button_global.color = COLOR_BUTTON_BASIC
+#	self.ids.btnScreenClock.color = COLOR_ERROR_CALL
+#	self.ids.btnSetOptions.color = COLOR_ERROR_CALL
 
 	self.infoText = self.ids.txtBasicLabel
 
         self.init_myphone()
 
 	self.init_screen()
+	self.init_sliders()
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
@@ -640,7 +717,7 @@ class Indoor(FloatLayout):
 	    docall_button_global.text = "No Licence"
 	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
-	    docall_button_global.source = None
+	    docall_button_global.imgpath = ERROR_CALL_IMG
 
 
     def info_state_loop(self, dt):
@@ -655,29 +732,26 @@ class Indoor(FloatLayout):
             if current_call is None:
 		self.info_state = 1
 	    else:
-        	if not send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		    self.restart_player_window(active_display_index)
+		self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
         elif self.info_state == 1:
             self.info_state = 2
 	    # test if player is alive:
 	    val = 255 if self.scrmngr.current in CAMERA_SCR else 0
-            if not send_dbus(DBUS_PLAYERNAME + str(self.testPlayerIdx), TRANSPARENCY_VIDEO_CMD + [str(val)]):
-		self.restart_player_window(self.testPlayerIdx)
+	    self.displays[self.testPlayerIdx].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
 	    self.testPlayerIdx += 1
 	    self.testPlayerIdx %= len(self.displays)
         elif self.info_state == 2:
             self.info_state = 0
 	    if not self.lib is None and self.scrmngr.current in CAMERA_SCR:
-		docall_button_global.text = BUTTON_DO_CALL
-		if self.dnd_mode: docall_button_global.text = BUTTON_DO_CALL + ' (DND)'
-		docall_button_global.color = COLOR_BUTTON_BASIC
+#		docall_button_global.text = BUTTON_DO_CALL + ' (DND)' if self.dnd_mode else BUTTON_DO_CALL
+#		docall_button_global.color = COLOR_BUTTON_BASIC
 		self.setButtons(False)
 
 	if self.lib is None:
 	    docall_button_global.text = "No Licence"
 	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
-	    docall_button_global.source = None
+	    docall_button_global.imgpath = ERROR_CALL_IMG
 
 
     def infinite_loop(self, dt):
@@ -721,10 +795,7 @@ class Indoor(FloatLayout):
 	self.screenTimerEvent = None
 
 	if current_call is None and self.scrmngr.current in CAMERA_SCR:
-	    if WATCHES in 'analog':
-		self.scrmngr.current = WATCH_SCR
-	    else:
-		self.scrmngr.current = DIGITAL_SCR
+	    self.scrmngr.current = WATCH_SCR if WATCHES in 'analog' else DIGITAL_SCR
 	    if WATCHES in 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
 
 
@@ -781,8 +852,9 @@ class Indoor(FloatLayout):
                 if current_call.is_valid(): current_call.hangup()
 		current_call = None
 		self.outgoingCall = False
-		docall_button_global.text = BUTTON_DO_CALL
-		docall_button_global.color = COLOR_BUTTON_BASIC
+#		docall_button_global.text = BUTTON_DO_CALL
+#		docall_button_global.color = COLOR_BUTTON_BASIC
+		docall_button_global.imgpath = MAKE_CALL_IMG
 		self.setButtons(False)
 	else:
 	    target = self.displays[active_display_index].sipcall
@@ -795,12 +867,10 @@ class Indoor(FloatLayout):
 	    lck = self.lib.auto_lock()
 	    self.outgoingCall = True
 	    if make_call('sip:' + target + ':5060') is None:
-		if self.mediaErrorFlag:
-		    txt = 'Audio ERROR'
-		else:
-		    txt = '--> ' + str(active_display_index + 1) + ' ERROR'
+		txt = 'Audio ERROR' if self.mediaErrorFlag else '--> ' + str(active_display_index + 1) + ' ERROR'
 		docall_button_global.color = COLOR_ERROR_CALL
 		docall_button_global.text = txt
+		docall_button_global.imgpath = ERROR_CALL_IMG
 	    else:
 		self.setButtons(True)
 	    del lck
@@ -837,43 +907,55 @@ class Indoor(FloatLayout):
 
     def callback_set_options(self):
 	"start settings"
+        Logger.debug(whoami() + ": ")
 
-        Logger.debug(whoami() + ": " + self.ids.btnSetOptions.text)
+	self.hidePlayers()
 
-#	self.hidePlayers()
+        self.popupSettings = Popup(title="Options",
+              content=SettingsPopupDlg(),
+              size_hint=(0.86, 0.96), auto_dismiss=False)
+	
+#              on_dismiss=self.openAppSettings)
+#	self.popupSettings.detailbutton.bind(on_press=self.openAppSettings)
+	self.popupSettings.open()
 
-#        Popup(title="Enter password",
-#              content=TextInput(focus=True),
-#              size_hint=(0.6, 0.6),
-#              on_dismiss=self.openAppSettings).open()
+##	App.get_running_app().open_settings()
+##	self.scrmngr.current = SETTINGS_SCR
 
-	App.get_running_app().open_settings()
+
+    def closePopupSettings(self):
+	self.popupSettings.dismiss()
+	self.popupSettings = None
+
+
+    def openAppSettings(self, popup):
+	"swap to Settings screen"
+	Logger.debug('%s: %s' % (whoami(), str(popup)))
+	Logger.debug(popup.text)
+	"""
+	if popup.content.text in '1234':
+	    self.scrmngr.current = SETTINGS_SCR
+	    App.get_running_app().open_settings()
+	else:
+	    self.showPlayers()
+	"""
 	self.scrmngr.current = SETTINGS_SCR
-
-
-#    def openAppSettings(self, popup):
-#	"swap to Settings screen"
-#	Logger.debug(whoami() + ': ' + popup.content.text)
-#
-#	if popup.content.text in '1234':
-#	    self.scrmngr.current = SETTINGS_SCR
-#	    App.get_running_app().open_settings()
-#	else:
-#	    self.showPlayers()
+	App.get_running_app().open_settings()
 
 
     def callback_set_voice(self, value):
 	"volume buttons"
 	global AUDIO_VOLUME, current_call
 
-	Logger.debug(whoami() + ': value=' + str(value) + ' btnTxt=' + self.ids.btnScreenClock.text)
+	Logger.debug('%s: value=%d' % (whoami(), value))
 
 	if current_call is None:
 	    if value == 1:
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
-	else :
+	"""
+	else:
 	    vol = AUDIO_VOLUME + int(value) * 20
 	    if vol > 80: vol = 100
 	    elif vol > 60: vol = 80
@@ -884,8 +966,11 @@ class Indoor(FloatLayout):
 
 	    self.ids.btnScreenClock.disabled = vol < 40
 	    self.ids.btnSetOptions.disabled = vol > 80
+	    self.ids.btnScreenClock.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME < 40 else VOLUME_DOWN_IMG
+	    self.ids.btnSetOptions.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME > 80 else VOLUME_UP_IMG
 
 	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+	"""
 
 
     def restart_player_window(self, idx):
@@ -981,9 +1066,8 @@ class Indoor(FloatLayout):
 
 	Logger.debug(whoami()+': ')
 
-	for idx, proc in enumerate(procs):
-	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		self.restart_player_window(idx)
+	for d in self.displays:
+	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 
 	self.displays[active_display_index].resizePlayer()
 	self.infoText.text = ''
@@ -992,16 +1076,9 @@ class Indoor(FloatLayout):
 
     def worker1serial(self):
 	"thread - hide video serial"
-	for idx, proc in enumerate(procs):
-	    self.displays[idx].hidePlayer()
-	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
-		self.restart_player_window(idx)
-
-    def worker1(self, idx=0):
-	"thread - hide video parallel"
-	self.displays[idx].hidePlayer()
-	if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
-	    self.restart_player_window(idx)
+	for d in self.displays:
+	    d.hidePlayer()
+	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
     def hidePlayers(self, serial=False):
@@ -1011,26 +1088,79 @@ class Indoor(FloatLayout):
 	if serial:
 	    Thread(target=self.worker1serial).start()
 	else:
-	    for idx, proc in enumerate(procs):
-		Thread(target=self.worker1, kwargs={'idx': idx}).start()
+	    for d in self.displays:
+		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
     def setButtons(self, visible):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
 	global AUDIO_VOLUME
 
-	Logger.debug(whoami()+': ')
+	Logger.debug('%s: volume=%d' % (whoami(), AUDIO_VOLUME))
 
 	if visible:
-	    self.ids.btnScreenClock.text = '-'
-	    self.ids.btnSetOptions.text = '+'
-	    self.ids.btnScreenClock.disabled = AUDIO_VOLUME < 40
-	    self.ids.btnSetOptions.disabled = AUDIO_VOLUME > 80
+	    self.ids.btnScreenClock.disabled = True #AUDIO_VOLUME < 40
+	    self.ids.btnSetOptions.disabled = True #AUDIO_VOLUME > 80
+	    self.ids.btnScreenClock.imgpath = NO_IMG
+	    self.ids.btnSetOptions.imgpath = NO_IMG
+#	    self.ids.btnScreenClock.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME < 40 else VOLUME_DOWN_IMG
+#	    self.ids.btnSetOptions.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME > 80 else VOLUME_UP_IMG
 	else:
-	    self.ids.btnScreenClock.text = 'C'
-	    self.ids.btnSetOptions.text = 'S'
+	    self.ids.btnScreenClock.imgpath = SCREEN_SAVER_IMG
+	    self.ids.btnSetOptions.imgpath = SETTINGS_IMG
 	    self.ids.btnScreenClock.disabled = False
 	    self.ids.btnSetOptions.disabled = False
+
+
+    def init_sliders(self):
+	"prepare volume sliders"
+	global AUDIO_VOLUME
+
+	Logger.debug('%s:' % (whoami()))
+
+	self.micslider = SliderArea()
+	self.micslider.imgpath = MICROPHONE_IMG
+	self.micslider.on_val = self.onMicVal
+	self.micslider.val = 100
+	self.volslider = SliderArea()
+	self.volslider.imgpath = VOLUME_IMG
+	self.volslider.on_val = self.onVolVal
+	self.volslider.val = AUDIO_VOLUME
+
+
+    def onMicVal(self):
+	"set microphone value"
+	Logger.debug('%s: %d' % (whoami(), self.micslider.audioslider.value))
+
+
+    def onVolVal(self):
+	"set speaker volume value"
+	global AUDIO_VOLUME
+
+	Logger.debug('%s: %d' % (whoami(), self.volslider.audioslider.value))
+	AUDIO_VOLUME = self.volslider.audioslider.value
+	send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+
+
+    def add_sliders(self):
+	"add sliders to the working area"
+	Logger.debug('%s:' % (whoami()))
+
+	l = self.ids.workarea
+	Logger.debug('%s: cnt:%d' % (whoami(), len(l.children)))
+	if len(l.children) > 1: return
+
+	l.add_widget(self.micslider, 1)
+	l.add_widget(self.volslider)
+
+
+    def del_sliders(self):
+	"delete sliders from the working area"
+	Logger.debug('%s:' % (whoami()))
+
+	l = self.ids.workarea
+	l.remove_widget(self.micslider)
+	l.remove_widget(self.volslider)
 
 
     def findTargetWindow(self, addr):
@@ -1050,15 +1180,16 @@ class Indoor(FloatLayout):
 		if not ret and d.sipcall in addr and d.sipcall != '':
 		    active_display_index = idx
 		    self.infoText.text = d.sipcall
-		    d.resizePlayer('80,10,720,390')
+		    d.resizePlayer('90,10,710,390')
 		    ret = True
 		else:
-        	    if not send_dbus(DBUS_PLAYERNAME + str(idx), TRANSPARENCY_VIDEO_CMD + [str(0)]):
-			self.restart_player_window(idx)
+		    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
-	if ret and not self.scrmngr.current in CAMERA_SCR:
-	    if not send_dbus(DBUS_PLAYERNAME + str(active_display_index), TRANSPARENCY_VIDEO_CMD + [str(255)]):
-		self.restart_player_window(active_display_index)
+	if ret:
+	    self.add_sliders()
+
+	    if not self.scrmngr.current in CAMERA_SCR:
+		self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 
 	self.scrmngr.current = CAMERA_SCR
 
@@ -1123,12 +1254,12 @@ class IndoorApp(App):
 	    'ringtone': 'oldphone.wav',
 	    'volume': 100 })
 	config.setdefaults('gui', {
-	    'screen_mode': 0,
-	    'btn_docall': 'Make Call',
-	    'btn_call_answer': 'Answer Call',
-	    'btn_call_hangup': 'HangUp Call',
-	    'btn_door_1': 'Open Door 1',
-	    'btn_door_2': 'Open Door 2' })
+	    'screen_mode': 0 }) #,
+#	    'btn_docall': 'Make Call',
+#	    'btn_call_answer': 'Answer Call',
+#	    'btn_call_hangup': 'HangUp Call',
+#	    'btn_door_1': 'Open Door 1',
+#	    'btn_door_2': 'Open Door 2' })
 	config.setdefaults('common', {
 	    'server_ip_address_1': '192.168.1.250',
 	    'server_stream_1': 'http://192.168.1.250:80/video.mjpg',

@@ -4,6 +4,9 @@
 # ### constants & globals ###
 from constants import *
 
+# ### classes ###
+from classes import *
+
 # ### config ###
 from config import *
 

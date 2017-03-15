@@ -79,9 +79,11 @@ def send_dbus(dst,args):
 
     try:
 	if args[0] is 'setalpha':
-	    #omx.setAlpha(args[1])
-	    if not '255' in args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
-	    else: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
+	    v = '1' if '0' is args[1] else '254'
+	    omx.setAlpha(v)
+#	    omx.setAlpha(args[1])
+#	    if not '255' in args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
+#	    else: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
 	else:
 	    omx.videoPos(args[1:])
     except OmxControlError as ex:

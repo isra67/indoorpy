@@ -65,76 +65,80 @@
             on_pre_leave: root.hidePlayers()
 
             BoxLayout:
-                id: cameras
-                orientation: 'vertical'
+                id: workarea
+                orientation: 'horizontal'
                 size_hint: 1,.9
                 pos: 0, 48
+                spacing: 0
 
                 BoxLayout:
-                    id: cameras1
-                    orientation: 'horizontal'
+                    id: cameras
+                    orientation: 'vertical'
+                    spacing: 0
 
-                    VideoLabel:
-                        id: videoLabel1
-                    VideoLabel:
-                        id: videoLabel2
+                    BoxLayout:
+                        id: cameras1
+                        orientation: 'horizontal'
 
-                BoxLayout:
-                    id: cameras2
-                    orientation: 'horizontal'
+                        VideoLabel:
+                            id: videoLabel1
+                        VideoLabel:
+                            id: videoLabel2
 
-                    VideoLabel:
-                        id: videoLabel3
-                    VideoLabel:
-                        id: videoLabel4
+                    BoxLayout:
+                        id: cameras2
+                        orientation: 'horizontal'
 
+                        VideoLabel:
+                            id: videoLabel3
+                        VideoLabel:
+                            id: videoLabel4
 
-#            FloatLayout:
             Label:
                 id: txtBasicLabel
                 text: 'Wait...'
                 height: '44dp'
                 font_size: '40dp'
-                pos: 0,50
+                pos: 0, 48
                 halign: 'center'
                 size_hint_y: None
 
             BoxLayout:
                 orientation: 'horizontal'
                 size_hint_y: None
-                height: '48dp'
+                height: '47dp'
                 size: self.size
 
                 ImageButton:
                     id: btnScreenClock
-                    text: 'C'
-                    source: 'imgs/screen-off.png'
-                    font_size: '24dp'
+                    imgpath: 'imgs/monitor.png'
+                    #fntext: 'C'
+                    #font_size: '24dp'
                     size_hint: .25, 1
                     on_press: root.callback_set_voice(-1)
                 ImageButton:
                     id: btnDoor1
-                    text: 'Open Door 1'
-                    source: 'imgs/unlock.png'
-                    font_size: '24dp'
+                    imgpath: 'imgs/lock.png'
+#                    text: 'Open Door 1'
+                    #font_size: '24dp'
                     on_press: root.callback_btn_door1()
                 ImageButton:
                     id: btnDoCall
-                    text: 'Do Call'
-                    source: 'imgs/green-phone.png'
-                    font_size: '24dp'
+                    imgpath: 'imgs/phone-call.png'
+#                    text: 'Make Call'
+                    #font_size: '24dp'
                     on_press: root.callback_btn_docall()
                 ImageButton:
                     id: btnDoor2
-                    text: 'Open Door 2'
-                    source: 'imgs/unlock.png'
-                    font_size: '24dp'
+                    imgpath: 'imgs/lock.png'
+#                    text: 'Open Door 2'
+                    #font_size: '24dp'
                     on_press: root.callback_btn_door2()
                 ImageButton:
                     id: btnSetOptions
-                    text: 'S'
-                    source: 'imgs/settings.png'
-                    font_size: '24dp'
+                    imgpath: 'imgs/settings.png'
+                    #fntext: 'S'
+                    #font_size: '24dp'
                     size_hint: .25, 1
                     on_press: root.callback_set_voice(1)
 
@@ -161,7 +165,11 @@
 # image button:
 
 <ImageButton>:
-    min_state_time: 0.5
+    imgpath: None
+    AsyncImage:
+        source: self.parent.imgpath
+        center_x: self.parent.center_x
+        center_y: self.parent.center_y
 
 
 #CLOCK:
@@ -201,3 +209,96 @@
     font_size: 16
     halign: 'left'
     text_size: self.size
+
+
+# Settings popup:
+
+<SettingsPopupDlg>:
+    closebutton: closebutton
+    detailbutton: detailbutton
+    size_hint: .8, .9
+    orientation: 'vertical'
+
+    BoxLayout:
+        orientation: 'horizontal'
+
+        Label:
+            text: 'Volume'
+            size_hint_x: .7
+        Slider:
+            id: valvolume
+            min: 20
+            max: 100
+            step: 10
+
+        Label:
+            text: 'Brightness'
+            size_hint_x: .7
+        Slider:
+            id: valbright
+            min: 20
+            max: 100
+            step: 10
+
+    BoxLayout:
+        orientation: 'horizontal'
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '48dp'
+        spacing: 8
+
+        TextInput:
+            id: text
+        Button:
+            id: detailbutton
+            text: 'Detail'
+            size_hint: .6, 1
+            on_press: root.openDetailSettings()
+        Image:
+            source: 'imgs/nothing.png'
+            size_hint: None, None
+            size: '16px', '32px'
+        Button:
+            id: closebutton
+            text: 'Close'
+            size_hint: .6, 1
+            on_press: root.closePopupSettings()
+
+
+# Both side volume vertical sliders:
+
+<SliderArea>:
+    orientation: 'vertical'
+    spacing: '8px'
+    size_hint: None, .9
+    width: '80px'
+    imgpath: 'imgs/settings1.png'
+    val: 100
+    on_val: None
+    audioslider: audioslider
+
+    Slider:
+        orientation: 'vertical'
+        id: audioslider
+        min: 20
+        max: 100
+        step: 10
+        size_hint_y: .8
+        value: root.val
+        on_value: root.on_val()
+        #center_x: self.parent.center_x
+
+    AsyncImage:
+        source: root.imgpath
+        size_hint: 1, None
+        height: '32px'
+        #size: '32px', '32px'
+        #center_x: root.center_x
+        #center_y: self.parent.center_y
+
+    Image:
+        source: 'imgs/nothing.png'
+        size_hint: None, None
+        size: '32px', '32px'

@@ -736,7 +736,7 @@ class Indoor(FloatLayout):
         elif self.info_state == 1:
             self.info_state = 2
 	    # test if player is alive:
-	    val = 255 if self.scrmngr.current in CAMERA_SCR else 0
+	    val = 255 if self.scrmngr.current in CAMERA_SCR and self.popupSettings is None else 0
 	    self.displays[self.testPlayerIdx].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
 	    self.testPlayerIdx += 1
 	    self.testPlayerIdx %= len(self.displays)
@@ -907,40 +907,65 @@ class Indoor(FloatLayout):
 
     def callback_set_options(self):
 	"start settings"
-        Logger.debug(whoami() + ": ")
+	global BRIGHTNESS, AUDIO_VOLUME
+
+        Logger.debug("%s: volume=%d brightness=%d " % (whoami(),AUDIO_VOLUME, BRIGHTNESS))
 
 	self.hidePlayers()
+	self.finishScreenTiming()
+
+	classes.mainLayout = mainLayout
 
         self.popupSettings = Popup(title="Options",
               content=SettingsPopupDlg(),
-              size_hint=(0.86, 0.96), auto_dismiss=False)
-	
-#              on_dismiss=self.openAppSettings)
+              size_hint=(0.8, 0.96), auto_dismiss=False)
+
 #	self.popupSettings.detailbutton.bind(on_press=self.openAppSettings)
+	self.popupSettings.content.valv = AUDIO_VOLUME
+	self.popupSettings.content.valb = BRIGHTNESS
 	self.popupSettings.open()
 
-##	App.get_running_app().open_settings()
-##	self.scrmngr.current = SETTINGS_SCR
 
+    def closePopupSettings(self, small=True):
+	"close quick settings dialog"
+	global BRIGHTNESS, AUDIO_VOLUME
 
-    def closePopupSettings(self):
+	AUDIO_VOLUME = self.popupSettings.content.valv
+	BRIGHTNESS = self.popupSettings.content.valb
+	config.set('command', 'brightness', BRIGHTNESS)
+	config.set('devices', 'volume', AUDIO_VOLUME)
+	config.write()
+
 	self.popupSettings.dismiss()
 	self.popupSettings = None
 
+	send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
 
-    def openAppSettings(self, popup):
-	"swap to Settings screen"
-	Logger.debug('%s: %s' % (whoami(), str(popup)))
-	Logger.debug(popup.text)
-	"""
-	if popup.content.text in '1234':
+	if small:
+	    self.showPlayers()
+	    self.startScreenTiming()
+
+
+    def testPwdSettings(self, val):
+	Logger.debug('%s: %s' % (whoami(), val))
+
+	self.popupSettings = None
+
+	if len(val) > 0 and '1234' == val:
 	    self.scrmngr.current = SETTINGS_SCR
 	    App.get_running_app().open_settings()
 	else:
 	    self.showPlayers()
-	"""
-	self.scrmngr.current = SETTINGS_SCR
-	App.get_running_app().open_settings()
+	    self.startScreenTiming()
+
+
+    def openAppSettings(self):
+	"get password"
+	Logger.debug('%s:' % (whoami()))
+
+	self.popupSettings = MyInputBox(titl='Password', txt='Enter password', cb=self.testPwdSettings, pwdx=True, ad=True)
+	self.popupSettings.open()
 
 
     def callback_set_voice(self, value):
@@ -954,23 +979,6 @@ class Indoor(FloatLayout):
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
-	"""
-	else:
-	    vol = AUDIO_VOLUME + int(value) * 20
-	    if vol > 80: vol = 100
-	    elif vol > 60: vol = 80
-	    elif vol > 40: vol = 60
-	    elif vol > 20: vol = 40
-	    else: vol = 20
-	    AUDIO_VOLUME = vol
-
-	    self.ids.btnScreenClock.disabled = vol < 40
-	    self.ids.btnSetOptions.disabled = vol > 80
-	    self.ids.btnScreenClock.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME < 40 else VOLUME_DOWN_IMG
-	    self.ids.btnSetOptions.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME > 80 else VOLUME_UP_IMG
-
-	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
-	"""
 
 
     def restart_player_window(self, idx):
@@ -1028,9 +1036,10 @@ class Indoor(FloatLayout):
 
 	if not touch is None and touch.is_triple_tap:
 	    self.checkTripleTap(touch)
+	    return
 
 	if not touch is None and touch.is_double_tap:
-	    if not current_call and self.scrmngr.current in CAMERA_SCR:
+	    if not current_call and self.scrmngr.current in CAMERA_SCR and self.popupSettings is None:
 		self.restart_player_window(active_display_index)
 	    return
 
@@ -1096,15 +1105,13 @@ class Indoor(FloatLayout):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
 	global AUDIO_VOLUME
 
-	Logger.debug('%s: volume=%d' % (whoami(), AUDIO_VOLUME))
+	Logger.debug('%s:' % (whoami()))
 
 	if visible:
-	    self.ids.btnScreenClock.disabled = True #AUDIO_VOLUME < 40
-	    self.ids.btnSetOptions.disabled = True #AUDIO_VOLUME > 80
+	    self.ids.btnScreenClock.disabled = True
+	    self.ids.btnSetOptions.disabled = True
 	    self.ids.btnScreenClock.imgpath = NO_IMG
 	    self.ids.btnSetOptions.imgpath = NO_IMG
-#	    self.ids.btnScreenClock.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME < 40 else VOLUME_DOWN_IMG
-#	    self.ids.btnSetOptions.imgpath = VOLUME_DISABLED_IMG if AUDIO_VOLUME > 80 else VOLUME_UP_IMG
 	else:
 	    self.ids.btnScreenClock.imgpath = SCREEN_SAVER_IMG
 	    self.ids.btnSetOptions.imgpath = SETTINGS_IMG
@@ -1135,10 +1142,14 @@ class Indoor(FloatLayout):
 
     def onVolVal(self):
 	"set speaker volume value"
-	global AUDIO_VOLUME
+	global AUDIO_VOLUME, config
 
 	Logger.debug('%s: %d' % (whoami(), self.volslider.audioslider.value))
 	AUDIO_VOLUME = self.volslider.audioslider.value
+
+	config.set('devices', 'volume', AUDIO_VOLUME)
+	config.write()
+
 	send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 
 
@@ -1236,72 +1247,8 @@ class IndoorApp(App):
 	"build config"
 	global config
 
-        Logger.debug(whoami()+': ')
-
-	config.setdefaults('command', {
-	    'screen_saver': 1,
-	    'dnd_mode': 0,
-	    'brightness': 100,
-	    'watches': 'analog' })
-	config.setdefaults('sip', {
-	    'sip_mode': 'peer-to-peer',
-	    'sip_server_addr': '',
-	    'sip_username': '',
-	    'sip_p4ssw0rd': '' })
-	config.setdefaults('devices', {
-	    'sound_device_in': '',
-	    'sound_device_out': '',
-	    'ringtone': 'oldphone.wav',
-	    'volume': 100 })
-	config.setdefaults('gui', {
-	    'screen_mode': 0 }) #,
-#	    'btn_docall': 'Make Call',
-#	    'btn_call_answer': 'Answer Call',
-#	    'btn_call_hangup': 'HangUp Call',
-#	    'btn_door_1': 'Open Door 1',
-#	    'btn_door_2': 'Open Door 2' })
-	config.setdefaults('common', {
-	    'server_ip_address_1': '192.168.1.250',
-	    'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
-	    'sip_call1': '',
-	    'server_ip_address_2': '',
-#	    'server_stream_2': 'http://192.168.1.241:8080/stream/video.mjpeg',
-	    'server_stream_2': '',
-	    'sip_call2': '',
-	    'server_ip_address_3': '',
-#	    'server_stream_3': 'http://192.168.1.241:8080/stream/video.mjpeg',
-	    'server_stream_3': '',
-	    'sip_call3': '',
-	    'server_ip_address_4': '',
-	    'server_stream_4': '',
-	    'sip_call4': '' })
-
-	s = get_info(SYSTEMINFO_SCRIPT).split()
-	config.setdefaults('about', {
-	    'app_name': 'Indoor 2.0',
-	    'app_ver': '2.0.0.0',
-	    'licencekey': '0000-000000-0000-000000-0000',
-	    'regaddress': '',
-	    'serial': s[1] })
-	config.set('about', 'serial', s[1])
-
-	dns = ''
-	try:
-	    dns = s[8]
-	except:
-	    dns = ''
-
-	config.setdefaults('system', {
-	    'inet': s[2],
-	    'ipaddress': s[3],
-	    'gateway': s[6],
-	    'netmask': s[4],
-	    'dns': dns })
-	config.set('system', 'inet', s[2])
-	config.set('system', 'ipaddress', s[3])
-	config.set('system', 'gateway', s[6])
-	config.set('system', 'netmask', s[4])
-	config.set('system', 'dns', dns)
+        Logger.debug('%s:' % whoami())
+	config = setDefaultConfig(config, False)
 
 
     def get_uptime_value(self):
@@ -1319,7 +1266,7 @@ class IndoorApp(App):
 	"retrieve current volume level"
 	global AUDIO_VOLUME
 
-        Logger.debug(whoami()+': ')
+        Logger.debug('%s:' % whoami())
 
 	s = get_info(VOLUMEINFO_SCRIPT).split()
 	if len(s) < 4:
@@ -1502,6 +1449,10 @@ class IndoorApp(App):
 	        # LoggerHistory.history:
 	        recent_log = [('%d %s' % (record.levelno, record.msg)) for record in LoggerHistory.history] #reversed(LoggerHistory.history
 		self.myAlertListBox('Log messages history', recent_log)
+	elif token == ('service', 'buttonfactory'):
+	    if 'button_factory' == value:
+#		self.myAlertBox('WARNING', 'Application is going to rewrite configuration!', self.factoryReset, True)
+		MyYesNoBox(titl='WARNING', txt='Application is going to rewrite configuration!\n\nContinue?', cb=self.factoryReset, ad=True).open()
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
 		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed, False)
@@ -1515,12 +1466,24 @@ class IndoorApp(App):
 
     def popupClosed(self, popup):
 	"restart App after alert box"
-
         Logger.debug(whoami()+': ')
 
 	kill_subprocesses()
-
 	App.get_running_app().stop()
+
+
+    def factoryReset(self):
+	"factory reset"
+	global config, scrmngr
+
+        Logger.debug('%s: fn=%s' % (whoami(), config.filename))
+
+	scrmngr.current = WAIT_SCR
+
+	config = setDefaultConfig(config, True)
+	config.update_config(config.filename, True)
+
+	self.myAlertBox('WARNING', 'Success.\n\nApplication is going to restart!', self.popupClosed, False)
 
 
     def close_settings(self, *args):

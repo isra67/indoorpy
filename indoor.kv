@@ -218,27 +218,36 @@
     detailbutton: detailbutton
     size_hint: .8, .9
     orientation: 'vertical'
+    valb: 255
+    valv: 100
+#    pwdtext: pwdtext
+    #valvolume: valvolume
+    #valbright: valbright
 
     BoxLayout:
         orientation: 'horizontal'
 
         Label:
             text: 'Volume'
-            size_hint_x: .7
+            size_hint_x: .6
         Slider:
             id: valvolume
             min: 20
             max: 100
             step: 10
+            value: root.valv
+            on_value: root.valv = self.value
 
         Label:
             text: 'Brightness'
-            size_hint_x: .7
+            size_hint_x: .6
         Slider:
             id: valbright
-            min: 20
-            max: 100
-            step: 10
+            min: 16
+            max: 255
+            step: 16
+            value: root.valb
+            on_value: root.valb = self.value
 
     BoxLayout:
         orientation: 'horizontal'
@@ -249,12 +258,12 @@
         height: '48dp'
         spacing: 8
 
-        TextInput:
-            id: text
+#        TextInput:
+#            id: pwdtext
         Button:
             id: detailbutton
             text: 'Detail'
-            size_hint: .6, 1
+#            size_hint: .6, 1
             on_press: root.openDetailSettings()
         Image:
             source: 'imgs/nothing.png'
@@ -263,7 +272,7 @@
         Button:
             id: closebutton
             text: 'Close'
-            size_hint: .6, 1
+#            size_hint: .6, 1
             on_press: root.closePopupSettings()
 
 

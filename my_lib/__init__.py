@@ -27,3 +27,10 @@ from watches import *
 
 # ### button in Settings ###
 from settingsbutton import *
+
+# ### input popup dialog ###
+from inputdlg import *
+
+# ### yes|no popup dialog ###
+from yesnodlg import *
+

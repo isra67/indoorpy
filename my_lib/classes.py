@@ -46,6 +46,7 @@ from kivy.uix.widget import Widget
 
 from constants import *
 
+mainLayout = None
 
 # ###############################################################
 #
@@ -69,14 +70,6 @@ class ImageButton(Button):
 
 class SliderArea(BoxLayout):
     "volume slider next to the call window"
-#    def __init__(self, **kwargs):
-#       "init"
-#        global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-#        global BUTTON_DOOR_1, BUTTON_DOOR_2
-#       global APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
-#        global main_state, docall_button_global, mainLayout, scrmngr, config
-#
-#        super(SliderArea, self).__init__(**kwargs)
     pass
 
 
@@ -91,8 +84,8 @@ class SettingsPopupDlg(BoxLayout):
 
     def openDetailSettings(self):
         global mainLayout
-        mainLayout.closePopupSettings()
-        mainLayout.openAppSettings(self)
+        mainLayout.closePopupSettings(False)
+        mainLayout.openAppSettings()
 
 
 # ##############################################################################

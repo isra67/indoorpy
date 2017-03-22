@@ -19,6 +19,53 @@ from itools import *
 #
 # ###############################################################
 
+dict_command = {'screen_saver': 1,
+            'dnd_mode': 0,
+            'brightness': 100,
+            'watches': 'analog' }
+dict_sip = {'sip_mode': 'peer-to-peer',
+            'sip_server_addr': '',
+            'sip_username': '',
+            'sip_p4ssw0rd': '' }
+dict_dev = {'ringtone': 'oldphone.wav',
+#           'sound_device_in': '',
+#           'sound_device_out': '',
+            'volume': 100 }
+dict_gui = {'screen_mode': 0,
+	    'screen_orientation': 0 }
+#           'btn_docall': 'Make Call',
+#           'btn_call_answer': 'Answer Call',
+#           'btn_call_hangup': 'HangUp Call',
+#           'btn_door_1': 'Open Door 1',
+#           'btn_door_2': 'Open Door 2' })
+dict_common = {'server_ip_address_1': '192.168.1.250',
+            'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
+            'picture_1': 'fill',
+            'sip_call1': '',
+            'server_ip_address_2': '',
+            'server_stream_2': '', # 'http://192.168.1.241:8080/stream/video.mjpeg',
+            'picture_2': 'fill',
+            'sip_call2': '',
+            'server_ip_address_3': '',
+            'server_stream_3': '', # 'http://192.168.1.241:8080/stream/video.mjpeg',
+            'picture_3': 'fill',
+            'sip_call3': '',
+            'server_ip_address_4': '',
+            'server_stream_4': '',
+            'picture_4': 'fill',
+            'sip_call4': '' }
+dict_service = {'masterpwd': '1234' }
+dict_about = {'app_name': 'Indoor 2.0',
+            'app_ver': '2.0.0.0',
+            'licencekey': '0000-000000-0000-000000-0000',
+            'regaddress': '',
+            'serial': '' }
+dict_system = {'inet': 'dhcp',
+            'ipaddress': '192.168.1.251',
+            'gateway': '192.168.1.200',
+            'netmask': '255.255.255.0',
+            'dns': '192.168.1.201' }
+
 
 # ###############################################################
 #
@@ -45,50 +92,8 @@ def get_config():
     return config
 
 
-dict_command = {'screen_saver': 1,
-            'dnd_mode': 0,
-            'brightness': 100,
-            'watches': 'analog' }
-dict_sip = {'sip_mode': 'peer-to-peer',
-            'sip_server_addr': '',
-            'sip_username': '',
-            'sip_p4ssw0rd': '' }
-dict_dev = {'ringtone': 'oldphone.wav',
-#           'sound_device_in': '',
-#           'sound_device_out': '',
-            'volume': 100 }
-dict_gui = {'screen_mode': 0 }
-#           'btn_docall': 'Make Call',
-#           'btn_call_answer': 'Answer Call',
-#           'btn_call_hangup': 'HangUp Call',
-#           'btn_door_1': 'Open Door 1',
-#           'btn_door_2': 'Open Door 2' })
-dict_common = {'server_ip_address_1': '192.168.1.250',
-            'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
-            'sip_call1': '',
-            'server_ip_address_2': '',
-            'server_stream_2': '', # 'http://192.168.1.241:8080/stream/video.mjpeg',
-            'sip_call2': '',
-            'server_ip_address_3': '',
-            'server_stream_3': '', # 'http://192.168.1.241:8080/stream/video.mjpeg',
-            'sip_call3': '',
-            'server_ip_address_4': '',
-            'server_stream_4': '',
-            'sip_call4': '' }
-dict_service = {'masterpwd': '1234' }
-dict_about = {'app_name': 'Indoor 2.0',
-            'app_ver': '2.0.0.0',
-            'licencekey': '0000-000000-0000-000000-0000',
-            'regaddress': '',
-            'serial': '' }
-dict_system = {'inet': 'dhcp',
-            'ipaddress': '192.168.1.251',
-            'gateway': '192.168.1.200',
-            'netmask': '255.255.255.0',
-            'dns': '192.168.1.201' }
-
 def setDefaultConfig(config, full=False):
-    "nacitanie konfiguracie"
+    "nastavenie konfiguracnych parametrov"
     Logger.debug('%s: ' % whoami())
 
     config.setdefaults('command', dict_command)

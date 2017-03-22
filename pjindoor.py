@@ -103,16 +103,18 @@ class MyAccountCallback(pj.AccountCallback):
 
     def on_incoming_call(self, call):
 	"Notification on incoming call"
-        global current_call, mainLayout
+        global current_call, mainLayout, docall_button_global
 
-	Logger.trace(whoami() +': DND mode = '+ str(mainLayout.dnd_mode))
+	Logger.trace('%s: DND mode=%d' % (whoami(), mainLayout.dnd_mode))
 
         if current_call or mainLayout.dnd_mode:
             call.answer(486, "Busy")
             return
 
-        Logger.info(whoami() +": Incoming call from " + call.info().remote_uri)
+        Logger.info("%s: Incoming call from %s" % (whoami(), call.info().remote_uri))
         current_call = call
+
+	docall_button_global.parent.add_widget(mainLayout.btnReject, 2)
 
         call_cb = MyCallCallback(current_call)
         current_call.set_callback(call_cb)
@@ -126,6 +128,7 @@ class MyCallCallback(pj.CallCallback):
     sip_call_id_last = '***'
     callTimerEvent = None
     CALL_TIMEOUT = 60 * 3
+    RING_TIME = 5.0
 
     def __init__(self, call=None):
         pj.CallCallback.__init__(self, call)
@@ -133,7 +136,7 @@ class MyCallCallback(pj.CallCallback):
 
     def on_state(self):
 	"Notification when call state has changed"
-        global current_call, ring_event, transparency_value
+        global current_call, ring_event
         global main_state, mainLayout, docall_button_global
 
 	ci = self.call.info()
@@ -141,24 +144,25 @@ class MyCallCallback(pj.CallCallback):
 
 	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
 	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
-	Logger.debug('pjSip on_state: sip_call_id='+ci.sip_call_id+'  outgoing call='\
+	Logger.debug('pjSip on_state: sip_call_id='+ci.sip_call_id+' outgoing call='\
 	    + str(mainLayout.outgoingCall) + ' current call='+str(current_call))
+##	Logger.warning('pjSip callinfo=%d' % (ci.setting.flag))
 
+	prev_state = main_state
         main_state = ci.state
-        transparency_value = 0
 
         if main_state == pj.CallState.EARLY:
 	    mainLayout.findTargetWindow(ci.remote_uri)
 	    if not ring_event and not mainLayout.outgoingCall:
-		ring_event = Clock.schedule_interval(playWAV, 3.5)
-		playWAV(3.5)
+		ring_event = Clock.schedule_interval(playWAV, self.RING_TIME)
+		playWAV(self.RING_TIME)
         else:
 	    if ring_event:
 		Clock.unschedule(ring_event)
 		ring_event = None
 		stopWAV()
 
-	if self.sip_call_id_last is ci.sip_call_id:
+	if self.sip_call_id_last == ci.sip_call_id:
 	    Logger.error('pjSip '+whoami()+': Unwanted message='+ci.state_text+' from '+ci.remote_uri+' as '+role)
 	    return
 
@@ -168,18 +172,14 @@ class MyCallCallback(pj.CallCallback):
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
 	    if not mainLayout.outgoingCall:
-#		docall_button_global.color = COLOR_ANSWER_CALL
-#		docall_button_global.text = BUTTON_CALL_ANSWER
 		docall_button_global.imgpath = ANSWER_CALL_IMG
 	    mainLayout.setButtons(True)
 	    mainLayout.finishScreenTiming()
 
-        if main_state == pj.CallState.DISCONNECTED:
+        elif main_state == pj.CallState.DISCONNECTED:
             current_call = None
 	    mainLayout.setButtons(False)
-#            docall_button_global.color = COLOR_NOMORE_CALL
-#            docall_button_global.text = BUTTON_DO_CALL
-	    docall_button_global.imgpath = MAKE_CALL_IMG
+	    docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 	    mainLayout.startScreenTiming()
 	    mainLayout.del_sliders()
 	    mainLayout.showPlayers()
@@ -188,22 +188,25 @@ class MyCallCallback(pj.CallCallback):
 	    if not self.callTimerEvent is None:
 		Clock.unschedule(self.callTimerEvent)
 		self.callTimerEvent = None
+	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
+	    except: pass
 
-        if main_state == pj.CallState.CONFIRMED:
-#            docall_button_global.color = COLOR_HANGUP_CALL
-#            docall_button_global.text = BUTTON_CALL_HANGUP
+        elif main_state == pj.CallState.CONFIRMED:
 	    docall_button_global.imgpath = HANGUP_CALL_IMG
+	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
+	    except: pass
 	    Logger.info('pjSip call status:' + self.call.dump_status())
 
-        if main_state == pj.CallState.CALLING:
+        elif main_state == pj.CallState.CALLING:
 	    if not current_call is None:
 		Logger.warning('pjSip bad call: CALLING state %s <<>> %s' %(str(current_call), str(self.call)))
 		self.call.hangup()
 		return
 	    current_call = self.call
-#            docall_button_global.color = COLOR_ANSWER_CALL
-#            docall_button_global.text = BUTTON_CALL_HANGUP
 	    docall_button_global.imgpath = ANSWER_CALL_IMG
+
+	setcallstat(outflag=(ci.role==0), status=main_state, prev_status=prev_state, call=ci.remote_uri)
+	if main_state == 6: main_state = 0
 
 
     def on_media_state(self):
@@ -235,9 +238,7 @@ class MyCallCallback(pj.CallCallback):
 	self.callTimerEvent = None
 	main_state = pj.CallState.DISCONNECTED
 	mainLayout.setButtons(False)
-#        docall_button_global.color = COLOR_NOMORE_CALL
-#        docall_button_global.text = BUTTON_DO_CALL
-	docall_button_global.imgpath = MAKE_CALL_IMG
+	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 	mainLayout.startScreenTiming()
 	mainLayout.showPlayers()
 	mainLayout.outgoingCall = False
@@ -274,7 +275,7 @@ def make_call(uri):
 
 class BasicDisplay:
     "basic screen class"
-    def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd):
+    def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd,rotation=0,aspectratio='fill'):
 	"display area init"
 	global scr_mode, mainLayout
 
@@ -286,12 +287,28 @@ class BasicDisplay:
 	self.streamUrl = str(streamaddr)
 	self.relayCmd = str(relaycmd)
 	self.playerPosition = [i for i in self.winPosition]
+	self.rotation = rotation
+	self.aspectratio = aspectratio # 'letterbox | stretch | fill'
 
 	delta = 2
 	self.playerPosition[0] += delta
 	self.playerPosition[1] += delta
 	self.playerPosition[2] -= delta
 	self.playerPosition[3] -= delta
+
+	### keep aspect ratio:
+	pheight = self.playerPosition[3] - self.playerPosition[1]
+	pwidth = self.playerPosition[2] - self.playerPosition[0]
+	if aspectratio == '16:9':
+	    pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
+	elif aspectratio == '4:3':
+	    pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
+	else: pdelta = 0
+	if pdelta < 0: pdelta = 0
+	Logger.warning('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
+	self.playerPosition[0] += pdelta
+	self.playerPosition[2] -= pdelta
+
 	self.playerPosition = [str(i) for i in self.playerPosition]
 
 	procs.append(self.initPlayer())
@@ -343,7 +360,7 @@ class BasicDisplay:
 
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys',\
 	    '--dbus_name', DBUS_PLAYERNAME + str(self.screenIndex),\
-	    '--aspect-mode', 'fill', '--display','0', '--orientation', '0',\
+	    '--aspect-mode', self.aspectratio, '--display','0', '--orientation', str(self.rotation),\
 	    '--layer', '1', '--win', ','.join(self.playerPosition), self.streamUrl],\
 	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
@@ -360,6 +377,24 @@ class BasicDisplay:
 
 	pos = []
 	pos = newpos.split(',') if len(newpos) else self.playerPosition
+	if len(newpos) > 0:
+	    pos[0] = 80
+	    pos[1] = 16
+	    pos[2] = 720
+	    pos[3] = 376
+
+	    ### keep aspect ratio:
+	    pheight = pos[3] - pos[1]
+	    pwidth = pos[2] - pos[0]
+	    if self.aspectratio == '16:9':
+		pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
+	    elif self.aspectratio == '4:3':
+		pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
+	    else: pdelta = 0
+	    if pdelta < 0: pdelta = 0
+	    Logger.warning('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
+	    pos[0] += pdelta
+	    pos[2] -= pdelta
 
 	self.dbus_command(['setvideopos'] + pos)
 
@@ -487,13 +522,17 @@ class Indoor(FloatLayout):
     popupSettings = None
     volslider = None
     micslider = None
+    masterPwd = '1234'
+    scrOrientation = '0'
+    btnReject = None
+    btnScrSaver = None
+    btnSettings = None
 
     def __init__(self, **kwargs):
 	"app init"
-        global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP
-        global BUTTON_DOOR_1, BUTTON_DOOR_2
+        #global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP, BUTTON_DOOR_1, BUTTON_DOOR_2
 	global APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
-        global main_state, docall_button_global, mainLayout, scrmngr, config
+        global main_state, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
 
@@ -536,13 +575,13 @@ class Indoor(FloatLayout):
             Logger.warning('Indoor init: ERROR 5 = read config file!')
 
         try:
-	    self.dnd_mode = config.getint('command', 'dnd_mode') > 0
+	    self.dnd_mode = 'True' == config.get('command', 'dnd_mode').strip()
         except:
             Logger.warning('Indoor init: ERROR 6 = read config file!')
 
         try:
 	    br = config.getint('command', 'brightness')
-	    if br > 0 and br < 256: BRIGHTNESS = int(br * 2.55)
+	    if br > 0 and br < 256: BRIGHTNESS = br #int(br * 2.55)
         except:
             Logger.warning('Indoor init: ERROR 7 = read config file!')
 	    BRIGHTNESS = 255
@@ -558,40 +597,50 @@ class Indoor(FloatLayout):
 	itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
 
         try:
-            BUTTON_DO_CALL = config.get('gui', 'btn_docall')
-            BUTTON_CALL_ANSWER = config.get('gui', 'btn_call_answer')
-            BUTTON_CALL_HANGUP = config.get('gui', 'btn_call_hangup')
-            BUTTON_DOOR_1 = config.get('gui', 'btn_door_1')
-            BUTTON_DOOR_2 = config.get('gui', 'btn_door_2')
+	    self.masterPwd = config.get('service', 'masterpwd').strip()
         except:
             Logger.warning('Indoor init: ERROR 8 = read config file!')
+	    self.masterPwd = '1234'
 
-#        self.ids.btnDoor1.text = BUTTON_DOOR_1
-#        self.ids.btnDoor1.color = COLOR_BUTTON_BASIC
-#        self.ids.btnDoor2.text = BUTTON_DOOR_2
-#        self.ids.btnDoor2.color = COLOR_BUTTON_BASIC
-        docall_button_global = self.ids.btnDoCall
-#        docall_button_global.text = BUTTON_DO_CALL
-#        docall_button_global.color = COLOR_BUTTON_BASIC
-#	self.ids.btnScreenClock.color = COLOR_ERROR_CALL
-#	self.ids.btnSetOptions.color = COLOR_ERROR_CALL
+        try:
+            self.scrOrientation = config.get('gui', 'screen_orientation')
+        except:
+            Logger.warning('Indoor init: ERROR 8.1 = read config file!')
 
 	self.infoText = self.ids.txtBasicLabel
 
+	self.init_buttons()
         self.init_myphone()
-
 	self.init_screen()
 	self.init_sliders()
+	initcallstat()
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
+
+
+    def init_buttons(self):
+	"define app buttons"
+	global docall_button_global
+
+	Logger.debug('%s:' % (whoami()))
+
+        docall_button_global = self.ids.btnDoCall
+	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
+
+	self.btnReject = ImageButton(imgpath=HANGUP_CALL_IMG)
+	self.btnReject.bind(on_release=self.my_reject_callback)
+	self.btnScrSaver = ImageButton(imgpath=SCREEN_SAVER_IMG,size_hint_x=.3)
+	self.btnScrSaver.bind(on_release=self.callback_set_voice)
+	self.btnSettings = ImageButton(imgpath=SETTINGS_IMG,size_hint_x=.3)
+	self.btnSettings.bind(on_release=self.callback_set_options)
 
 
     def init_screen(self):
 	"define app screen"
 	global config, scr_mode
 
-	Logger.debug(whoami()+':')
+	Logger.debug('%s:' % (whoami()))
 
 	scr_mode = 0
 	try:
@@ -625,6 +674,7 @@ class Indoor(FloatLayout):
 	    serv = config.get('common', 'server_ip_address_'+str(i + 1)).strip()
 	    sipc = config.get('common', 'sip_call'+str(i + 1)).strip()
 	    vid = config.get('common', 'server_stream_'+str(i + 1)).strip()
+	    aspectratio = config.get('common', 'picture_'+str(i + 1)).strip()
 	    relay = 'http://' + serv + '/cgi-bin/remctrl.sh?id='
 #	    try:
 #		relay = config.get('common', 'server_relay_'+str(i + 1)).strip()
@@ -634,7 +684,7 @@ class Indoor(FloatLayout):
 #
 #	    self.dbg(whoami() + ' relay: ' + str(relay))
 
-	    displ = BasicDisplay(win,serv,sipc,vid,relay)
+	    displ = BasicDisplay(win,serv,sipc,vid,relay,self.scrOrientation,aspectratio)
 	    self.displays.append(displ)
 
 	self.scrmngr.current = CAMERA_SCR
@@ -652,7 +702,7 @@ class Indoor(FloatLayout):
 	"sip phone init"
         global acc, config
 
-	Logger.debug(whoami()+':')
+	Logger.debug('%s: loglevel=%d' % (whoami(), LOG_LEVEL))
 
         # Create library instance
         lib = pj.Lib()
@@ -666,7 +716,7 @@ class Indoor(FloatLayout):
 
         try:
             # Init library with default config and some customized logging config
-            lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, callback=log_cb),\
+            lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, console_level=LOG_LEVEL, callback=log_cb),\
 		    media_cfg = setMediaConfig(), licence=1)
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -683,7 +733,16 @@ class Indoor(FloatLayout):
 
 	    cl = lib.enum_codecs()
 	    for c in cl:
-		Logger.debug(whoami() + ' CODEC ' + c.name + ' priority ' + str(c.priority))
+		Logger.debug('%s CODEC=%s priority=%d' % (whoami(), c.name, c.priority))
+#		priority = 16 if 'PCMA' in c.name else 32 if '722' in c.name else 64 if 'PCMU' in c.name else 128
+		priority = 128 if 'PCMA' in c.name else 64 if '722' in c.name else 32 if 'PCMU' in c.name else 16
+		lib.set_codec_priority(c.name, priority)
+#		p = lib.get_codec_parameter(c.name)
+#		Logger.info('%s: codec param priority=%d' % (whoami(), p.priority))
+
+	    cl = lib.enum_codecs()
+	    for c in cl:
+		Logger.debug('%s CODEC=%s priority=%d' % (whoami(), c.name, c.priority))
 
 	    # Create local account
 	    if accounttype in 'peer-to-peer':
@@ -743,8 +802,6 @@ class Indoor(FloatLayout):
         elif self.info_state == 2:
             self.info_state = 0
 	    if not self.lib is None and self.scrmngr.current in CAMERA_SCR:
-#		docall_button_global.text = BUTTON_DO_CALL + ' (DND)' if self.dnd_mode else BUTTON_DO_CALL
-#		docall_button_global.color = COLOR_BUTTON_BASIC
 		self.setButtons(False)
 
 	if self.lib is None:
@@ -762,7 +819,7 @@ class Indoor(FloatLayout):
 
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
-#		Logger.debug( "Process" + str(idx) + " (" + str(p.pid) + ") is dead" )
+#		Logger.trace( "Process" + str(idx) + " (" + str(p.pid) + ") is dead" )
 		try:
 		    p.kill()
 		except:
@@ -789,7 +846,7 @@ class Indoor(FloatLayout):
 	"swap screen to CLOCK"
 	global current_call, WATCHES
 
-        Logger.info(whoami() + ': %s --> %s' % (self.scrmngr.current, WATCHES))
+        Logger.info('%s: %s --> %s' % (whoami(), self.scrmngr.current, WATCHES))
 
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
@@ -826,10 +883,21 @@ class Indoor(FloatLayout):
 	if current_call is None: self.showPlayers()
 
 
+    def my_reject_callback(self, arg):
+	"reject incoming call"
+        global current_call
+
+	Logger.debug('%s:' % (whoami()))
+
+        if current_call.is_valid(): current_call.hangup()
+	current_call = None
+	self.outgoingCall = False
+	self.setButtons(False)
+
+
     def callback_btn_docall(self):
 	"make outgoing call"
-        global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL
-	global ring_event
+        global current_call, active_display_index, docall_button_global, ring_event
 
 	Logger.info(whoami() + ': call=' + str(current_call) + ' state=' + str(main_state) +\
 	    ' outgoing=' + str(self.outgoingCall))
@@ -852,9 +920,6 @@ class Indoor(FloatLayout):
                 if current_call.is_valid(): current_call.hangup()
 		current_call = None
 		self.outgoingCall = False
-#		docall_button_global.text = BUTTON_DO_CALL
-#		docall_button_global.color = COLOR_BUTTON_BASIC
-		docall_button_global.imgpath = MAKE_CALL_IMG
 		self.setButtons(False)
 	else:
 	    target = self.displays[active_display_index].sipcall
@@ -905,7 +970,7 @@ class Indoor(FloatLayout):
         self.setRelayRQ('relay2')
 
 
-    def callback_set_options(self):
+    def callback_set_options(self, btn=-1):
 	"start settings"
 	global BRIGHTNESS, AUDIO_VOLUME
 
@@ -923,6 +988,7 @@ class Indoor(FloatLayout):
 #	self.popupSettings.detailbutton.bind(on_press=self.openAppSettings)
 	self.popupSettings.content.valv = AUDIO_VOLUME
 	self.popupSettings.content.valb = BRIGHTNESS
+	self.popupSettings.content.vald = self.dnd_mode
 	self.popupSettings.open()
 
 
@@ -930,17 +996,23 @@ class Indoor(FloatLayout):
 	"close quick settings dialog"
 	global BRIGHTNESS, AUDIO_VOLUME
 
-	AUDIO_VOLUME = self.popupSettings.content.valv
-	BRIGHTNESS = self.popupSettings.content.valb
+	AUDIO_VOLUME = int(self.popupSettings.content.valv)
+	BRIGHTNESS = int(self.popupSettings.content.valb)
+	self.dnd_mode = bool(self.popupSettings.content.vald)
 	config.set('command', 'brightness', BRIGHTNESS)
+	config.set('command', 'dnd_mode', self.dnd_mode)
 	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.write()
+
+	Logger.info('%s: volume=%d brightness=%d dnd=%s'\
+	    % (whoami(), AUDIO_VOLUME, BRIGHTNESS, str(self.dnd_mode)))
 
 	self.popupSettings.dismiss()
 	self.popupSettings = None
 
 	send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
 	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+	docall_button_global.imgpath = DND_CALL_IMG if self.dnd_mode else MAKE_CALL_IMG
 
 	if small:
 	    self.showPlayers()
@@ -952,7 +1024,7 @@ class Indoor(FloatLayout):
 
 	self.popupSettings = None
 
-	if len(val) > 0 and '1234' == val:
+	if len(val) > 0 and self.masterPwd == val:
 	    self.scrmngr.current = SETTINGS_SCR
 	    App.get_running_app().open_settings()
 	else:
@@ -968,14 +1040,14 @@ class Indoor(FloatLayout):
 	self.popupSettings.open()
 
 
-    def callback_set_voice(self, value):
+    def callback_set_voice(self, value=-1):
 	"volume buttons"
 	global AUDIO_VOLUME, current_call
 
-	Logger.debug('%s: value=%d' % (whoami(), value))
+	Logger.debug('%s:' % (whoami()))
 
 	if current_call is None:
-	    if value == 1:
+	    if value == self.btnSettings: #1:
 		self.callback_set_options()
 	    else:
 		Clock.schedule_once(self.return2clock, .2)
@@ -984,7 +1056,7 @@ class Indoor(FloatLayout):
     def restart_player_window(self, idx):
 	"process is bad - restart"
 
-	Logger.info(whoami()+': idx='+str(idx))
+	Logger.info('%s: idx=%d' % (whoami(), idx))
 
 	self.displays[idx].hidePlayer()
 	send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
@@ -1020,10 +1092,10 @@ class Indoor(FloatLayout):
 	"process touch up event"
 	global active_display_index, current_call
 
-	Logger.info(whoami()+': loseNext='+str(self.loseNextTouch))
+	Logger.info('%s:' % whoami())
 	if not touch is None:
-	    Logger.debug(whoami()+': touch=%d,%d double=%d triple=%d'\
-		% (touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap))
+	    Logger.debug('%s: touch=%d,%d double=%d triple=%d loseNext=%r'\
+		% (whoami(), touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap, self.loseNextTouch))
 
 	if self.loseNextTouch:
 	    self.loseNextTouch = False
@@ -1103,20 +1175,27 @@ class Indoor(FloatLayout):
 
     def setButtons(self, visible):
 	"set buttons (ScrSaver, Options, Voice+-) to accurate state"
-	global AUDIO_VOLUME
+	global docall_button_global
 
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s: %r' % (whoami(), visible))
 
 	if visible:
-	    self.ids.btnScreenClock.disabled = True
-	    self.ids.btnSetOptions.disabled = True
-	    self.ids.btnScreenClock.imgpath = NO_IMG
-	    self.ids.btnSetOptions.imgpath = NO_IMG
+#	    self.ids.btnScreenClock.disabled = True
+#	    self.ids.btnSetOptions.disabled = True
+#	    self.ids.btnScreenClock.imgpath = NO_IMG
+#	    self.ids.btnSetOptions.imgpath = NO_IMG
+	    try:
+		docall_button_global.parent.remove_widget(mainLayout.btnScrSaver)
+		docall_button_global.parent.remove_widget(mainLayout.btnSettings)
+	    except: pass
 	else:
-	    self.ids.btnScreenClock.imgpath = SCREEN_SAVER_IMG
-	    self.ids.btnSetOptions.imgpath = SETTINGS_IMG
-	    self.ids.btnScreenClock.disabled = False
-	    self.ids.btnSetOptions.disabled = False
+#	    self.ids.btnScreenClock.imgpath = SCREEN_SAVER_IMG
+#	    self.ids.btnSetOptions.imgpath = SETTINGS_IMG
+#	    self.ids.btnScreenClock.disabled = False
+#	    self.ids.btnSetOptions.disabled = False
+	    if len(docall_button_global.parent.children) < 5:
+		docall_button_global.parent.add_widget(mainLayout.btnScrSaver,5)
+		docall_button_global.parent.add_widget(mainLayout.btnSettings)
 
 
     def init_sliders(self):
@@ -1212,6 +1291,7 @@ class Indoor(FloatLayout):
 class IndoorApp(App):
 
     restartAppFlag = False
+    rotation = 90
 
     def build(self):
 	global config
@@ -1223,8 +1303,10 @@ class IndoorApp(App):
 	kill_subprocesses()
 
 ##        Config.set('kivy', 'keyboard_mode','')
-        Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r'\
-	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout')))
+#	Config.set('graphics','rotation','0')
+        Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r, rotation=%r'\
+	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout'),\
+		Config.get('graphics','rotation')))
 
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
@@ -1275,10 +1357,14 @@ class IndoorApp(App):
 	    vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 0
 
 	# available volume steps:
-	if vol > 80: vol = 100
-	elif vol > 60: vol = 80
-	elif vol > 40: vol = 60
-	elif vol > 20: vol = 40
+	if vol > 90: vol = 100
+	elif vol > 80: vol = 90
+	elif vol > 70: vol = 80
+	elif vol > 60: vol = 70
+	elif vol > 60: vol = 60
+	elif vol > 40: vol = 50
+	elif vol > 30: vol = 40
+	elif vol > 20: vol = 30
 	else: vol = 20
 	AUDIO_VOLUME = vol
 

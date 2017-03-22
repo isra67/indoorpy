@@ -18,6 +18,7 @@ from registration import *
 
 # ### SIP ###
 from settingssip import *
+from callstats import *
 
 # ### tools ###
 from itools import *

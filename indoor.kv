@@ -5,12 +5,11 @@
     lblBasic: txtBasicLabel
     door1buton: btnDoor1
     door2buton: btnDoor2
-    settingsbutton: btnSetOptions
-    scrClockButton: btnScreenClock
     videoLabel1: videoLabel1
     videoLabel2: videoLabel2
     videoLabel3: videoLabel3
     videoLabel4: videoLabel4
+    btnBox: btnBox
 
     ScreenManager:
         size_hint: 1, 1
@@ -19,46 +18,71 @@
 
         Screen:
             name: 'waitscr'
-            id: waitscr
             on_enter: lblresult.text = 'Wait a moment...'
-#            on_touch_down: _screen_manager.current = 'camera'
 
-            BoxLayout:
-                orientation: 'vertical'
+            ScatterLayout:
+                do_rotation: False
+                do_scale: False
+                do_translation: False
+                rotation: app.rotation
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                size_hint: None, None
+                #size: root.height, root.width
+                size: root.width, root.height
 
-                Label:
-                    text: 'Information:'
-                    font_size: self.height/5
-                    color: 0.6,0.6,0.6,0.9
-                Label:
-                    text: ''
-                    id: lblresult
-                    font_size: self.height/3
-                    color: 0.9,0.9,0.9,0.9
-                Label:
-                    text: ''
-                    font_size: self.height/5
-                    color: 0.6,0.6,0.6,0.9
+                BoxLayout:
+                    orientation: 'vertical'
+
+                    Label:
+                        text: 'Information:'
+                        font_size: self.height/5
+                        color: 0.6,0.6,0.6,0.9
+                    Label:
+                        text: ''
+                        id: lblresult
+                        font_size: self.height/3
+                        color: 0.9,0.9,0.9,0.9
+                    Label:
+                        text: ''
+                        font_size: self.height/5
+                        color: 0.6,0.6,0.6,0.9
 
         Screen:
             name: 'clock'
-            id: clock
             on_touch_down: root.swap2camera()
 
-            BoxLayout:
-                MyClockWidget:
+            ScatterLayout:
+                do_rotation: False
+                do_scale: False
+                do_translation: False
+                rotation: app.rotation
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                size_hint: None, None
+                #size: root.height, root.width
+                size: root.width, root.height
+
+                BoxLayout:
+                    MyClockWidget:
 
         Screen:
             name: 'digiclock'
-            id: digiclock
             on_touch_down: root.swap2camera()
 
-            BoxLayout:
-                DigiClockWidget:
+            ScatterLayout:
+                do_rotation: False
+                do_scale: False
+                do_translation: False
+                rotation: app.rotation
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                size_hint: None, None
+#                size: root.height, root.width
+                size: root.width, root.height
+
+                BoxLayout:
+                    DigiClockWidget:
 
         Screen:
             name: 'camera'
-            id: camera
             on_pre_enter: root.startScreenTiming()
             on_enter: root.enterCameraScreen()
             on_leave: root.finishScreenTiming()
@@ -108,39 +132,21 @@
                 size_hint_y: None
                 height: '47dp'
                 size: self.size
+                id: btnBox
 
-                ImageButton:
-                    id: btnScreenClock
-                    imgpath: 'imgs/monitor.png'
-                    #fntext: 'C'
-                    #font_size: '24dp'
-                    size_hint: .25, 1
-                    on_press: root.callback_set_voice(-1)
                 ImageButton:
                     id: btnDoor1
                     imgpath: 'imgs/lock.png'
-#                    text: 'Open Door 1'
-                    #font_size: '24dp'
                     on_press: root.callback_btn_door1()
                 ImageButton:
                     id: btnDoCall
                     imgpath: 'imgs/phone-call.png'
-#                    text: 'Make Call'
-                    #font_size: '24dp'
+                    size_hint: 1.5, 1
                     on_press: root.callback_btn_docall()
                 ImageButton:
                     id: btnDoor2
                     imgpath: 'imgs/lock.png'
-#                    text: 'Open Door 2'
-                    #font_size: '24dp'
                     on_press: root.callback_btn_door2()
-                ImageButton:
-                    id: btnSetOptions
-                    imgpath: 'imgs/settings.png'
-                    #fntext: 'S'
-                    #font_size: '24dp'
-                    size_hint: .25, 1
-                    on_press: root.callback_set_voice(1)
 
         SetScreen:
             name: 'settings'
@@ -218,11 +224,9 @@
     detailbutton: detailbutton
     size_hint: .8, .9
     orientation: 'vertical'
-    valb: 255
+    valb: 100
     valv: 100
-#    pwdtext: pwdtext
-    #valvolume: valvolume
-    #valbright: valbright
+    vald: False
 
     BoxLayout:
         orientation: 'horizontal'
@@ -243,14 +247,28 @@
             size_hint_x: .6
         Slider:
             id: valbright
-            min: 16
+            min: 15
             max: 255
-            step: 16
+            step: 15
             value: root.valb
             on_value: root.valb = self.value
 
     BoxLayout:
         orientation: 'horizontal'
+
+        Label:
+            text: 'Do not disturb'
+            size_hint_x: .6
+        Switch:
+            id: valdnd
+            active: root.vald
+            on_active: root.vald = self.active
+
+        Label:
+            text: ''
+            size_hint_x: .6
+        Label:
+            text: ''
 
     BoxLayout:
         orientation: 'horizontal'
@@ -258,12 +276,9 @@
         height: '48dp'
         spacing: 8
 
-#        TextInput:
-#            id: pwdtext
         Button:
             id: detailbutton
             text: 'Detail'
-#            size_hint: .6, 1
             on_press: root.openDetailSettings()
         Image:
             source: 'imgs/nothing.png'
@@ -272,7 +287,6 @@
         Button:
             id: closebutton
             text: 'Close'
-#            size_hint: .6, 1
             on_press: root.closePopupSettings()
 
 
@@ -297,15 +311,11 @@
         size_hint_y: .8
         value: root.val
         on_value: root.on_val()
-        #center_x: self.parent.center_x
 
     AsyncImage:
         source: root.imgpath
         size_hint: 1, None
         height: '32px'
-        #size: '32px', '32px'
-        #center_x: root.center_x
-        #center_y: self.parent.center_y
 
     Image:
         source: 'imgs/nothing.png'

@@ -38,13 +38,11 @@ SETIPADDRESS_SCRIPT = './setipaddress.sh'
 
 # ### images: ###
 MAKE_CALL_IMG = 'imgs/phone-call.png'
-ANSWER_CALL_IMG = 'imgs/call-incoming.png'
+ANSWER_CALL_IMG = 'imgs/call-answer.png'
 HANGUP_CALL_IMG = 'imgs/call-disconnect.png'
 ERROR_CALL_IMG = 'imgs/call-reject.png'
+DND_CALL_IMG = 'imgs/call-dnd.png'
 
-#VOLUME_UP_IMG = 'imgs/volume-high.png' #'imgs/volume-normal.png'
-#VOLUME_DOWN_IMG = 'imgs/volume-low.png' #'imgs/volume-pressed.png'
-#VOLUME_DISABLED_IMG = 'imgs/volume-disabled.png'
 VOLUME_IMG = 'imgs/speaker.png'
 MICROPHONE_IMG = 'imgs/microphone.png'
 
@@ -54,13 +52,6 @@ LOCK_IMG = 'imgs/lock.png'
 UNLOCK_IMG = 'imgs/unlock.png'
 
 NO_IMG = 'imgs/nothing.png'
-
-#BUTTON_CALL_ANSWER = '=Answer Call='
-#BUTTON_CALL_HANGUP = '=HangUp Call='
-#BUTTON_DO_CALL = '=Do Call='
-
-#BUTTON_DOOR_1 = '=Open Door 1='
-#BUTTON_DOOR_2 = '=Open Door 2='
 
 # ### screens: ###
 WAIT_SCR = 'waitscr'
@@ -78,18 +69,16 @@ COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
 
 ACTIVE_DISPLAY_BACKGROUND = [.0,.0,.9]
 INACTIVE_DISPLAY_BACKGROUND = [.0,.0,.0]
-#ACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.9)
-#INACTIVE_DISPLAY_BACKGROUND = Color(.0,.0,.0)
 
 # ### audio player: ###
 
 APLAYER = 'aplay'
 APARAMS = '-q -N -f cd -D plughw:0,0 sounds/'
 RING_TONE = 'oldphone.wav'
-RING_WAV = APLAYER + ' ' + APARAMS + ' ' + RING_TONE # 'share/sounds/linphone/rings/oldphone.wav &'
+RING_WAV = APLAYER + ' ' + APARAMS + ' ' + RING_TONE
 
 # ### variables & constatnts: ###
-LOG_LEVEL = 3
+LOG_LEVEL = 3 #5				# SIP log level
 current_call = None
 acc = None
 

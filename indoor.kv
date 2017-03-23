@@ -123,7 +123,7 @@
                 text: 'Wait...'
                 height: '44dp'
                 font_size: '40dp'
-                pos: 0, 48
+                pos: 0, 52
                 halign: 'center'
                 size_hint_y: None
 
@@ -137,15 +137,18 @@
                 ImageButton:
                     id: btnDoor1
                     imgpath: 'imgs/lock.png'
+                    size_hint: None, 1
+                    width: '176dp'
                     on_press: root.callback_btn_door1()
                 ImageButton:
                     id: btnDoCall
                     imgpath: 'imgs/phone-call.png'
-                    size_hint: 1.5, 1
                     on_press: root.callback_btn_docall()
                 ImageButton:
                     id: btnDoor2
                     imgpath: 'imgs/lock.png'
+                    size_hint: None, 1
+                    width: '176dp'
                     on_press: root.callback_btn_door2()
 
         SetScreen:

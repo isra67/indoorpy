@@ -34,8 +34,6 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
 
 import atexit
-import datetime
-from datetime import timedelta
 import json
 
 import errno
@@ -71,13 +69,13 @@ def kill_subprocesses():
     "tidy up at exit or break"
     global mainLayout
 
-    Logger.info(whoami() +': destroy lib at exit')
+    Logger.info('%s: destroy lib at exit' % whoami())
     try:
 	pj.Lib.destroy()
     except:
 	pass
 
-    Logger.info(whoami() +': kill subprocesses at exit')
+    Logger.info('%s: kill subprocesses at exit' % whoami())
     for proc in procs:
 	try:
             proc.kill()
@@ -85,7 +83,6 @@ def kill_subprocesses():
 	    pass
 
     send_command('pkill omxplayer')
-#    send_command('pkill dbus-daemon')
 
 
 # ###############################################################
@@ -144,9 +141,8 @@ class MyCallCallback(pj.CallCallback):
 
 	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
 	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
-	Logger.debug('pjSip on_state: sip_call_id='+ci.sip_call_id+' outgoing call='\
-	    + str(mainLayout.outgoingCall) + ' current call='+str(current_call))
-##	Logger.warning('pjSip callinfo=%d' % (ci.setting.flag))
+	Logger.debug('pjSip on_state: sip_call_id=%s outgoing call=%r current call=%s'\
+	    % (ci.sip_call_id, mainLayout.outgoingCall, str(current_call)))
 
 	prev_state = main_state
         main_state = ci.state
@@ -163,7 +159,8 @@ class MyCallCallback(pj.CallCallback):
 		stopWAV()
 
 	if self.sip_call_id_last == ci.sip_call_id:
-	    Logger.error('pjSip '+whoami()+': Unwanted message='+ci.state_text+' from '+ci.remote_uri+' as '+role)
+	    Logger.error('pjSip %s: Unwanted message=%s from %s as %s'\
+		% (whoami(), ci.state_text, ci.remote_uri, role))
 	    return
 
 	if self.callTimerEvent is None:
@@ -195,7 +192,7 @@ class MyCallCallback(pj.CallCallback):
 	    docall_button_global.imgpath = HANGUP_CALL_IMG
 	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
 	    except: pass
-	    Logger.info('pjSip call status:' + self.call.dump_status())
+	    Logger.info('pjSip call status: %s' % self.call.dump_status())
 
         elif main_state == pj.CallState.CALLING:
 	    if not current_call is None:
@@ -219,21 +216,20 @@ class MyCallCallback(pj.CallCallback):
 	    try:
         	pj.Lib.instance().conf_connect(call_slot, 0)
         	pj.Lib.instance().conf_connect(0, call_slot)
-        	Logger.debug("pjSip "+whoami()+": Media is now active")
+        	Logger.debug("pjSip %s: Media is now active" % whoami())
 	    except pj.Error, e:
-        	Logger.error("pjSip "+whoami()+": Media is inactive due to ERROR: " + str(e))
+        	Logger.error("pjSip %s: Media is inactive due to ERROR: %s" % (whoami(), str(e)))
 		mainLayout.mediaErrorFlag = True
         else:
-            Logger.debug("pjSip "+whoami()+": Media is inactive")
+            Logger.debug("pjSip %s: Media is inactive" % whoami())
 	    mainLayout.mediaErrorFlag = False
 
 
     def callTimerWD(self, dt):
 	"SIP call watch dog"
-        global current_call, ring_event
-        global main_state, mainLayout, acc
+        global current_call, ring_event, main_state, mainLayout, acc
 
-	Logger.warning(whoami()+':')
+	Logger.warning('%s:' % whoami())
 
 	self.callTimerEvent = None
 	main_state = pj.CallState.DISCONNECTED
@@ -260,12 +256,12 @@ def make_call(uri):
     "Function to make outgoing call"
     global acc
 
-    Logger.debug(whoami() + ': ' + uri)
+    Logger.info('%s: %s' % (whoami(), uri))
 
     try:
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
-        Logger.error("pjSip "+whoami()+" Exception: " + str(e))
+        Logger.error("pjSip %s exception: %s" % (whoami(), str(e)))
 	mainLayout.mediaErrorFlag = True
 
     return None
@@ -305,7 +301,7 @@ class BasicDisplay:
 	    pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
 	else: pdelta = 0
 	if pdelta < 0: pdelta = 0
-	Logger.warning('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
+	Logger.trace('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
 	self.playerPosition[0] += pdelta
 	self.playerPosition[2] -= pdelta
 
@@ -351,7 +347,7 @@ class BasicDisplay:
     def initPlayer(self):
 	"start video player"
 
-	Logger.debug(whoami()+':')
+	Logger.debug('%s:' % whoami())
 	try:
 	    if len(itools.omxl) and DBUS_PLAYERNAME + str(self.screenIndex) in itools.omxl:
 		del itools.omxl[DBUS_PLAYERNAME + str(self.screenIndex)]
@@ -369,7 +365,7 @@ class BasicDisplay:
 	"resize video player area"
 	global mainLayout, scr_mode
 
-	Logger.debug(whoami() + ': ' + newpos)
+	Logger.debug('%s: %s' % (whoami(), newpos))
 
 	self.hidePlayer()
 
@@ -392,7 +388,7 @@ class BasicDisplay:
 		pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
 	    else: pdelta = 0
 	    if pdelta < 0: pdelta = 0
-	    Logger.warning('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
+	    Logger.trace('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
 	    pos[0] += pdelta
 	    pos[2] -= pdelta
 
@@ -477,15 +473,14 @@ class BasicDisplay:
 
     def dbus_command(self, params=[]):
 	"d-bus command"
-	Logger.debug(whoami()+': ' + str(params))
+	Logger.debug('%s: %s' % (whoami(), str(params)))
 
 	Thread(target=self.dbus_worker, kwargs={'params': params}).start()
 
 
     def hidePlayer(self):
 	"hide video player area"
-
-	Logger.debug(whoami()+':')
+	Logger.debug('%s:' % whoami())
 
 	self.color = INACTIVE_DISPLAY_BACKGROUND
 	self.actScreen.bgcolor = self.color
@@ -495,7 +490,7 @@ class BasicDisplay:
 	"add or remove active flag"
 	global current_call, scr_mode
 
-	Logger.debug('%s: index=%d active=%d scr_mode=%d' % (whoami(), self.screenIndex, active, scr_mode))
+	Logger.debug('%s: index=%d active=%d' % (whoami(), self.screenIndex, active))
 
 	if current_call: return
 
@@ -623,16 +618,16 @@ class Indoor(FloatLayout):
 	"define app buttons"
 	global docall_button_global
 
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
         docall_button_global = self.ids.btnDoCall
 	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 
 	self.btnReject = ImageButton(imgpath=HANGUP_CALL_IMG)
 	self.btnReject.bind(on_release=self.my_reject_callback)
-	self.btnScrSaver = ImageButton(imgpath=SCREEN_SAVER_IMG,size_hint_x=.3)
+	self.btnScrSaver = ImageButton(imgpath=SCREEN_SAVER_IMG, size_hint_x=None, width=72)
 	self.btnScrSaver.bind(on_release=self.callback_set_voice)
-	self.btnSettings = ImageButton(imgpath=SETTINGS_IMG,size_hint_x=.3)
+	self.btnSettings = ImageButton(imgpath=SETTINGS_IMG, size_hint_x=None, width=72)
 	self.btnSettings.bind(on_release=self.callback_set_options)
 
 
@@ -640,7 +635,7 @@ class Indoor(FloatLayout):
 	"define app screen"
 	global config, scr_mode
 
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
 	scr_mode = 0
 	try:
@@ -666,8 +661,6 @@ class Indoor(FloatLayout):
 	    self.ids.cameras.remove_widget(self.ids.cameras2)
 	else:
 	    wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
-
-        Logger.warning('win1 size: ' + str(self.ids.cameras1.size) + ' ' + str(wins))
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
@@ -702,7 +695,7 @@ class Indoor(FloatLayout):
 	"sip phone init"
         global acc, config
 
-	Logger.debug('%s: loglevel=%d' % (whoami(), LOG_LEVEL))
+	Logger.info('%s: loglevel=%d' % (whoami(), LOG_LEVEL))
 
         # Create library instance
         lib = pj.Lib()
@@ -765,11 +758,11 @@ class Indoor(FloatLayout):
 		cb = MyAccountCallback(acc)
 		acc.set_callback(cb)
 
-	    Logger.info(whoami()+': Listening on %s port %d Account type=%s SIP server=%s'\
-		% (transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
+	    Logger.info('%s: Listening on %s port %d Account type=%s SIP server=%s'\
+		% (whoami(), transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
 
         except pj.Error, e:
-            Logger.critical("pjSip Exception: " + str(e))
+            Logger.critical("%s pjSip Exception: %s" % (whoami(), str(e)))
 
             lib.destroy()
             self.lib = lib = None
@@ -782,8 +775,6 @@ class Indoor(FloatLayout):
     def info_state_loop(self, dt):
 	"state loop"
         global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
-
-#	Logger.debug(whoami()+': call='+str(current_call)+' state='+str(self.info_state))
 
         if not current_call is None: self.info_state = 0
 
@@ -819,7 +810,6 @@ class Indoor(FloatLayout):
 
 	for idx, p in enumerate(procs):
 	    if p.poll() is not None:
-#		Logger.trace( "Process" + str(idx) + " (" + str(p.pid) + ") is dead" )
 		try:
 		    p.kill()
 		except:
@@ -846,7 +836,7 @@ class Indoor(FloatLayout):
 	"swap screen to CLOCK"
 	global current_call, WATCHES
 
-        Logger.info('%s: %s --> %s' % (whoami(), self.scrmngr.current, WATCHES))
+        Logger.debug('%s: %s --> %s' % (whoami(), self.scrmngr.current, WATCHES))
 
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
@@ -859,7 +849,7 @@ class Indoor(FloatLayout):
     def finishScreenTiming(self):
 	"finist screen timer"
 
-        Logger.debug('ScrnLeave: ')
+        Logger.debug('ScrnLeave:')
 
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
@@ -868,7 +858,7 @@ class Indoor(FloatLayout):
     def swap2camera(self):
 	"swap screen to CAMERA"
 
-        Logger.info(whoami()+':')
+        Logger.info('%s:' % whoami())
 
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
@@ -878,7 +868,7 @@ class Indoor(FloatLayout):
 	"swap screen to CAMERA"
 	global current_call
 
-        Logger.debug(whoami() + ': call=' + str(current_call))
+        Logger.debug('%s: call=%s' % (whoami(), str(current_call)))
 
 	if current_call is None: self.showPlayers()
 
@@ -887,7 +877,7 @@ class Indoor(FloatLayout):
 	"reject incoming call"
         global current_call
 
-	Logger.debug('%s:' % (whoami()))
+	Logger.info('%s:' % whoami())
 
         if current_call.is_valid(): current_call.hangup()
 	current_call = None
@@ -899,13 +889,12 @@ class Indoor(FloatLayout):
 	"make outgoing call"
         global current_call, active_display_index, docall_button_global, ring_event
 
-	Logger.info(whoami() + ': call=' + str(current_call) + ' state=' + str(main_state) +\
-	    ' outgoing=' + str(self.outgoingCall))
+	Logger.info('%s: call=%s state=%d outgoing=%r' % (whoami(), str(current_call), main_state, self.outgoingCall))
 
 	if len(procs) == 0: return
 
         if current_call:
-	    Logger.info(whoami() + ' call state: ' + str(current_call.dump_status()))
+	    Logger.info('%s call state: %s' % (whoami(), str(current_call.dump_status())))
 
             if current_call.is_valid() and main_state == pj.CallState.EARLY:
 		if not ring_event is None: Clock.unschedule(ring_event)
@@ -943,14 +932,14 @@ class Indoor(FloatLayout):
 
     def gotResponse(self, req, results):
 	"relay result"
-        Logger.debug('Relay: req=' + str(req) + ' res=' + results)
+        Logger.debug('Relay: req=%s res=%s' % (str(req), results))
 
 
     def setRelayRQ(self, relay):
 	"send relay request"
         global active_display_index
 
-        Logger.trace('SetRelay: ' + relay)
+        Logger.trace('SetRelay: %s' % relay)
 
 	if len(procs) == 0: return
 
@@ -960,13 +949,13 @@ class Indoor(FloatLayout):
 
     def callback_btn_door1(self):
 	"door 1 button"
-        Logger.debug(BUTTON_DOOR_1+':')
+        Logger.debug('%s:' % BUTTON_DOOR_1)
         self.setRelayRQ('relay1')
 
 
     def callback_btn_door2(self):
 	"door 2 button"
-        Logger.debug(BUTTON_DOOR_2+':')
+        Logger.debug('%s:' % BUTTON_DOOR_2)
         self.setRelayRQ('relay2')
 
 
@@ -981,11 +970,9 @@ class Indoor(FloatLayout):
 
 	classes.mainLayout = mainLayout
 
-        self.popupSettings = Popup(title="Options",
-              content=SettingsPopupDlg(),
+        self.popupSettings = Popup(title="Options", content=SettingsPopupDlg(),
               size_hint=(0.8, 0.96), auto_dismiss=False)
 
-#	self.popupSettings.detailbutton.bind(on_press=self.openAppSettings)
 	self.popupSettings.content.valv = AUDIO_VOLUME
 	self.popupSettings.content.valb = BRIGHTNESS
 	self.popupSettings.content.vald = self.dnd_mode
@@ -1034,7 +1021,7 @@ class Indoor(FloatLayout):
 
     def openAppSettings(self):
 	"get password"
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
 	self.popupSettings = MyInputBox(titl='Password', txt='Enter password', cb=self.testPwdSettings, pwdx=True, ad=True)
 	self.popupSettings.open()
@@ -1044,13 +1031,11 @@ class Indoor(FloatLayout):
 	"volume buttons"
 	global AUDIO_VOLUME, current_call
 
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
 	if current_call is None:
-	    if value == self.btnSettings: #1:
-		self.callback_set_options()
-	    else:
-		Clock.schedule_once(self.return2clock, .2)
+	    if value == self.btnSettings: self.callback_set_options()
+	    else: Clock.schedule_once(self.return2clock, .2)
 
 
     def restart_player_window(self, idx):
@@ -1065,14 +1050,14 @@ class Indoor(FloatLayout):
 
     def supporter1(self, dt):
 	"clear restart flag"
-	Logger.debug(whoami()+ ': clear restart flag')
+	Logger.debug('%s: clear restart flag' % whoami())
 	self.appRestartEvent = None
 
 
     def checkTripleTap(self,touch):
 	"check if triple tap is in valid area, if yes -> finish app"
 
-	Logger.info(whoami()+':')
+	Logger.info('%s:' % whoami())
 
 	x = touch.x
 	y = touch.y
@@ -1084,7 +1069,7 @@ class Indoor(FloatLayout):
 		self.appRestartEvent = None
 
 	if x > 730 and y > 430 and not self.appRestartEvent is None:
-	    Logger.error(whoami() + ': valid triple tap -> restart')
+	    Logger.error('%s: valid triple tap -> restart' % whoami())
 	    App.get_running_app().stop()
 
 
@@ -1145,7 +1130,7 @@ class Indoor(FloatLayout):
     def showPlayers(self):
 	"d-bus command to show video"
 
-	Logger.debug(whoami()+': ')
+	Logger.debug('%s:' % whoami())
 
 	for d in self.displays:
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
@@ -1164,7 +1149,7 @@ class Indoor(FloatLayout):
 
     def hidePlayers(self, serial=False):
 	"d-bus command to hide video"
-	Logger.debug(whoami()+': ')
+	Logger.debug('%s:' % whoami())
 
 	if serial:
 	    Thread(target=self.worker1serial).start()
@@ -1202,7 +1187,7 @@ class Indoor(FloatLayout):
 	"prepare volume sliders"
 	global AUDIO_VOLUME
 
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
 	self.micslider = SliderArea()
 	self.micslider.imgpath = MICROPHONE_IMG
@@ -1234,10 +1219,10 @@ class Indoor(FloatLayout):
 
     def add_sliders(self):
 	"add sliders to the working area"
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
 	l = self.ids.workarea
-	Logger.debug('%s: cnt:%d' % (whoami(), len(l.children)))
+	Logger.trace('%s: cnt:%d' % (whoami(), len(l.children)))
 	if len(l.children) > 1: return
 
 	l.add_widget(self.micslider, 1)
@@ -1246,7 +1231,7 @@ class Indoor(FloatLayout):
 
     def del_sliders(self):
 	"delete sliders from the working area"
-	Logger.debug('%s:' % (whoami()))
+	Logger.debug('%s:' % whoami())
 
 	l = self.ids.workarea
 	l.remove_widget(self.micslider)
@@ -1257,7 +1242,7 @@ class Indoor(FloatLayout):
 	"find target window according to calling address"
 	global active_display_index
 
-        Logger.info('find target window: address=' + addr)
+        Logger.info('find target window: address=%s' % addr)
 
 	ret = False
 	self.infoText.text = addr
@@ -1305,8 +1290,7 @@ class IndoorApp(App):
 ##        Config.set('kivy', 'keyboard_mode','')
 #	Config.set('graphics','rotation','0')
         Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r, rotation=%r'\
-	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout'),\
-		Config.get('graphics','rotation')))
+	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout'),Config.get('graphics','rotation')))
 
 	self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
@@ -1339,7 +1323,7 @@ class IndoorApp(App):
 	    uptime_seconds = float(f.readline().split()[0]) or 0
 	    uptime_string = str(timedelta(seconds = uptime_seconds))
 
-        Logger.debug(whoami() + ': uptime=' + uptime_string)
+        Logger.debug('%s: uptime=%s' % (whoami(), uptime_string))
 
 	return uptime_string
 
@@ -1375,7 +1359,7 @@ class IndoorApp(App):
 	"display settings screen"
 	global config
 
-        Logger.debug(whoami()+': ')
+        Logger.debug('%s:' % whoami())
 
 	settings.register_type('buttons', SettingButtons)
 
@@ -1463,7 +1447,7 @@ class IndoorApp(App):
 	"display settings"
 	global mainLayout
 
-        Logger.debug(whoami()+': ')
+        Logger.debug('%s:' % whoami())
 
 #        return super(IndoorApp, self).display_settings(settings)
 	mainLayout.ids.settings.add_widget(settings)
@@ -1473,7 +1457,7 @@ class IndoorApp(App):
 	"config item changed"
 	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME, mainLayout
 
-        Logger.info(whoami()+': sec=%s key=%s val=%s' % (section, key, value))
+        Logger.info('%s: sec=%s key=%s val=%s' % (whoami(), section, key, value))
 	token = (section, key)
 	value = value.strip()
 
@@ -1552,7 +1536,7 @@ class IndoorApp(App):
 
     def popupClosed(self, popup):
 	"restart App after alert box"
-        Logger.debug(whoami()+': ')
+        Logger.debug('%s:' % whoami())
 
 	kill_subprocesses()
 	App.get_running_app().stop()
@@ -1576,7 +1560,7 @@ class IndoorApp(App):
 	"close button pressed"
 	global scrmngr, mainLayout, config
 
-        Logger.debug(whoami()+': ')
+        Logger.debug('%s:' % whoami())
 
 	mainLayout.ids.settings.clear_widgets()
 
@@ -1599,7 +1583,7 @@ class IndoorApp(App):
 	"Alert box"
 	global scrmngr
 
-	Logger.debug(whoami()+': title='+titl+' msg='+txt)
+	Logger.debug('%s: title=%s msg=%s' % (whoami(), titl, txt))
 
 	if not cb is None:
 	    scrmngr.current = WAIT_SCR
@@ -1620,7 +1604,7 @@ class IndoorApp(App):
 	"Alert box"
 	LJUST = 83
 
-	Logger.debug(whoami()+': title='+titl)
+	Logger.debug('%s: title=%s' % (whoami(), titl))
 
 	box = BoxLayout(orientation='vertical', spacing=5)
 
@@ -1638,10 +1622,8 @@ class IndoorApp(App):
 	# justify text:
 	data = [t[:LJUST] + '...' if len(t) > LJUST else t[:] for t in ldata]
 
-	args_converter = lambda row_idx, rec: {'text': rec,
-                                            'size_hint_y': None,
-					    'color': clr[row_idx],
-                                            'height': 25}
+	args_converter = lambda row_idx, rec: {'text': rec, 'size_hint_y': None,
+					    'color': clr[row_idx], 'height': 25}
 
 	list_adapter = ListAdapter(data=data, cls=MyListViewLabel,
 			    args_converter=args_converter,

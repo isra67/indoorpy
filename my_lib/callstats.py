@@ -6,7 +6,7 @@
 #
 # ###############################################################
 
-import datetime
+#import datetime
 import json
 import os
 
@@ -81,7 +81,7 @@ def setcallstat(outflag=False, status=0, prev_status=0, call=''):
     "Increment call stat counters and save to TMP file"
     global call_statistics, call_log
 
-    dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    dt = getdatetimestr()   # datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     if status == 0 or status == 4 or ((status == 3) and outflag): return
 

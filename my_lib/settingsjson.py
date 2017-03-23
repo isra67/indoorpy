@@ -1,4 +1,19 @@
+#!/bin/python
+
+# ###############################################################
+#
+# Imports
+#
+# ###############################################################
+
 import json
+
+
+# ###############################################################
+#
+# Declarations
+#
+# ###############################################################
 
 # basic app settings
 settings_app = json.dumps([
@@ -27,6 +42,8 @@ settings_app = json.dumps([
      'key': 'watches',
      'options': ['analog','digital','none']}
 ])
+
+# ###############################################################
 
 # set GUI
 settings_gui = json.dumps([
@@ -70,6 +87,8 @@ settings_gui = json.dumps([
 #     'section': 'gui',
 #     'key': 'btn_door_2'}
 ])
+
+# ###############################################################
 
 # set outdoor devices
 settings_outdoor = json.dumps([
@@ -161,6 +180,8 @@ settings_outdoor = json.dumps([
      'options': ['fill', '4:3', '16:9']}
 ])
 
+# ###############################################################
+
 # audio settings
 settings_audio = json.dumps([
     {'type': 'title',
@@ -178,6 +199,8 @@ settings_audio = json.dumps([
 #     'key': 'volume',
 #     'options': ['20', '40', '60', '80', '100']}
 ])
+
+# ###############################################################
 
 # SIP settings
 settings_sip = json.dumps([
@@ -221,6 +244,8 @@ settings_sip = json.dumps([
 #     'key': 'sip_stun_server'}
 ])
 
+# ###############################################################
+
 # System parameters
 settings_system = json.dumps([
     {'type': 'title',
@@ -252,6 +277,8 @@ settings_system = json.dumps([
      'section': 'system',
      'key': 'dns'}
 ])
+
+# ###############################################################
 
 # about app
 settings_about = json.dumps([
@@ -294,6 +321,8 @@ settings_about = json.dumps([
      "buttons": [{"title":"Registration","id":"button_regs"}]}
 ])
 
+# ###############################################################
+
 # service function
 settings_services = json.dumps([
     {'type': 'title',
@@ -324,3 +353,5 @@ settings_services = json.dumps([
      "key": "app_rst",
      "buttons": [{"title":"Restart App","id":"button_app_rst"}]} #,{"title":"Del","id":"button_delete"},{"title":"Rename","id":"button_rename"}]}
 ])
+
+# ###############################################################

@@ -92,6 +92,8 @@ def get_config():
     return config
 
 
+# ###############################################################
+
 def setDefaultConfig(config, full=False):
     "nastavenie konfiguracnych parametrov"
     Logger.debug('%s: ' % whoami())
@@ -137,3 +139,5 @@ def setDefaultConfig(config, full=False):
 
     return config
 
+
+# ###############################################################

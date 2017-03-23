@@ -71,30 +71,30 @@ ACTIVE_DISPLAY_BACKGROUND = [.0,.0,.9]
 INACTIVE_DISPLAY_BACKGROUND = [.0,.0,.0]
 
 # ### audio player: ###
-
 APLAYER = 'aplay'
 APARAMS = '-q -N -f cd -D plughw:0,0 sounds/'
 RING_TONE = 'oldphone.wav'
 RING_WAV = APLAYER + ' ' + APARAMS + ' ' + RING_TONE
 
-# ### variables & constatnts: ###
+ring_event = None
+
+# ### SIP: ###
 LOG_LEVEL = 3 #5				# SIP log level
 current_call = None
 acc = None
 
+# ### variables & constatnts: ###
 main_state = 0
 docall_button_global = None
 
 active_display_index = 0
 
-ring_event = None
-
 TRANSPARENCY_VIDEO_CMD = ['setalpha']
 
 DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
 
-transparency_value = 0
-transparency_event = None
+#transparency_value = 0
+#transparency_event = None
 
 mainLayout = None
 scrmngr = None

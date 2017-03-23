@@ -27,13 +27,10 @@ from constants import *
 #
 # ###############################################################
 
-#APLAYER = 'aplay'
-#APARAMS = '-q -N -f cd -D plughw:0,0'
-#RING_WAV = APLAYER + ' ' + APARAMS + ' ' +'share/sounds/linphone/rings/oldphone.wav &'
-
-PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE  #'aplay -q -N -f cd -D plughw:0,0 sounds/oldphone.wav'
+PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
 
 omxl = {}
+
 
 # ###############################################################
 #
@@ -48,9 +45,16 @@ def whoami():
 
 # ##############################################################################
 
+def getdatetimestr():
+    t = datetime.datetime.now()
+    return t.strftime('%Y-%m-%d %H:%M:%S')
+
+
+# ##############################################################################
+
 def playWAV(dt):
     "start play"
-    Logger.debug(whoami()+': '+ PHONERING_PLAYER)
+    Logger.debug('%s: %s' %(whoami(), PHONERING_PLAYER))
 #    send_command(PHONERING_PLAYER)
     subprocess.Popen(PHONERING_PLAYER.split())
 
@@ -59,7 +63,7 @@ def playWAV(dt):
 
 def stopWAV():
     "stop play"
-    Logger.debug(whoami()+': ')
+    Logger.debug('%s: ' % whoami())
     send_command('pkill -9 ' + APLAYER)
 
 
@@ -67,8 +71,8 @@ def stopWAV():
 
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
-
 ##    return send_dbus_old(dst,args)
+#    Logger.info('%s: dst=%s args=%s' % (whoami(), dst, str(args)))
 
     try:
 	if omxl[dst] is None: omxl[dst] = OmxControl(user='root',name=dst)
@@ -79,41 +83,24 @@ def send_dbus(dst,args):
 
     try:
 	if args[0] is 'setalpha':
-	    v = '1' if '0' is args[1] else '254'
-	    omx.setAlpha(v)
-#	    omx.setAlpha(args[1])
-#	    if not '255' in args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
-#	    else: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
+#	    v = '1' if '0' is args[1] else '254'
+#	    omx.setAlpha(v)
+	    if not '255' == args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
+	    else: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
 	else:
 	    omx.videoPos(args[1:])
     except OmxControlError as ex:
-	Logger.warning(whoami()+': dst=%s args=[%s] ERR=%s' % (dst, ','.join(args), ex.message))
+	Logger.warning('%s: dst=%s args=%s ERR=%s' % (whoami(), dst, str(args), ex.message))
 	return False
 
     return True
 
-"""
-def send_dbus_old(dst,args):
-    "send DBUS command to omxplayer"
-
-#    subprocess.Popen([DBUSCONTROL_SCRIPT, dst] + args)
-#    return True
-
-    try:
-	proc = subprocess.check_output([DBUSCONTROL_SCRIPT, dst] + args) #, stderr=subprocess.STDOUT, shell=False)
-	Logger.debug(whoami()+': dst=%s args=[%s]' % (dst, ','.join(args)))
-    except subprocess.CalledProcessError, e:
-	Logger.warning(whoami()+': dst=%s args=[%s] ERR=%s' % (dst, ','.join(args), e.output))
-	return False
-
-    return True
-"""
 
 # ##############################################################################
 
 def send_command(cmd):
     "send shell command"
-    Logger.debug(whoami()+': cmd=%s' % (cmd))
+    Logger.info('%s: cmd=%s' % (whoami(), cmd))
     try:
         os.system(cmd)
     except:
@@ -126,9 +113,8 @@ def get_info(cmd):
     "get information from shell script"
     proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=False)
     (out, err) = proc.communicate()
-    Logger.debug(whoami()+': cmd=%s out=%s (err=%s)' % (cmd, out, err))
+    Logger.info('%s: cmd=%s out=%s (err=%s)' % (whoami(), cmd, out, str(err)))
     return out
 
 
 # ##############################################################################
-

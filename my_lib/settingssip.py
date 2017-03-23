@@ -6,7 +6,6 @@
 #
 # ###############################################################
 
-
 import pjsua as pj
 
 from kivy.logger import Logger
@@ -21,7 +20,7 @@ from kivy.logger import Logger
 def setMediaConfig():
     "pjSip media configuration"
     mc = pj.MediaConfig()
-    mc.quality = 6 #0 #8
+    mc.quality = 0 #6 #8
     mc.ec_tail_len = 0 #200
     mc.clock_rate = 48000 #44100 #16000
     Logger.warning('pjSip setMediaConfig: quality:%d ec_tail_len:%d clock_rater:%d'\
@@ -29,7 +28,11 @@ def setMediaConfig():
     return mc
 
 
+# ###############################################################
+
 def log_cb(level, str, len):
     "pjSip logging callback"
-    Logger.info('pjSip cb: ' + str)
+    Logger.info('pjSip cb: (%d) %s' % (level, str))
 
+
+# ###############################################################

@@ -6,7 +6,6 @@
 #
 # ###############################################################
 
-#import datetime
 import json
 import os
 
@@ -14,6 +13,7 @@ from kivy.logger import Logger
 
 from constants import *
 from itools import *
+
 
 ###############################################################
 #
@@ -54,7 +54,6 @@ def initcallstat():
 
     try:
 	with open(CALL_LOG_TMP_FILE, 'r') as data_file:
-#	    call_log = json.loads(data_file.read())
 	    call_log = json.load(data_file)
     except: call_log = []
 
@@ -81,7 +80,7 @@ def setcallstat(outflag=False, status=0, prev_status=0, call=''):
     "Increment call stat counters and save to TMP file"
     global call_statistics, call_log
 
-    dt = getdatetimestr()   # datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    dt = getdatetimestr()
 
     if status == 0 or status == 4 or ((status == 3) and outflag): return
 
@@ -113,7 +112,6 @@ def setcallstat(outflag=False, status=0, prev_status=0, call=''):
     filename = CALL_LOG_TMP_FILE
     try:
 	with open(filename, 'w') as data_file:
-#	    data_file.write(json.dumps(str(call_log)))
 	    json.dump(call_log, data_file)
     except Exception as e:# pass
 	Logger.error('%s: e=%s' % (whoami(), str(e)))

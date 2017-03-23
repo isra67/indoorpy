@@ -42,7 +42,8 @@ import socket
 import fcntl
 import subprocess
 from threading import Thread
-import time
+#import time
+import datetime
 
 import pjsua as pj
 
@@ -1133,6 +1134,7 @@ class Indoor(FloatLayout):
 	Logger.debug('%s:' % whoami())
 
 	for d in self.displays:
+	    #d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(127)])
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 
 	self.displays[active_display_index].resizePlayer()
@@ -1144,6 +1146,7 @@ class Indoor(FloatLayout):
 	"thread - hide video serial"
 	for d in self.displays:
 	    d.hidePlayer()
+	    #d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(127)])
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
@@ -1155,6 +1158,7 @@ class Indoor(FloatLayout):
 	    Thread(target=self.worker1serial).start()
 	else:
 	    for d in self.displays:
+		#d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(127)])
 		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
@@ -1321,7 +1325,7 @@ class IndoorApp(App):
 	"retrieve system uptime"
 	with open('/proc/uptime', 'r') as f:
 	    uptime_seconds = float(f.readline().split()[0]) or 0
-	    uptime_string = str(timedelta(seconds = uptime_seconds))
+	    uptime_string = str(datetime.timedelta(seconds = uptime_seconds))
 
         Logger.debug('%s: uptime=%s' % (whoami(), uptime_string))
 
@@ -1466,15 +1470,17 @@ class IndoorApp(App):
 
 	if section == 'common':
 	    self.restartAppFlag = True
-	elif token == ('command', 'brightness'):
-	    try:
-		v = int(value)
-		BRIGHTNESS = int(v * 2.55)
-	    except:
-		BRIGHTNESS = 255
-	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
-	elif token == ('command', 'dnd_mode'):
-	    mainLayout.dnd_mode = int(value) > 0
+#	"""
+#	elif token == ('command', 'brightness'):
+#	    try:
+#		v = int(value)
+#		BRIGHTNESS = int(v * 2.55)
+#	    except:
+#		BRIGHTNESS = 255
+#	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+#	elif token == ('command', 'dnd_mode'):
+#	    mainLayout.dnd_mode = int(value) > 0
+#	"""
 	elif token == ('command', 'screen_saver'):
 	    try:
 		v = int(value)
@@ -1484,36 +1490,41 @@ class IndoorApp(App):
 	elif token == ('command', 'watches'):
 	    if value in 'analog' or value in 'digital': WATCHES = value
 	    else: WATCHES = 'None'
-	elif token == ('devices', 'volume'):
-	    AUDIO_VOLUME = value
-	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+#	"""
+#	elif token == ('devices', 'volume'):
+#	    AUDIO_VOLUME = value
+#	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+#	"""
 	elif token == ('devices', 'ringtone'):
 	    RING_TONE = value
 	    stopWAV()
 	    itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
 	    playWAV(3.0)
+	elif token == ('system', 'inet'):
+	    self.changeInet = True
 	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
 	    if config.get('system', 'inet') in 'dhcp':
-#		config.set(section, key, self.config.get(section, key))
-		config.set(section, key, config.getdefault(section, key))
+		config.set(section, key, self.config.get(section, key))
 		config.write()
 	    else:
 		self.changeInet = True
 	elif section in 'sip' and (key in ['sip_server_addr', 'sip_username', 'sip_p4ssw0rd']):
 	    if config.get('sip', 'sip_mode') in 'peer-to-peer':
 		config.set(section, key, self.config.get(section, key))
-#		config.set(section, key, config.getdefault(section, key))
 		config.write()
 	    else:
 		self.changeInet = True
+	elif token == ('sip', 'buttoncalllog'):
+	    if 'button_calllog' == value:
+		self.myAlertListBox('Call log history', reversed(callstats.call_log))
 	elif token == ('service', 'buttonpress'):
 	    if 'button_status' == value:
-		self.myAlertBox('App status', 'uptime: ' + self.get_uptime_value())
+		myappstatus(titl='App status', uptime=self.get_uptime_value(), cinfo=callstats.call_statistics)
 	elif token == ('about', 'buttonregs'):
 	    if 'button_regs' == value:
 		send_regs_request(registration.REGISTRATION_URL_ADDRESS,\
 		    [self.config.get('about','serial'), self.config.get('about','regaddress'), self.config.get('about','licencekey')])
-		self.myAlertBox('Registration', 'Your licence key will come to your email address till 3 working days')
+		MyAlertBox(titl='Registration', txt='Your licence key will come to your email address till 3 working days\n\nPress OK', cb=None, ad=True).open()
 	elif token == ('service', 'buttonlogs'):
 	    if 'button_loghist' == value:
 	        # LoggerHistory.history:
@@ -1521,13 +1532,11 @@ class IndoorApp(App):
 		self.myAlertListBox('Log messages history', recent_log)
 	elif token == ('service', 'buttonfactory'):
 	    if 'button_factory' == value:
-#		self.myAlertBox('WARNING', 'Application is going to rewrite configuration!', self.factoryReset, True)
-		MyYesNoBox(titl='WARNING', txt='Application is going to rewrite configuration!\n\nContinue?', cb=self.factoryReset, ad=True).open()
+		MyYesNoBox(titl='WARNING', txt='Application is going to rewrite actual configuration!\n\nContinue?',
+		    cb=self.factoryReset, ad=True).open()
 	elif token == ('service', 'app_rst'):
 	    if 'button_app_rst' == value:
-		self.myAlertBox('WARNING', 'Application is going to restart!', self.popupClosed, False)
-	elif token == ('system', 'inet'):
-	    self.changeInet = True
+		MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
 	elif 'gui' in section or token == ('about', 'licencekey') or token == ('sip', 'sip_mode'):
 	    self.restartAppFlag = True
 #	    self.destroy_settings()
@@ -1553,7 +1562,8 @@ class IndoorApp(App):
 	config = setDefaultConfig(config, True)
 	config.update_config(config.filename, True)
 
-	self.myAlertBox('WARNING', 'Success.\n\nApplication is going to restart!', self.popupClosed, False)
+	MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
+	    cb=self.popupClosed, ad=False).open()
 
 
     def close_settings(self, *args):
@@ -1572,58 +1582,41 @@ class IndoorApp(App):
 			 + ' ' + config.get('system', 'netmask')\
 			 + ' ' + config.get('system', 'gateway')\
 			 + ' ' + config.get('system', 'dns'))
-
-	    self.myAlertBox('App info', 'Application is going to restart to apply your changes!', self.popupClosed, False)
+	    MyAlertBox(titl='App info', txt='Application is going to restart to apply your changes!\n\nPress OK',
+		cb=self.popupClosed, ad=False).open()
 	else:
 	    self.changeInet = False
 	    scrmngr.current = CAMERA_SCR
 
 
-    def myAlertBox(self, titl, txt, cb=None, ad=True):
-	"Alert box"
-	global scrmngr
-
-	Logger.debug('%s: title=%s msg=%s' % (whoami(), titl, txt))
-
-	if not cb is None:
-	    scrmngr.current = WAIT_SCR
-	    txt = txt + '\n\nPress OK'
-
-	box = BoxLayout(orientation='vertical', spacing=10)
-	box.add_widget(Label(text=txt, padding_y=80))
-	btn = Button(text='OK', size_hint=(1, 0.4))
-	box.add_widget(btn)
-	p = Popup(title=titl, content=box, size_hint=(0.8, 0.6), auto_dismiss=ad)
-	if cb is None: cb = p.dismiss
-	btn.bind(on_press=cb)
-	p.bind(on_press=cb)
-	p.open()
-
-
     def myAlertListBox(self, titl, ldata, cb=None, ad=True):
-	"Alert box"
+	"List box"
 	LJUST = 83
 
 	Logger.debug('%s: title=%s' % (whoami(), titl))
 
 	box = BoxLayout(orientation='vertical', spacing=5)
 
-	# text color:
-	c = [int(t[:2]) for t in ldata]
-	clr = []
-	for x in c:
-	    y = (1,1,1,1)
-	    if x < 11: y = (1,1,1,1)
-	    elif x < 21: y = (.5,1,1,1)
-	    elif x < 31: y = (.5,.5,1,1)
-	    else: y = (1,.5,0,1)
-	    clr.append(y)
+	if 'Call log' in titl:
+	    args_converter = lambda row_idx, rec: {'text': rec, 'size_hint_y': None,
+					    'color': (), 'height': 25}
+	else:
+	    # text color:
+	    c = [int(t[:2]) for t in ldata]
+	    clr = []
+	    for x in c:
+		y = (1,1,1,1)
+		if x < 11: y = (1,1,1,1)
+		elif x < 21: y = (.5,1,1,1)
+		elif x < 31: y = (.5,.5,1,1)
+		else: y = (1,.5,0,1)
+		clr.append(y)
+
+	    args_converter = lambda row_idx, rec: {'text': rec, 'size_hint_y': None,
+					    'color': clr[row_idx], 'height': 25}
 
 	# justify text:
 	data = [t[:LJUST] + '...' if len(t) > LJUST else t[:] for t in ldata]
-
-	args_converter = lambda row_idx, rec: {'text': rec, 'size_hint_y': None,
-					    'color': clr[row_idx], 'height': 25}
 
 	list_adapter = ListAdapter(data=data, cls=MyListViewLabel,
 			    args_converter=args_converter,
@@ -1633,8 +1626,6 @@ class IndoorApp(App):
 	box.add_widget(list_view)
 
 	p = Popup(title=titl, content=box, size_hint=(0.85, 0.95), auto_dismiss=ad)
-#	if cb is None: cb = p.dismiss
-#	p.bind(on_press=cb)
 	p.open()
 
 

@@ -35,3 +35,7 @@ from inputdlg import *
 # ### yes|no popup dialog ###
 from yesnodlg import *
 
+# ###  popup dialogs ###
+from alertdlg import *
+from appstatusdlg import *
+

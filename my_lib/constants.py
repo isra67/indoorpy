@@ -22,9 +22,9 @@ CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 APP_NAME = '-Indoor-2.0-'
 
 SCREEN_SAVER = 0
-BRIGHTNESS = 100
+#BRIGHTNESS = 100
 WATCHES = 'analog'
-AUDIO_VOLUME = 100
+#AUDIO_VOLUME = 100
 
 # ### scripts: ###
 DBUSCONTROL_SCRIPT = './dbuscntrl.sh'
@@ -34,6 +34,7 @@ BRIGHTNESS_SCRIPT = './brightness.sh'
 SYSTEMINFO_SCRIPT = './sysinfo.sh'
 VOLUMEINFO_SCRIPT = './volumeinfo.sh'
 SETVOLUME_SCRIPT = './setvolume.sh'
+SETMICVOLUME_SCRIPT = './setmicvolume.sh'
 SETIPADDRESS_SCRIPT = './setipaddress.sh'
 
 # ### images: ###
@@ -74,7 +75,11 @@ INACTIVE_DISPLAY_BACKGROUND = [.0,.0,.0]
 APLAYER = 'aplay'
 APARAMS = '-q -N -f cd -D plughw:0,0 sounds/'
 RING_TONE = 'oldphone.wav'
-RING_WAV = APLAYER + ' ' + APARAMS + ' ' + RING_TONE
+BUSY_TONE = 'dial.wav' # 'busy.wav'
+DIAL_TONE = 'tada.wav'
+RING_WAV = APLAYER + ' ' + APARAMS + RING_TONE
+BUSY_WAV = APLAYER + ' ' + APARAMS + BUSY_TONE
+DIAL_WAV = APLAYER + ' ' + APARAMS + DIAL_TONE
 
 ring_event = None
 

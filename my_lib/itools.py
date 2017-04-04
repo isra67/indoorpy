@@ -6,6 +6,7 @@
 #
 # ###############################################################
 
+from kivy.clock import Clock
 
 import inspect
 import os
@@ -52,11 +53,24 @@ def getdatetimestr():
 
 # ##############################################################################
 
-def playWAV(dt):
+def playTone(tone):
     "start play"
-    Logger.debug('%s: %s' %(whoami(), PHONERING_PLAYER))
-#    send_command(PHONERING_PLAYER)
-    subprocess.Popen(PHONERING_PLAYER.split())
+
+    stopWAV()
+
+    Logger.debug('%s: %s' %(whoami(), tone))
+##    send_command(PHONERING_PLAYER)
+    subprocess.Popen(tone.split())
+    #Clock.schedule_once(lambda dt: subprocess.Popen(tone.split()), .5)
+
+
+# ##############################################################################
+
+def playWAV(dt):
+    "start play ringing task"
+#    Logger.debug('%s: %s' %(whoami(), PHONERING_PLAYER))
+#    subprocess.Popen(PHONERING_PLAYER.split())
+    playTone(PHONERING_PLAYER)
 
 
 # ##############################################################################

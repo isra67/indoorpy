@@ -188,6 +188,7 @@ class MyCallCallback(pj.CallCallback):
 		self.callTimerEvent = None
 	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
 	    except: pass
+##	    playTone(BUSY_WAV)
 
         elif main_state == pj.CallState.CONFIRMED:
 	    docall_button_global.imgpath = HANGUP_CALL_IMG
@@ -200,6 +201,7 @@ class MyCallCallback(pj.CallCallback):
 		Logger.warning('pjSip bad call: CALLING state %s <<>> %s' %(str(current_call), str(self.call)))
 		self.call.hangup()
 		return
+##	    playTone(DIAL_WAV)
 	    current_call = self.call
 	    docall_button_global.imgpath = ANSWER_CALL_IMG
 
@@ -513,6 +515,9 @@ class Indoor(FloatLayout):
     lib = None
     outgoingCall = False
     dnd_mode = False
+    avolume = 100
+    micvolume = 100
+    brightness = 255
     appRestartEvent = None
     mediaErrorFlag = False
     popupSettings = None
@@ -527,7 +532,7 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
         #global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP, BUTTON_DOOR_1, BUTTON_DOOR_2
-	global APP_NAME, SCREEN_SAVER, BRIGHTNESS, WATCHES, RING_TONE
+	global APP_NAME, SCREEN_SAVER, WATCHES, RING_TONE
         global main_state, mainLayout, scrmngr, config
 
         super(Indoor, self).__init__(**kwargs)
@@ -577,12 +582,12 @@ class Indoor(FloatLayout):
 
         try:
 	    br = config.getint('command', 'brightness')
-	    if br > 0 and br < 256: BRIGHTNESS = br #int(br * 2.55)
+	    if br > 0 and br < 256: self.brightness = br #int(br * 2.55)
         except:
             Logger.warning('Indoor init: ERROR 7 = read config file!')
-	    BRIGHTNESS = 255
+	    self.brightness = 255
 
-	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
+	send_command(BRIGHTNESS_SCRIPT + ' ' + str(self.brightness))
 
         try:
 	    RING_TONE = config.get('devices', 'ringtone').strip()
@@ -604,6 +609,8 @@ class Indoor(FloatLayout):
             Logger.warning('Indoor init: ERROR 8.1 = read config file!')
 
 	self.infoText = self.ids.txtBasicLabel
+
+	self.get_volume_value()
 
 	self.init_buttons()
         self.init_myphone()
@@ -962,9 +969,9 @@ class Indoor(FloatLayout):
 
     def callback_set_options(self, btn=-1):
 	"start settings"
-	global BRIGHTNESS, AUDIO_VOLUME
 
-        Logger.debug("%s: volume=%d brightness=%d " % (whoami(),AUDIO_VOLUME, BRIGHTNESS))
+        Logger.debug("%s: volume=%d mic=%d brightness=%d "\
+	    % (whoami(), self.avolume, self.micvolume, self.brightness))
 
 	self.hidePlayers()
 	self.finishScreenTiming()
@@ -974,32 +981,48 @@ class Indoor(FloatLayout):
         self.popupSettings = Popup(title="Options", content=SettingsPopupDlg(),
               size_hint=(0.8, 0.96), auto_dismiss=False)
 
-	self.popupSettings.content.valv = AUDIO_VOLUME
-	self.popupSettings.content.valb = BRIGHTNESS
+	self.popupSettings.content.valv = self.avolume
+	self.popupSettings.content.valb = self.brightness
+	self.popupSettings.content.valm = self.micvolume
 	self.popupSettings.content.vald = self.dnd_mode
 	self.popupSettings.open()
 
 
     def closePopupSettings(self, small=True):
 	"close quick settings dialog"
-	global BRIGHTNESS, AUDIO_VOLUME
 
-	AUDIO_VOLUME = int(self.popupSettings.content.valv)
-	BRIGHTNESS = int(self.popupSettings.content.valb)
-	self.dnd_mode = bool(self.popupSettings.content.vald)
-	config.set('command', 'brightness', BRIGHTNESS)
-	config.set('command', 'dnd_mode', self.dnd_mode)
-	config.set('devices', 'volume', AUDIO_VOLUME)
+	a = int(self.popupSettings.content.valv)
+	m = int(self.popupSettings.content.valm)
+	b = int(self.popupSettings.content.valb)
+	d = bool(self.popupSettings.content.vald)
+
+	if a != self.avolume:
+	    self.avolume = a
+	    config.set('devices', 'volume', self.avolume)
+	    send_command(SETVOLUME_SCRIPT + ' ' + str(self.avolume))
+
+	if m != self.micvolume:
+	    self.micvolume = m
+	    config.set('devices', 'micvolume', self.micvolume)
+	    send_command(SETMICVOLUME_SCRIPT + ' ' + str(self.micvolume))
+
+	if b != self.brightness:
+	    self.brightness = b
+	    config.set('command', 'brightness', self.brightness)
+	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(self.brightness))
+
+	if d != self.dnd_mode:
+	    self.dnd_mode = d
+	    config.set('command', 'dnd_mode', self.dnd_mode)
+
 	config.write()
 
-	Logger.info('%s: volume=%d brightness=%d dnd=%s'\
-	    % (whoami(), AUDIO_VOLUME, BRIGHTNESS, str(self.dnd_mode)))
+	Logger.info('%s: volume=%d mic=%d brightness=%d dnd=%r'\
+	    % (whoami(), self.avolume, self.micvolume, self.brightness, self.dnd_mode))
 
 	self.popupSettings.dismiss()
 	self.popupSettings = None
 
-	send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
-	send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
 	docall_button_global.imgpath = DND_CALL_IMG if self.dnd_mode else MAKE_CALL_IMG
 
 	if small:
@@ -1030,7 +1053,7 @@ class Indoor(FloatLayout):
 
     def callback_set_voice(self, value=-1):
 	"volume buttons"
-	global AUDIO_VOLUME, current_call
+	global current_call
 
 	Logger.debug('%s:' % whoami())
 
@@ -1134,7 +1157,6 @@ class Indoor(FloatLayout):
 	Logger.debug('%s:' % whoami())
 
 	for d in self.displays:
-	    #d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(127)])
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 
 	self.displays[active_display_index].resizePlayer()
@@ -1146,7 +1168,6 @@ class Indoor(FloatLayout):
 	"thread - hide video serial"
 	for d in self.displays:
 	    d.hidePlayer()
-	    #d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(127)])
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
@@ -1158,7 +1179,6 @@ class Indoor(FloatLayout):
 	    Thread(target=self.worker1serial).start()
 	else:
 	    for d in self.displays:
-		#d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(127)])
 		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
@@ -1189,36 +1209,43 @@ class Indoor(FloatLayout):
 
     def init_sliders(self):
 	"prepare volume sliders"
-	global AUDIO_VOLUME
 
 	Logger.debug('%s:' % whoami())
 
 	self.micslider = SliderArea()
 	self.micslider.imgpath = MICROPHONE_IMG
 	self.micslider.on_val = self.onMicVal
-	self.micslider.val = 100
+	self.micslider.val = self.micvolume
 	self.volslider = SliderArea()
 	self.volslider.imgpath = VOLUME_IMG
 	self.volslider.on_val = self.onVolVal
-	self.volslider.val = AUDIO_VOLUME
+	self.volslider.val = self.avolume
 
 
     def onMicVal(self):
 	"set microphone value"
-	Logger.debug('%s: %d' % (whoami(), self.micslider.audioslider.value))
+	Logger.debug('%s: %d %d' % (whoami(), self.micslider.audioslider.value, self.micslider.val))
+
+	self.micvolume = self.micslider.audioslider.value
+
+	config.set('devices', 'micvolume', self.micvolume)
+	config.write()
+
+	send_command(SETMICVOLUME_SCRIPT + ' ' + str(self.micvolume))
 
 
     def onVolVal(self):
 	"set speaker volume value"
-	global AUDIO_VOLUME, config
+	global config
 
-	Logger.debug('%s: %d' % (whoami(), self.volslider.audioslider.value))
-	AUDIO_VOLUME = self.volslider.audioslider.value
+	Logger.debug('%s: %d %d' % (whoami(), self.volslider.audioslider.value, self.volslider.val))
 
-	config.set('devices', 'volume', AUDIO_VOLUME)
+	self.avolume = self.volslider.audioslider.value
+
+	config.set('devices', 'volume', self.avolume)
 	config.write()
 
-	send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
+	send_command(SETVOLUME_SCRIPT + ' ' + str(self.avolume))
 
 
     def add_sliders(self):
@@ -1275,12 +1302,57 @@ class Indoor(FloatLayout):
 	return ret
 
 
+    def get_volume_value(self):
+	"retrieve current volume level"
+
+        Logger.debug('%s:' % whoami())
+
+	s = get_info(VOLUMEINFO_SCRIPT).split()
+
+	# speaker:
+	if len(s) < 4:
+	    vol = 100		# script problem!
+	else:
+	    vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 100
+
+	# available volume steps:
+	if vol > 90: vol = 100
+	elif vol > 80: vol = 90
+	elif vol > 70: vol = 80
+	elif vol > 60: vol = 70
+	elif vol > 60: vol = 60
+	elif vol > 40: vol = 50
+	elif vol > 30: vol = 40
+	elif vol > 20: vol = 30
+	else: vol = 20
+	self.avolume = vol
+
+	# mic:
+	if len(s) < 8:
+	    self.micvolume = 100		# script problem!
+	else:
+	    self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100.0)) or 100
+
+	# available volume steps:
+	if self.micvolume > 90: self.micvolume = 100
+	elif self.micvolume > 80: self.micvolume = 90
+	elif self.micvolume > 70: self.micvolume = 80
+	elif self.micvolume > 60: self.micvolume = 70
+	elif self.micvolume > 60: self.micvolume = 60
+	elif self.micvolume > 40: self.micvolume = 50
+	elif self.micvolume > 30: self.micvolume = 40
+	elif self.micvolume > 20: self.micvolume = 30
+	else: self.micvolume = 20
+
+	return vol
+
+
 # ###############################################################
 
 class IndoorApp(App):
 
     restartAppFlag = False
-    rotation = 90
+    rotation = 0 # 90
 
     def build(self):
 	global config
@@ -1300,7 +1372,6 @@ class IndoorApp(App):
         self.use_kivy_settings = False
 
 	self.changeInet = False
-	self.get_volume_value()
 
 	return Indoor()
 
@@ -1332,33 +1403,6 @@ class IndoorApp(App):
 	return uptime_string
 
 
-    def get_volume_value(self):
-	"retrieve current volume level"
-	global AUDIO_VOLUME
-
-        Logger.debug('%s:' % whoami())
-
-	s = get_info(VOLUMEINFO_SCRIPT).split()
-	if len(s) < 4:
-	    vol = 0		# script problem!
-	else:
-	    vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 0
-
-	# available volume steps:
-	if vol > 90: vol = 100
-	elif vol > 80: vol = 90
-	elif vol > 70: vol = 80
-	elif vol > 60: vol = 70
-	elif vol > 60: vol = 60
-	elif vol > 40: vol = 50
-	elif vol > 30: vol = 40
-	elif vol > 20: vol = 30
-	else: vol = 20
-	AUDIO_VOLUME = vol
-
-	return vol
-
-
     def build_settings(self, settings):
 	"display settings screen"
 	global config
@@ -1367,7 +1411,6 @@ class IndoorApp(App):
 
 	settings.register_type('buttons', SettingButtons)
 
-	config.set('devices', 'volume', AUDIO_VOLUME)
 	config.set('devices', 'ringtone', RING_TONE)
 
 	asystem = settings_system
@@ -1459,7 +1502,7 @@ class IndoorApp(App):
 
     def on_config_change(self, cfg, section, key, value):
 	"config item changed"
-	global config, SCREEN_SAVER, BRIGHTNESS, WATCHES, VOLUME, mainLayout
+	global config, SCREEN_SAVER, WATCHES, VOLUME, mainLayout
 
         Logger.info('%s: sec=%s key=%s val=%s' % (whoami(), section, key, value))
 	token = (section, key)
@@ -1470,17 +1513,6 @@ class IndoorApp(App):
 
 	if section == 'common':
 	    self.restartAppFlag = True
-#	"""
-#	elif token == ('command', 'brightness'):
-#	    try:
-#		v = int(value)
-#		BRIGHTNESS = int(v * 2.55)
-#	    except:
-#		BRIGHTNESS = 255
-#	    send_command(BRIGHTNESS_SCRIPT + ' ' + str(BRIGHTNESS))
-#	elif token == ('command', 'dnd_mode'):
-#	    mainLayout.dnd_mode = int(value) > 0
-#	"""
 	elif token == ('command', 'screen_saver'):
 	    try:
 		v = int(value)
@@ -1490,11 +1522,6 @@ class IndoorApp(App):
 	elif token == ('command', 'watches'):
 	    if value in 'analog' or value in 'digital': WATCHES = value
 	    else: WATCHES = 'None'
-#	"""
-#	elif token == ('devices', 'volume'):
-#	    AUDIO_VOLUME = value
-#	    send_command(SETVOLUME_SCRIPT + ' ' + str(AUDIO_VOLUME))
-#	"""
 	elif token == ('devices', 'ringtone'):
 	    RING_TONE = value
 	    stopWAV()

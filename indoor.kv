@@ -229,6 +229,7 @@
     orientation: 'vertical'
     valb: 100
     valv: 100
+    valm: 100
     vald: False
 
     BoxLayout:
@@ -238,7 +239,7 @@
             text: 'Volume'
             size_hint_x: .6
         Slider:
-            id: valvolume
+            #id: valvolume
             min: 20
             max: 100
             step: 10
@@ -246,32 +247,37 @@
             on_value: root.valv = self.value
 
         Label:
+            text: 'Mic'
+            size_hint_x: .6
+        Slider:
+            #id: valmicvolume
+            min: 20
+            max: 100
+            step: 10
+            value: root.valm
+            on_value: root.valm = self.value
+
+    BoxLayout:
+        orientation: 'horizontal'
+
+        Label:
             text: 'Brightness'
             size_hint_x: .6
         Slider:
-            id: valbright
+            #id: valbright
             min: 15
             max: 255
             step: 15
             value: root.valb
             on_value: root.valb = self.value
 
-    BoxLayout:
-        orientation: 'horizontal'
-
         Label:
             text: 'Do not disturb'
             size_hint_x: .6
         Switch:
-            id: valdnd
+            #id: valdnd
             active: root.vald
             on_active: root.vald = self.active
-
-        Label:
-            text: ''
-            size_hint_x: .6
-        Label:
-            text: ''
 
     BoxLayout:
         orientation: 'horizontal'

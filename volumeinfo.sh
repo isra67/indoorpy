@@ -12,4 +12,9 @@ VOLUMEVAL=`amixer cget numid=$VOLUMEID | grep ": values" | sed 's/  : values=//'
 MINVAL=`amixer cget numid=$VOLUMEID | grep "access" | sed -e 's/,/\n/g' | awk 'NR==4 {print $1}' | sed 's/min=//'`
 MAXVAL=`amixer cget numid=$VOLUMEID | grep "access" | sed -e 's/,/\n/g' | awk 'NR==5 {print $1}' | sed 's/max=//'`
 
-echo $VOLUMEID $VOLUMEVAL $MINVAL $MAXVAL
+MICVOLUMEID=`amixer controls | grep "Mic Capture Volume" | sed -e 's/,/\n/g' | awk 'NR==1 {print $1}' | sed 's/numid=//'`
+MICVOLUMEVAL=`amixer cget numid=$MICVOLUMEID | grep ": values" | sed 's/  : values=//' | sed -e 's/,/\n/g' | awk 'NR==1 {print $1}'`
+MICMINVAL=`amixer cget numid=$MICVOLUMEID | grep "access" | sed -e 's/,/\n/g' | awk 'NR==4 {print $1}' | sed 's/min=//'`
+MICMAXVAL=`amixer cget numid=$MICVOLUMEID | grep "access" | sed -e 's/,/\n/g' | awk 'NR==5 {print $1}' | sed 's/max=//'`
+
+echo $VOLUMEID $VOLUMEVAL $MINVAL $MAXVAL $MICVOLUMEID $MICVOLUMEVAL $MICMINVAL $MICMAXVAL

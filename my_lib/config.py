@@ -30,7 +30,8 @@ dict_sip = {'sip_mode': 'peer-to-peer',
 dict_dev = {'ringtone': 'oldphone.wav',
 #           'sound_device_in': '',
 #           'sound_device_out': '',
-            'volume': 100 }
+            'volume': 100,
+            'micvolume': 100 }
 dict_gui = {'screen_mode': 0,
 	    'screen_orientation': 0 }
 #           'btn_docall': 'Make Call',

@@ -25,6 +25,7 @@ SCREEN_SAVER = 0
 #BRIGHTNESS = 100
 WATCHES = 'analog'
 #AUDIO_VOLUME = 100
+ROTATION = 0
 
 # ### scripts: ###
 DBUSCONTROL_SCRIPT = './dbuscntrl.sh'

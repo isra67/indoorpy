@@ -41,8 +41,29 @@ class MyListViewLabel(Label):
 
 # ##############################################################################
 
+class VideoLabel(Label):
+    "text behind the video"
+    pass
+
+
+# ##############################################################################
+
 class ImageButton(Button):
-    "button line at tho bottom of the page"
+    "button line at the bottom of the page"
+    pass
+
+
+# ##############################################################################
+
+class HorizontalCameraLayout(BoxLayout):
+    "landscape camera layout"
+    pass
+
+
+# ##############################################################################
+
+class VerticalCameraLayout(BoxLayout):
+    "portrait camera layout"
     pass
 
 

@@ -88,6 +88,28 @@
             on_leave: root.finishScreenTiming()
             on_pre_leave: root.hidePlayers()
 
+            ScatterLayout:
+                id: scatter_layout
+                do_rotation: False
+                do_scale: False
+                do_translation: False
+                rotation: app.rotation
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                size_hint: None, None
+##                size: root.height, root.width
+#                size: root.width, root.height
+
+                BoxLayout:
+                    id: scattercameras
+                    orientation: 'vertical'
+
+        Screen:
+            name: 'camera_o'
+            on_pre_enter: root.startScreenTiming()
+            on_enter: root.enterCameraScreen()
+            on_leave: root.finishScreenTiming()
+            on_pre_leave: root.hidePlayers()
+
             BoxLayout:
                 id: workarea
                 orientation: 'horizontal'
@@ -304,29 +326,32 @@
 <SliderArea>:
     orientation: 'vertical'
     spacing: '8px'
-    size_hint: None, .9
-    width: '80px'
+#    size_hint: None, .9
+#    width: '80px'
     imgpath: 'imgs/settings1.png'
     val: 100
     on_val: None
     audioslider: audioslider
 
     Slider:
-        orientation: 'vertical'
+        orientation: root.orientation #'vertical'
         id: audioslider
         min: 20
         max: 100
         step: 10
-        size_hint_y: .8
+#        size_hint_y: .8
         value: root.val
         on_value: root.on_val()
 
     AsyncImage:
         source: root.imgpath
-        size_hint: 1, None
-        height: '32px'
+        size_hint: None, None
+        size: '32px', '32px'
+#        size_hint: 1, None
+#        height: '32px'
 
     Image:
         source: 'imgs/nothing.png'
         size_hint: None, None
         size: '32px', '32px'
+

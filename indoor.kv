@@ -2,14 +2,11 @@
 #: import math math
 
 <Indoor>:
-    lblBasic: txtBasicLabel
-    door1buton: btnDoor1
-    door2buton: btnDoor2
-    videoLabel1: videoLabel1
-    videoLabel2: videoLabel2
-    videoLabel3: videoLabel3
-    videoLabel4: videoLabel4
-    btnBox: btnBox
+    clockslayout: clockslayout
+    waitscr: waitscr
+    digiclock: digiclock
+    camera: camera
+    settings: settings
 
     ScreenManager:
         size_hint: 1, 1
@@ -18,16 +15,16 @@
 
         Screen:
             name: 'waitscr'
+            id: waitscr
             on_enter: lblresult.text = 'Wait a moment...'
 
             ScatterLayout:
                 do_rotation: False
                 do_scale: False
                 do_translation: False
-                rotation: app.rotation
+                rotation: 0 #app.rotation
                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
                 size_hint: None, None
-                #size: root.height, root.width
                 size: root.width, root.height
 
                 BoxLayout:
@@ -48,41 +45,25 @@
                         color: 0.6,0.6,0.6,0.9
 
         Screen:
-            name: 'clock'
-            on_touch_down: root.swap2camera()
-
-            ScatterLayout:
-                do_rotation: False
-                do_scale: False
-                do_translation: False
-                rotation: app.rotation
-                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-                size_hint: None, None
-                #size: root.height, root.width
-                size: root.width, root.height
-
-                BoxLayout:
-                    MyClockWidget:
-
-        Screen:
             name: 'digiclock'
+            id: digiclock
             on_touch_down: root.swap2camera()
 
             ScatterLayout:
                 do_rotation: False
                 do_scale: False
                 do_translation: False
-                rotation: app.rotation
+                rotation: 0 #app.rotation
                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
                 size_hint: None, None
-#                size: root.height, root.width
                 size: root.width, root.height
 
                 BoxLayout:
-                    DigiClockWidget:
+                    id: clockslayout
 
         Screen:
             name: 'camera'
+            id: camera
             on_pre_enter: root.startScreenTiming()
             on_enter: root.enterCameraScreen()
             on_leave: root.finishScreenTiming()
@@ -93,85 +74,13 @@
                 do_rotation: False
                 do_scale: False
                 do_translation: False
-                rotation: app.rotation
+                rotation: 0 #app.rotation
                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
                 size_hint: None, None
-##                size: root.height, root.width
-#                size: root.width, root.height
 
                 BoxLayout:
                     id: scattercameras
                     orientation: 'vertical'
-
-        Screen:
-            name: 'camera_o'
-            on_pre_enter: root.startScreenTiming()
-            on_enter: root.enterCameraScreen()
-            on_leave: root.finishScreenTiming()
-            on_pre_leave: root.hidePlayers()
-
-            BoxLayout:
-                id: workarea
-                orientation: 'horizontal'
-                size_hint: 1,.9
-                pos: 0, 48
-                spacing: 0
-
-                BoxLayout:
-                    id: cameras
-                    orientation: 'vertical'
-                    spacing: 0
-
-                    BoxLayout:
-                        id: cameras1
-                        orientation: 'horizontal'
-
-                        VideoLabel:
-                            id: videoLabel1
-                        VideoLabel:
-                            id: videoLabel2
-
-                    BoxLayout:
-                        id: cameras2
-                        orientation: 'horizontal'
-
-                        VideoLabel:
-                            id: videoLabel3
-                        VideoLabel:
-                            id: videoLabel4
-
-            Label:
-                id: txtBasicLabel
-                text: 'Wait...'
-                height: '44dp'
-                font_size: '40dp'
-                pos: 0, 52
-                halign: 'center'
-                size_hint_y: None
-
-            BoxLayout:
-                orientation: 'horizontal'
-                size_hint_y: None
-                height: '47dp'
-                size: self.size
-                id: btnBox
-
-                ImageButton:
-                    id: btnDoor1
-                    imgpath: 'imgs/lock.png'
-                    size_hint: None, 1
-                    width: '176dp'
-                    on_press: root.callback_btn_door1()
-                ImageButton:
-                    id: btnDoCall
-                    imgpath: 'imgs/phone-call.png'
-                    on_press: root.callback_btn_docall()
-                ImageButton:
-                    id: btnDoor2
-                    imgpath: 'imgs/lock.png'
-                    size_hint: None, 1
-                    width: '176dp'
-                    on_press: root.callback_btn_door2()
 
         SetScreen:
             name: 'settings'
@@ -180,9 +89,9 @@
 
 # wait for video label:
 
-<VideoLabel@Label>:
+<VideoLabel>:
     text: 'Wait...'
-    font_size: self.height/4
+    font_size: '48dp' #self.height/4
     color: 0.3,0.3,0.9,0.9
     bgcolor: 0,0,0
     canvas.before:
@@ -207,15 +116,8 @@
 
 <DigiClockWidget>:
     DigiClock:
-        font_size: self.height/4
+        font_size: '112dp' #self.height/4
         color: 0.3,0.6,0.9,0.9
-
-
-[ClockNumber@Label]:
-    text: str(ctx.i)
-    pos_hint: {"center_x": 0.5+0.42*math.sin(math.pi/6*(ctx.i-12)), "center_y": 0.5+0.42*math.cos(math.pi/6*(ctx.i-12))}
-    font_size: self.height/10
-    color: 0,0,0.6,0.9
 
 
 <MyClockWidget>:
@@ -261,7 +163,6 @@
             text: 'Volume'
             size_hint_x: .6
         Slider:
-            #id: valvolume
             min: 20
             max: 100
             step: 10
@@ -272,7 +173,6 @@
             text: 'Mic'
             size_hint_x: .6
         Slider:
-            #id: valmicvolume
             min: 20
             max: 100
             step: 10
@@ -286,7 +186,6 @@
             text: 'Brightness'
             size_hint_x: .6
         Slider:
-            #id: valbright
             min: 15
             max: 255
             step: 15
@@ -297,7 +196,6 @@
             text: 'Do not disturb'
             size_hint_x: .6
         Switch:
-            #id: valdnd
             active: root.vald
             on_active: root.vald = self.active
 
@@ -326,8 +224,6 @@
 <SliderArea>:
     orientation: 'vertical'
     spacing: '8px'
-#    size_hint: None, .9
-#    width: '80px'
     imgpath: 'imgs/settings1.png'
     val: 100
     on_val: None
@@ -339,7 +235,6 @@
         min: 20
         max: 100
         step: 10
-#        size_hint_y: .8
         value: root.val
         on_value: root.on_val()
 
@@ -347,8 +242,6 @@
         source: root.imgpath
         size_hint: None, None
         size: '32px', '32px'
-#        size_hint: 1, None
-#        height: '32px'
 
     Image:
         source: 'imgs/nothing.png'

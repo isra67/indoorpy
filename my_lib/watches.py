@@ -13,7 +13,7 @@ from kivy.clock import Clock
 from kivy.graphics import Color, Line, Rectangle, Ellipse
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
-from kivy.uix.screenmanager import Screen
+#from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
 from math import cos, sin, pi
@@ -49,7 +49,8 @@ class DigiClock(Label):
     "Label with date & time"
     def __init__(self, **kwargs):
         super(DigiClock, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 1)
+#        Clock.schedule_interval(self.update, 1)
+	self.starttimer()
 
     def update(self, *args):
 	t = datetime.datetime.now()
@@ -59,18 +60,16 @@ class DigiClock(Label):
 #	else:
 #            self.text = t.strftime("%H:%M.%S")
 
+    def starttimer(self):
+        Clock.schedule_interval(self.update, 1)
+
+    def stoptimer(self):
+        Clock.unschedule(self.update)
 
 # ##############################################################################
 
 class MyClockWidget(FloatLayout):
     "Clock class - analog"
-    pass
-
-
-# ##############################################################################
-
-class SetScreen(Screen):
-    "Settings screen"
     pass
 
 
@@ -93,8 +92,15 @@ class Ticks(Widget):
         self.ln.valign = 'bottom'
         self.ln.markup = True
 
+#        Clock.schedule_interval(self.update_clock, 1)
+	self.starttimer()
+
+
+    def starttimer(self):
         Clock.schedule_interval(self.update_clock, 1)
 
+    def stoptimer(self):
+        Clock.unschedule(self.update_clock)
 
     def update_clock(self, *args):
         time = datetime.datetime.now()

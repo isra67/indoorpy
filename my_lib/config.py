@@ -61,7 +61,7 @@ dict_about = {'app_name': 'Indoor 2.0',
             'licencekey': '0000-000000-0000-000000-0000',
             'regaddress': '',
             'serial': '' }
-dict_system = {'inet': 'dhcp',
+dict_system = {'inet': 'manual',
             'ipaddress': '192.168.1.251',
             'gateway': '192.168.1.200',
             'netmask': '255.255.255.0',

@@ -26,7 +26,7 @@ from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.listview import ListView, ListItemLabel
 from kivy.uix.popup import Popup
-from kivy.uix.settings import Settings, SettingsWithSidebar
+from kivy.uix.settings import Settings, SettingsWithSpinner, SettingsWithSidebar
 from kivy.uix.scatter import Scatter
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
@@ -307,6 +307,7 @@ class BasicDisplay:
 	else: pdelta = 0
 	if pdelta < 0: pdelta = 0
 	Logger.info('%s: WxH=%dx%d d=%d %s' % (whoami(), pwidth, pheight, pdelta, aspectratio))
+
 	if rotation in [0,180]:
 	    self.playerPosition[0] += pdelta
 	    self.playerPosition[2] -= pdelta
@@ -325,20 +326,6 @@ class BasicDisplay:
 
 	self.color = INACTIVE_DISPLAY_BACKGROUND
 
-#	if scr_mode == 1:
-#	    self.actScreen = mainLayout.ids.videoLabel1
-#	elif scr_mode == 2:
-#	    self.actScreen = mainLayout.ids.videoLabel1 if self.screenIndex == 0 else\
-#		mainLayout.ids.videoLabel3
-#	elif scr_mode == 3:
-#	    self.actScreen = mainLayout.ids.videoLabel1 if self.screenIndex == 0 else\
-#		mainLayout.ids.videoLabel2
-#	else:
-#	self.actScreen = mainLayout.ids.videoLabel1 if self.screenIndex == 0 else\
-#		mainLayout.ids.videoLabel2 if self.screenIndex == 1 else\
-#		mainLayout.ids.videoLabel3 if self.screenIndex == 2 else\
-#		mainLayout.ids.videoLabel4
-
 	if self.rotation in [0,180]:
 	    if scr_mode == 1:
 		self.actScreen = mainLayout.cameras1.children[0]
@@ -352,17 +339,6 @@ class BasicDisplay:
 
 	self.printInfo()
 	self.setActive(False)
-
-
-    # ###############################################################
-    def testTouchArea(self, x, y):
-	"test if touch is in display area"
-	y = 480 - y                        # touch position is from bottom to up
-	retx = self.winPosition[0] < x and self.winPosition[2] > x
-	rety = self.winPosition[1] < y and self.winPosition[3] > y
-	ret = retx and rety
-	Logger.trace('%s: winID=%d ret=%d' % (whoami(), self.screenIndex, ret))
-	return ret
 
 
     # ###############################################################
@@ -396,7 +372,8 @@ class BasicDisplay:
 	pos = []
 	pos = newpos.split(',') if len(newpos) else self.playerPosition
 	if len(newpos) > 0:
-	    pos = [80,16,720,376] if self.rotation in [0,180] else [100,8,448,472]
+	    pos = [80,16,720,376] if self.rotation == 0 else [80,104,720,464] if self.rotation == 180\
+		else [352,8,700,472] if self.rotation == 90 else [100,8,448,472]
 
 	    ### keep aspect ratio:
 	    pheight = pos[3] - pos[1] if self.rotation in [0,180] else pos[2] - pos[0]
@@ -409,7 +386,6 @@ class BasicDisplay:
 	    else: pdelta = 0
 	    if pdelta < 0: pdelta = 0
 
-#	    Logger.info('%s: WxH=%dx%d d=%d' % (whoami(), pwidth, pheight, pdelta))
 	    if self.rotation in [0,180]:
 		pos[0] += pdelta
 		pos[2] -= pdelta
@@ -449,7 +425,7 @@ class BasicDisplay:
 	while True:
 	    try:
 		msg = self.socket.recv(4096) if not self.socket is None else ''
-	    except socket.error, e:
+	    except socket.error as e:
 		err = e.args[0]
 		if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
 		    time.sleep(1)				# No data available
@@ -567,7 +543,6 @@ class Indoor(FloatLayout):
 
     def __init__(self, **kwargs):
 	"app init"
-        #global BUTTON_DO_CALL, BUTTON_CALL_ANSWER, BUTTON_CALL_HANGUP, BUTTON_DOOR_1, BUTTON_DOOR_2
 	global APP_NAME, SCREEN_SAVER, ROTATION, WATCHES, RING_TONE
         global main_state, mainLayout, scrmngr, config
 
@@ -651,8 +626,6 @@ class Indoor(FloatLayout):
 
 	self.init_myphone()
 
-#	self.infoText = self.txtBasicLabel		# self.ids.txtBasicLabel
-
 	initcallstat()
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
@@ -664,13 +637,20 @@ class Indoor(FloatLayout):
 	"define app widgets"
 	global scr_mode, ROTATION
 
-	Logger.debug('%s: rotation=%d' % (whoami(), ROTATION))
+	screensize = (800,480) if ROTATION in [0,180] else (480,800)
+
+	Logger.debug('%s: rotation=%d screensize=%r' % (whoami(), ROTATION, screensize))
+
+	self.ids.waitscr.size = screensize
+	self.ids.digiclock.size = screensize
+	self.ids.camera.size = screensize
+	self.ids.settings.size = screensize
 
 	self.camerascreen = self.ids.scattercameras
 	ROTATION = self.scrOrientation
 
 	scttr_layout = self.ids.scatter_layout
-	scttr_layout.size = (800, 480) if ROTATION in [0,180] else (480,800)
+	scttr_layout.size = screensize
 
 	h2 = 47 if ROTATION in [0,180] else 94
 	h1 = 389 if ROTATION in [0,180] else (800-44-h2)
@@ -698,8 +678,7 @@ class Indoor(FloatLayout):
 
 	Logger.debug('%s:' % whoami())
 
-	self.btnReject = ImageButton(imgpath=HANGUP_CALL_IMG)
-	self.btnReject.bind(on_release=self.my_reject_callback)
+	nothing = ImageButton(imgpath=SCREEN_SAVER_IMG)
 	self.btnScrSaver = ImageButton(imgpath=SCREEN_SAVER_IMG, size_hint_x=None, width=72)
 	self.btnScrSaver.bind(on_release=self.callback_set_voice)
 	self.btnSettings = ImageButton(imgpath=SETTINGS_IMG, size_hint_x=None, width=72)
@@ -710,9 +689,10 @@ class Indoor(FloatLayout):
 	self.btnDoor1.bind(on_release=self.callback_btn_door1)
 	self.btnDoor2 = ImageButton(imgpath=LOCK_IMG)
 	self.btnDoor2.bind(on_release=self.callback_btn_door2)
+	self.btnReject = ImageButton(imgpath=HANGUP_CALL_IMG)
+	self.btnReject.bind(on_release=self.my_reject_callback)
 
 	docall_button_global = self.btnDoCall
-#        docall_button_global = self.ids.btnDoCall
 	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 
 
@@ -731,44 +711,29 @@ class Indoor(FloatLayout):
 	    self.cameras.add_widget(self.cameras1)
 
 	    if scr_mode >= 1:
-		self.cameras1.add_widget(VideoLabel())
+		self.cameras1.add_widget(VideoLabel(id='0'))
 	    if scr_mode in [2,4]:
-		self.cameras1.add_widget(VideoLabel())
+		self.cameras1.add_widget(VideoLabel(id='1'))
 	    if scr_mode >= 3:
 		self.cameras2 = BoxLayout(orientation='horizontal')
 		self.cameras.add_widget(self.cameras2)
-		self.cameras2.add_widget(VideoLabel())
+		self.cameras2.add_widget(VideoLabel(id='2'))
 	    if scr_mode == 4:
-		self.cameras2.add_widget(VideoLabel())
+		self.cameras2.add_widget(VideoLabel(id='3'))
 	else:
 	    if scr_mode >= 1:
-		self.cameras.add_widget(VideoLabel())
-	    if scr_mode in [2,4]:
-		self.cameras.add_widget(VideoLabel())
+		self.cameras.add_widget(VideoLabel(id='0'))
+	    if scr_mode >= 2:
+		self.cameras.add_widget(VideoLabel(id='1'))
 	    if scr_mode >= 3:
-		self.cameras.add_widget(VideoLabel())
+		self.cameras.add_widget(VideoLabel(id='2'))
 	    if scr_mode == 4:
-		self.cameras.add_widget(VideoLabel())
-
-	if scr_mode == 1:
-	    self.ids.cameras1.remove_widget(self.ids.videoLabel2)
-	    self.ids.cameras2.remove_widget(self.ids.videoLabel3)
-	    self.ids.cameras2.remove_widget(self.ids.videoLabel4)
-	    self.ids.cameras.remove_widget(self.ids.cameras2)
-	elif scr_mode == 2:
-	    self.ids.cameras1.remove_widget(self.ids.videoLabel2)
-	    self.ids.cameras2.remove_widget(self.ids.videoLabel4)
-	elif scr_mode == 3:
-	    self.ids.cameras2.remove_widget(self.ids.videoLabel3)
-	    self.ids.cameras2.remove_widget(self.ids.videoLabel4)
-	    self.ids.cameras.remove_widget(self.ids.cameras2)
+		self.cameras.add_widget(VideoLabel(id='3'))
 
 
     # ###############################################################
     def addInfoArea(self):
 	"init info text item"
-	global ROTATION
-
 	Logger.debug('%s:' % whoami())
 
 	self.txtBasicLabel = Label(text='Wait...', font_size='40dp')
@@ -781,18 +746,21 @@ class Indoor(FloatLayout):
 	"init info text item"
 	Logger.debug('%s: txt=%s' % (whoami(), txt))
 
-#	self.infoText = txt
-
 	if txt == '':
 	    self.workArea.height = self.workAreaHigh + self.infoAreaHigh
 	    self.infoArea.height = 0
 	    self.infoArea.remove_widget(self.txtBasicLabel)
+	    wtxt = 'Wait...'
 	else:
 	    self.workArea.height = self.workAreaHigh - self.infoAreaHigh
 	    self.infoArea.height = self.infoAreaHigh
 	    if (self.txtBasicLabel.text == ''): self.infoArea.add_widget(self.txtBasicLabel)
+	    wtxt = ''
 
 	self.txtBasicLabel.text = txt
+
+	for child in self.workArea.walk():
+	    if '.VideoLabel' in str(child): child.text = wtxt
 
 
     # ###############################################################
@@ -816,6 +784,8 @@ class Indoor(FloatLayout):
 	    self.btnAreaB.add_widget(self.btnDoor1)
 	    self.btnAreaB.add_widget(self.btnDoor2)
 
+	self.btnAreaH.add_widget(self.btnReject)
+	self.btnAreaH.remove_widget(self.btnReject)
 
     # ###############################################################
     def init_screen(self):
@@ -835,7 +805,7 @@ class Indoor(FloatLayout):
 	self.addInfoArea()
 	self.addButtonArea()
 
-	if self.scrOrientation in [0, 180]:	# landscape
+	if self.scrOrientation == 0:		# landscape
 	    if scr_mode == 1:
 		wins = ['0,0,800,432']
 	    elif scr_mode == 2:
@@ -844,15 +814,33 @@ class Indoor(FloatLayout):
 		wins = ['0,0,400,432', '400,0,800,432']
 	    else:
 		wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
-	else:					# portrait
+	elif self.scrOrientation == 180:	# landscape
+	    if scr_mode == 1:
+		wins = ['0,47,800,480']
+	    elif scr_mode == 2:
+		wins = ['0,263,800,480', '0,47,800,263']
+	    elif scr_mode == 3:
+		wins = ['400,47,800,480', '0,47,400,480']
+	    else:
+		wins = ['400,263,800,480', '0,263,400,480', '400,47,800,263', '0,47,400,263']
+	elif self.scrOrientation == 90:		# portrait
 	    if scr_mode == 1:
 		wins = ['0,0,706,480']
 	    elif scr_mode == 2:
-		wins = ['0,0,706,240', '0,240,706,480']
+		wins = ['0,0,706,240', '0,240,706,480']#['0,0,240,706', '240,0,480,706']#
 	    elif scr_mode == 3:
-		wins = ['0,0,353,480', '350,0,706,480']
+		wins = ['0,0,353,480', '350,0,706,480']#['0,0,480,353', '0,353,480,706']#
 	    else:
 		wins = ['0,0,177,480', '177,0,353,480', '353,0,530,480', '530,0,706,480']
+	else:					# portrait 270
+	    if scr_mode == 1:
+		wins = ['94,0,800,480']
+	    elif scr_mode == 2:
+		wins = ['94,0,800,240', '94,240,800,480']
+	    elif scr_mode == 3:
+		wins = ['94,0,447,480', '444,0,800,480']
+	    else:
+		wins = ['624,0,800,480', '446,0,624,480', '271,0,447,480', '94,0,271,480']
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
@@ -1039,14 +1027,14 @@ class Indoor(FloatLayout):
 	self.screenTimerEvent = None
 
 	if current_call is None and self.scrmngr.current in CAMERA_SCR:
-	    self.scrmngr.current = WATCH_SCR if WATCHES in 'analog' else DIGITAL_SCR
+	    self.scrmngr.current = DIGITAL_SCR # WATCH_SCR if WATCHES in 'analog' else DIGITAL_SCR
 	    if WATCHES in 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
+	    else: self.ids.clockslayout.add_widget(MyClockWidget() if WATCHES in 'analog' else DigiClockWidget())
 
 
     # ###############################################################
     def finishScreenTiming(self):
 	"finist screen timer"
-
         Logger.debug('ScrnLeave:')
 
         Clock.unschedule(self.screenTimerEvent)
@@ -1056,11 +1044,11 @@ class Indoor(FloatLayout):
     # ###############################################################
     def swap2camera(self):
 	"swap screen to CAMERA"
-
         Logger.info('%s:' % whoami())
 
 	self.on_touch_up(None)
 	self.scrmngr.current = CAMERA_SCR
+	self.ids.clockslayout.clear_widgets()
 
 
     # ###############################################################
@@ -1268,7 +1256,6 @@ class Indoor(FloatLayout):
     # ###############################################################
     def restart_player_window(self, idx):
 	"process is bad - restart"
-
 	Logger.info('%s: idx=%d' % (whoami(), idx))
 
 	self.displays[idx].hidePlayer()
@@ -1280,13 +1267,13 @@ class Indoor(FloatLayout):
     def supporter1(self, dt):
 	"clear restart flag"
 	Logger.debug('%s: clear restart flag' % whoami())
+
 	self.appRestartEvent = None
 
 
     # ###############################################################
     def checkTripleTap(self,touch):
 	"check if triple tap is in valid area, if yes -> finish app"
-
 	Logger.info('%s:' % whoami())
 
 	x = touch.x
@@ -1317,9 +1304,6 @@ class Indoor(FloatLayout):
 	    self.loseNextTouch = False
 	    return
 
-#	if not self.collide_point(*touch.pos): return
-#	Logger.debug( whoami() +': '+ str(self.collide_point(*touch.pos)))
-
 	if len(procs) == 0: return
 
 	if not touch is None and touch.is_triple_tap:
@@ -1333,35 +1317,27 @@ class Indoor(FloatLayout):
 
 	if current_call is None: self.startScreenTiming()
 
-#	for child in self.walk():
-#	    if child is self: continue
-#	    if child.collide_point(*touch.pos):
-#		Logger.trace('%s: child colide point = %d, %d' %(whoami(), touch.x, touch.y))
-#		return
-
 	if touch is None:
 	    self.loseNextTouch = True
 	    return
 
 	if not self.scrmngr.current in CAMERA_SCR or not current_call is None: return
 
-	rx = int(round(touch.x))
-	ry = int(round(touch.y))
+	for child in self.walk():
+	    if child is self: continue
+	    if '.VideoLabel' in str(child):
+		if child.collide_point(*touch.pos):
+		    active_display_index = int(child.id) # tid
+		    Logger.info('%s: child=%r setActiveWin=%s' %(whoami(), child, child.id))
+		    break
 
 	for idx, d in enumerate(self.displays):
-	    t = d.testTouchArea(rx, ry)
-	    if t:
-		active_display_index = idx
-	    else:
-		d.setActive(False)
-
-	self.displays[active_display_index].setActive()
+	    d.setActive(idx == active_display_index)
 
 
     # ###############################################################
     def showPlayers(self):
 	"d-bus command to show video"
-
 	Logger.debug('%s:' % whoami())
 
 	for d in self.displays:
@@ -1410,21 +1386,10 @@ class Indoor(FloatLayout):
 		self.btnAreaH.add_widget(self.btnSettings)
 		Logger.warning('%s: l=%d c=%d' % (whoami(), len(self.btnAreaH.children), cnt))
 
-#	if visible:
-#	    try:
-#		docall_button_global.parent.remove_widget(mainLayout.btnScrSaver)
-#		docall_button_global.parent.remove_widget(mainLayout.btnSettings)
-#	    except: pass
-#	else:
-#	    if len(docall_button_global.parent.children) < 5:
-#		docall_button_global.parent.add_widget(mainLayout.btnScrSaver,5)
-#		docall_button_global.parent.add_widget(mainLayout.btnSettings)
-
 
     # ###############################################################
     def init_sliders(self):
 	"prepare volume sliders"
-
 	Logger.debug('%s:' % whoami())
 
 	self.micslider = SliderArea()
@@ -1482,9 +1447,7 @@ class Indoor(FloatLayout):
 	"add sliders to the working area"
 	Logger.debug('%s:' % whoami())
 
-#	l = self.ids.workarea
 	l = self.workArea if self.scrOrientation in [0,180] else self.cameras
-#	Logger.trace('%s: cnt:%d' % (whoami(), len(l.children)))
 
 	if not self.micslider.parent is None: return
 
@@ -1497,7 +1460,6 @@ class Indoor(FloatLayout):
 	"delete sliders from the working area"
 	Logger.debug('%s:' % whoami())
 
-#	l = self.ids.workarea
 	l = self.workArea if self.scrOrientation in [0,180] else self.cameras
 	l.remove_widget(self.micslider)
 	l.remove_widget(self.volslider)
@@ -1542,16 +1504,13 @@ class Indoor(FloatLayout):
     # ###############################################################
     def get_volume_value(self):
 	"retrieve current volume level"
-
         Logger.debug('%s:' % whoami())
 
 	s = get_info(VOLUMEINFO_SCRIPT).split()
 
 	# speaker:
-	if len(s) < 4:
-	    vol = 100		# script problem!
-	else:
-	    vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 100
+	if len(s) < 4: vol = 100		# script problem!
+	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 100
 
 	# available volume steps:
 	if vol > 90: vol = 100
@@ -1566,10 +1525,8 @@ class Indoor(FloatLayout):
 	self.avolume = vol
 
 	# mic:
-	if len(s) < 8:
-	    self.micvolume = 100		# script problem!
-	else:
-	    self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100.0)) or 100
+	if len(s) < 8: self.micvolume = 100		# script problem!
+	else: self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100.0)) or 100
 
 	# available volume steps:
 	if self.micvolume > 90: self.micvolume = 100
@@ -1609,11 +1566,11 @@ class IndoorApp(App):
 	kill_subprocesses()
 
         Config.set('kivy', 'keyboard_mode','systemandmulti')##        Config.set('kivy', 'keyboard_mode','')
-#	Config.set('graphics', 'rotation', ROTATION)
         Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r, rotation=%r'\
-	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout'),Config.get('graphics','rotation')))
+	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout'),\
+		Config.get('graphics','rotation')))
 
-	self.settings_cls = SettingsWithSidebar
+	self.settings_cls = SettingsWithSidebar if self.rotation in [0,180] else SettingsWithSpinner
         self.use_kivy_settings = False
 
 	self.changeInet = False
@@ -1764,65 +1721,76 @@ class IndoorApp(App):
 
 	if section == 'common':
 	    self.restartAppFlag = True
-	elif token == ('command', 'screen_saver'):
-	    try:
-		v = int(value)
-		SCREEN_SAVER = v * 60
-	    except:
-		SCREEN_SAVER = 0
-	elif token == ('command', 'watches'):
-	    if value in 'analog' or value in 'digital': WATCHES = value
-	    else: WATCHES = 'None'
+	elif 'command' in section:
+	    if token == ('command', 'screen_saver'):
+		try:
+		    v = int(value)
+		    SCREEN_SAVER = v * 60
+		except:
+		    SCREEN_SAVER = 0
+	    elif token == ('command', 'watches'):
+		if value in 'analog' or value in 'digital': WATCHES = value
+		else: WATCHES = 'None'
 	elif token == ('devices', 'ringtone'):
 	    RING_TONE = value
 	    stopWAV()
 	    itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
 	    playWAV(3.0)
-	elif token == ('system', 'inet'):
-	    self.changeInet = True
-	elif section in 'system' and (key in ['ipaddress', 'netmask', 'gateway', 'dns']):
-	    if config.get('system', 'inet') in 'dhcp':
-		config.set(section, key, self.config.get(section, key))
-		config.write()
-	    else:
+	elif 'system' in section:
+	    if token == ('system', 'inet'):
 		self.changeInet = True
-	elif section in 'sip' and (key in ['sip_server_addr', 'sip_username', 'sip_p4ssw0rd']):
-	    if config.get('sip', 'sip_mode') in 'peer-to-peer':
-		config.set(section, key, self.config.get(section, key))
-		config.write()
-	    else:
+	    elif key in ['ipaddress', 'netmask', 'gateway', 'dns']:
+		if config.get('system', 'inet') in 'dhcp':
+		    config.set(section, key, self.config.get(section, key))
+		    config.write()
+		else:
+		    self.changeInet = True
+	elif 'sip' in section:
+	    if (key in ['sip_server_addr', 'sip_username', 'sip_p4ssw0rd']):
+		if config.get('sip', 'sip_mode') in 'peer-to-peer':
+		    config.set(section, key, self.config.get(section, key))
+		    config.write()
+		else:
+		    self.restartAppFlag = True
+	    elif token == ('sip', 'buttoncalllog'):
+		if 'button_calllog' == value:
+		    self.myAlertListBox('Call log history', reversed(callstats.call_log))
+	    elif token == ('sip', 'sip_mode'):
 		self.restartAppFlag = True
-	elif token == ('sip', 'buttoncalllog'):
-	    if 'button_calllog' == value:
-		self.myAlertListBox('Call log history', reversed(callstats.call_log))
-	elif token == ('sip', 'sip_mode'):
+	elif 'service' in section:
+	    if token == ('service', 'buttonpress'):
+		if 'button_status' == value:
+		    myappstatus(titl='App status', uptime=self.get_uptime_value(), cinfo=callstats.call_statistics)
+	    elif token == ('service', 'buttonlogs'):
+		if 'button_loghist' == value:
+		    # LoggerHistory.history:
+		    recent_log = [('%d %s' % (record.levelno, record.msg)) for record in LoggerHistory.history] #reversed(LoggerHistory.history
+		    self.myAlertListBox('Log messages history', recent_log)
+	    elif token == ('service', 'buttonfactory'):
+		if 'button_factory' == value:
+		    MyYesNoBox(titl='WARNING', txt='Application is going to rewrite actual configuration!\n\nContinue?',
+			cb=self.factoryReset, ad=True).open()
+	    elif token == ('service', 'app_rst'):
+		if 'button_app_rst' == value:
+		    MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
+	elif 'about' in section:
+	    if token == ('about', 'licencekey'):
 		self.restartAppFlag = True
-	elif token == ('service', 'buttonpress'):
-	    if 'button_status' == value:
-		myappstatus(titl='App status', uptime=self.get_uptime_value(), cinfo=callstats.call_statistics)
-	elif token == ('about', 'buttonregs'):
-	    if 'button_regs' == value:
-		send_regs_request(registration.REGISTRATION_URL_ADDRESS,\
-		    [self.config.get('about','serial'), self.config.get('about','regaddress'), self.config.get('about','licencekey')])
-		MyAlertBox(titl='Registration', txt='Your licence key will come to your email address till 3 working days\n\nPress OK', cb=None, ad=True).open()
-	elif token == ('service', 'buttonlogs'):
-	    if 'button_loghist' == value:
-	        # LoggerHistory.history:
-	        recent_log = [('%d %s' % (record.levelno, record.msg)) for record in LoggerHistory.history] #reversed(LoggerHistory.history
-		self.myAlertListBox('Log messages history', recent_log)
-	elif token == ('service', 'buttonfactory'):
-	    if 'button_factory' == value:
-		MyYesNoBox(titl='WARNING', txt='Application is going to rewrite actual configuration!\n\nContinue?',
-		    cb=self.factoryReset, ad=True).open()
-	elif token == ('service', 'app_rst'):
-	    if 'button_app_rst' == value:
-		MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
-	elif 'gui' in section or token == ('about', 'licencekey'):
+	    elif token == ('about', 'buttonregs'):
+		if 'button_regs' == value:
+		    send_regs_request(registration.REGISTRATION_URL_ADDRESS,\
+			[self.config.get('about','serial'), self.config.get('about','regaddress'), self.config.get('about','licencekey')])
+		    MyAlertBox(titl='Registration', txt='Your licence key will come to your email address\ntill 3 working days\n\nPress OK', cb=None, ad=True).open()
+	elif 'gui' in section:
 	    self.restartAppFlag = True
+	    if token == ('gui', 'screen_orientation'):
+		config.read('/root/.kivy/config.ini')
+		config.set('graphics', 'rotation', value)
+		config.write()
 
 
     # ###############################################################
-    def popupClosed(self, popup):
+    def popupClosed(self, popup=None):
 	"restart App after alert box"
         Logger.debug('%s:' % whoami())
 
@@ -1863,7 +1831,9 @@ class IndoorApp(App):
 			 + ' ' + config.get('system', 'netmask')\
 			 + ' ' + config.get('system', 'gateway')\
 			 + ' ' + config.get('system', 'dns'))
-	    MyAlertBox(titl='App info', txt='Application is going to restart to apply your changes!\n\nPress OK',
+		config.set('system', 'inet', 'manual')
+		config.write()
+	    MyAlertBox(titl='App info', txt='Application is going to restart\nto apply your changes!\n\nPress OK',
 		cb=self.popupClosed, ad=False).open()
 	else:
 	    self.changeInet = False

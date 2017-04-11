@@ -21,6 +21,7 @@ from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.listview import ListView, ListItemLabel
 from kivy.uix.popup import Popup
+from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
 from constants import *
@@ -33,6 +34,13 @@ mainLayout = None
 # Classes
 #
 # ###############################################################
+
+class SetScreen(Screen):
+    "setscreen"
+    pass
+
+
+# ##############################################################################
 
 class MyListViewLabel(Label):
     "debug message item in listview"

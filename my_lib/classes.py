@@ -15,6 +15,7 @@ from kivy.core.window import Window
 from kivy.lang import Builder
 from kivy.logger import Logger, LoggerHistory
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.image import Image
@@ -58,6 +59,14 @@ class VideoLabel(Label):
 
 class ImageButton(Button):
     "button line at the bottom of the page"
+    pass
+
+
+# ##############################################################################
+
+class DoorButton(Button):
+#class DoorButton(ButtonBehavior, BoxLayout):
+    "four images door lock/unlock button at the bottom of the page"
     pass
 
 

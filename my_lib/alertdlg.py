@@ -71,7 +71,7 @@ class MyAlertBox(Popup):
 
 	self.title = header
 	self.auto_dismiss = ad
-	self.size_hint = (.69, .75)
+	self.size_hint = (.69, .69)
 	self.content = self.p
 
 

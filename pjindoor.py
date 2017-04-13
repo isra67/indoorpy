@@ -32,15 +32,16 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
 
 import atexit
-import json
-
+import ConfigParser
+import datetime
 import errno
+import fcntl
+import json
 import signal
 import socket
-import fcntl
+import StringIO
 import subprocess
 from threading import Thread
-import datetime
 
 import pjsua as pj
 
@@ -276,6 +277,9 @@ def make_call(uri):
 
 class BasicDisplay:
     "basic screen class"
+
+    locks = 0		# stav zamkov na dverach
+
     def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd,rotation=0,aspectratio='fill'):
 	"display area init"
 	global scr_mode, mainLayout
@@ -329,13 +333,18 @@ class BasicDisplay:
 	if self.rotation in [0,180]:
 	    if scr_mode == 1:
 		self.actScreen = mainLayout.cameras1.children[0]
+	    elif scr_mode == 2:
+		self.actScreen = mainLayout.cameras1.children[1] if self.screenIndex == 0 else mainLayout.cameras1.children[0]
+	    elif scr_mode == 3:
+		self.actScreen = mainLayout.cameras1.children[0] if self.screenIndex == 0 else mainLayout.cameras2.children[0]
 	    else:
 		self.actScreen = mainLayout.cameras1.children[1] if self.screenIndex == 0 else\
 		    mainLayout.cameras1.children[0] if self.screenIndex == 1 else\
 		    mainLayout.cameras2.children[1] if self.screenIndex == 2 else\
 		    mainLayout.cameras2.children[0]
 	else:
-	    self.actScreen = mainLayout.cameras.children[3 - self.screenIndex]
+	    cnt = len(mainLayout.cameras.children) - 1
+	    self.actScreen = mainLayout.cameras.children[cnt - self.screenIndex]
 
 	self.printInfo()
 	self.setActive(False)
@@ -439,15 +448,13 @@ class BasicDisplay:
         	    break
 
 	    if not msg is '':
-		# got a message, do something :)
+		# got a message, do something
 		noDataCounter = 0
-		if not msg is '' and '[' in msg and ']' in msg:
+		if '[' in msg and ']' in msg:
 		    m = msg.splitlines()	# split to separate lines
 		    l = m[m.index('') + 1:]	# skip over header part
-		    Logger.info('%s: (%d) %s' % (whoami(), self.screenIndex, str(l)))
-		    ####### TODO:
-
-
+#		    Logger.info('%s: (%d) %s' % (whoami(), self.screenIndex, str(l)))
+		    self.processMessage(l)
 	    else:
 		Logger.warning('%s: (%d) Reinit connection: %s' % (whoami(), self.screenIndex, addr))
 		try:
@@ -465,6 +472,53 @@ class BasicDisplay:
 		except:
 		    self.socket = None
 		    time.sleep(5)
+
+
+    # ###############################################################
+    def processMessage(self, msg):
+	"process the message from the thread"
+
+	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
+
+	cp = ConfigParser()
+
+	tmsg = []
+	for m in msg:
+	    if '' is m or '[' in m or ('=' in m and not ';' in m): tmsg.append(m)
+
+	while len(tmsg):
+	    msg = tmsg[:tmsg.index('') + 1]
+	    s_config = '\n'.join(str(x) for x in msg)
+	    #Logger.warning('%s: (%d) s_config=%s' % (whoami(), self.screenIndex, s_config))
+	    tmsg = tmsg[tmsg.index('') + 1:]
+
+	    buf = StringIO.StringIO(s_config)
+	    cp.readfp(buf)
+
+	    for sec_name in cp.sections():
+		#opt = cp.options(sec_name)
+		#for n,v in cp.items(sec_name):
+		    #Logger.info('%s: (%d) section=%s n=%s v=%s' % (whoami(), self.screenIndex, sec_name, n, v))
+		if sec_name in ['evstat', 'event']:
+		    x = cp.get(sec_name,'event')
+		    if 'GUARD' in x: self.setLock(cp.get(sec_name,'message'))
+		#if 'event' == sec_name: pass
+
+
+    # ###############################################################
+    def setLock(self, value):
+	"set lock status"
+	if not 'S' in value: return
+
+	m = value.strip('"').split('S')
+	mask = 0xf if int(m[0]) > 1 else 0xf0
+	val = 0xf if int(m[1]) == 1 else 0
+	if int(m[0]) > 1: val = val << 4
+	self.locks = (self.locks & mask) | val
+	Logger.info('%s: (%d) lock=%.2x (%s m=%.2x v=%.2x)'\
+	    % (whoami(), self.screenIndex, self.locks, value, mask, val))
+
+	mainLayout.setLockIcons(self.screenIndex, self.locks)
 
 
     # ###############################################################
@@ -544,7 +598,7 @@ class Indoor(FloatLayout):
     def __init__(self, **kwargs):
 	"app init"
 	global APP_NAME, SCREEN_SAVER, ROTATION, WATCHES, RING_TONE
-        global main_state, mainLayout, scrmngr, config
+        global main_state, mainLayout, scrmngr, config, scr_mode
 
         super(Indoor, self).__init__(**kwargs)
 
@@ -579,6 +633,13 @@ class Indoor(FloatLayout):
 	    else: WATCHES = 'None'
         except:
             Logger.warning('Indoor init: ERROR 4 = read config file!')
+
+	scr_mode = 1
+	try:
+	    scr_mode = config.getint('gui', 'screen_mode')
+	except:
+            Logger.warning('Indoor init_screen: ERROR 9 = read config file!')
+	    scr_mode = 1
 
         try:
 	    screen_saver = config.getint('command', 'screen_saver')
@@ -639,7 +700,7 @@ class Indoor(FloatLayout):
 
 	screensize = (800,480) if ROTATION in [0,180] else (480,800)
 
-	Logger.debug('%s: rotation=%d screensize=%r' % (whoami(), ROTATION, screensize))
+	Logger.debug('%s: scr_mode=%d rotation=%d screensize=%r' % (whoami(), scr_mode, ROTATION, screensize))
 
 	self.ids.waitscr.size = screensize
 	self.ids.digiclock.size = screensize
@@ -647,19 +708,19 @@ class Indoor(FloatLayout):
 	self.ids.settings.size = screensize
 
 	self.camerascreen = self.ids.scattercameras
+	self.camerascreen.size = screensize
+
 	ROTATION = self.scrOrientation
 
-	scttr_layout = self.ids.scatter_layout
-	scttr_layout.size = screensize
-
-	h2 = 47 if ROTATION in [0,180] else 94
-	h1 = 389 if ROTATION in [0,180] else (800-44-h2)
+	h3 = 56 if ROTATION in [0,180] else 64			# info area
+	h2 = 47 if ROTATION in [0,180] else 94			# buttons
+	h1 = screensize[0] - h3 - h2				# cameras
 
 	self.workAreaHigh = h1
 	self.buttonAreaHigh = h2
-	self.infoAreaHigh = 44
+	self.infoAreaHigh = h3
 
-	self.workArea = BoxLayout(orientation='horizontal', size_hint_y=None, height=self.workAreaHigh)
+	self.workArea = BoxLayout(orientation='horizontal')
 	self.infoArea = BoxLayout(orientation='horizontal', size_hint_y=None, height=self.infoAreaHigh)
 	self.btnArea = BoxLayout(orientation='vertical', size_hint_y=None, height=self.buttonAreaHigh)
 	self.camerascreen.add_widget(self.workArea)
@@ -674,7 +735,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def init_buttons(self):
 	"define app buttons"
-	global docall_button_global
+	global docall_button_global, scr_mode
 
 	Logger.debug('%s:' % whoami())
 
@@ -685,15 +746,34 @@ class Indoor(FloatLayout):
 	self.btnSettings.bind(on_release=self.callback_set_options)
 	self.btnDoCall = ImageButton(imgpath=MAKE_CALL_IMG)
 	self.btnDoCall.bind(on_release=self.callback_btn_docall)
-	self.btnDoor1 = ImageButton(imgpath=LOCK_IMG)
+	self.btnDoor1 = DoorButton()
 	self.btnDoor1.bind(on_release=self.callback_btn_door1)
-	self.btnDoor2 = ImageButton(imgpath=LOCK_IMG)
+	self.btnDoor2 = DoorButton()
 	self.btnDoor2.bind(on_release=self.callback_btn_door2)
 	self.btnReject = ImageButton(imgpath=HANGUP_CALL_IMG)
 	self.btnReject.bind(on_release=self.my_reject_callback)
 
 	docall_button_global = self.btnDoCall
 	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
+
+	### define button for lockers:
+	btnLayout1 = self.btnDoor1.children[0]
+	btnLayout2 = self.btnDoor2.children[0]
+	if scr_mode < 4:
+	    btnLayout1.remove_widget(btnLayout1.children[3])
+	    btnLayout2.remove_widget(btnLayout2.children[3])
+	if scr_mode in [1,3]:
+	    btnLayout1.remove_widget(btnLayout1.children[2])
+	    btnLayout2.remove_widget(btnLayout2.children[2])
+	if scr_mode in [1,2]:
+	    btnLayout1.remove_widget(btnLayout1.children[1])
+	    btnLayout2.remove_widget(btnLayout2.children[1])
+
+	cnt = len(btnLayout1.children)
+	w = int(btnLayout1.width / cnt)
+	for i in range(cnt):
+	    btnLayout1.children[i].width = w
+	    btnLayout2.children[i].width = w
 
 
     # ###############################################################
@@ -721,13 +801,11 @@ class Indoor(FloatLayout):
 	    if scr_mode == 4:
 		self.cameras2.add_widget(VideoLabel(id='3'))
 	else:
-	    if scr_mode >= 1:
-		self.cameras.add_widget(VideoLabel(id='0'))
-	    if scr_mode >= 2:
+	    self.cameras.add_widget(VideoLabel(id='0'))
+	    if scr_mode in [2,3,4]:
 		self.cameras.add_widget(VideoLabel(id='1'))
-	    if scr_mode >= 3:
-		self.cameras.add_widget(VideoLabel(id='2'))
 	    if scr_mode == 4:
+		self.cameras.add_widget(VideoLabel(id='2'))
 		self.cameras.add_widget(VideoLabel(id='3'))
 
 
@@ -794,13 +872,6 @@ class Indoor(FloatLayout):
 
 	Logger.debug('%s:' % whoami())
 
-	scr_mode = 0
-	try:
-	    scr_mode = config.getint('gui', 'screen_mode')
-	except:
-            Logger.warning('Indoor init_screen: ERROR 9 = read config file!')
-	    scr_mode = 0
-
 	self.addCameraArea()
 	self.addInfoArea()
 	self.addButtonArea()
@@ -808,36 +879,36 @@ class Indoor(FloatLayout):
 	if self.scrOrientation == 0:		# landscape
 	    if scr_mode == 1:
 		wins = ['0,0,800,432']
-	    elif scr_mode == 2:
-		wins = ['0,0,800,216', '0,216,800,432']
-	    elif scr_mode == 3:
+	    elif scr_mode in [2,3]:
 		wins = ['0,0,400,432', '400,0,800,432']
+#	    elif scr_mode == 3:
+#		wins = ['0,0,800,216', '0,216,800,432']
 	    else:
 		wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
 	elif self.scrOrientation == 180:	# landscape
 	    if scr_mode == 1:
 		wins = ['0,47,800,480']
-	    elif scr_mode == 2:
+	    elif scr_mode in [2,3]:
 		wins = ['0,263,800,480', '0,47,800,263']
-	    elif scr_mode == 3:
-		wins = ['400,47,800,480', '0,47,400,480']
+#	    elif scr_mode == 3:
+#		wins = ['400,47,800,480', '0,47,400,480']
 	    else:
 		wins = ['400,263,800,480', '0,263,400,480', '400,47,800,263', '0,47,400,263']
 	elif self.scrOrientation == 90:		# portrait
 	    if scr_mode == 1:
 		wins = ['0,0,706,480']
-	    elif scr_mode == 2:
-		wins = ['0,0,706,240', '0,240,706,480']#['0,0,240,706', '240,0,480,706']#
-	    elif scr_mode == 3:
-		wins = ['0,0,353,480', '350,0,706,480']#['0,0,480,353', '0,353,480,706']#
+#	    elif scr_mode == 2:
+#		wins = ['0,0,706,240', '0,240,706,480']
+	    elif scr_mode in [2,3]:
+		wins = ['0,0,353,480', '353,0,706,480']
 	    else:
 		wins = ['0,0,177,480', '177,0,353,480', '353,0,530,480', '530,0,706,480']
 	else:					# portrait 270
 	    if scr_mode == 1:
 		wins = ['94,0,800,480']
-	    elif scr_mode == 2:
-		wins = ['94,0,800,240', '94,240,800,480']
-	    elif scr_mode == 3:
+#	    elif scr_mode == 2:
+#		wins = ['94,0,800,240', '94,240,800,480']
+	    elif scr_mode in [2,3]:
 		wins = ['94,0,447,480', '444,0,800,480']
 	    else:
 		wins = ['624,0,800,480', '446,0,624,480', '271,0,447,480', '94,0,271,480']
@@ -1027,7 +1098,7 @@ class Indoor(FloatLayout):
 	self.screenTimerEvent = None
 
 	if current_call is None and self.scrmngr.current in CAMERA_SCR:
-	    self.scrmngr.current = DIGITAL_SCR # WATCH_SCR if WATCHES in 'analog' else DIGITAL_SCR
+	    self.scrmngr.current = DIGITAL_SCR
 	    if WATCHES in 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
 	    else: self.ids.clockslayout.add_widget(MyClockWidget() if WATCHES in 'analog' else DigiClockWidget())
 
@@ -1059,6 +1130,45 @@ class Indoor(FloatLayout):
         Logger.debug('%s: call=%s' % (whoami(), str(current_call)))
 
 	if current_call is None: self.showPlayers()
+
+
+    # ###############################################################
+    def setLockIcons(self, scrnIdx, locks):
+	"set lock icons"
+	global active_display_index
+
+	Logger.debug('%s: id=%d locks=%.2x' % (whoami(), scrnIdx, locks))
+
+	img = LOCK_IMG if active_display_index == scrnIdx else INACTIVE_LOCK_IMG
+	idi = len(self.btnDoor1.children[0].children) - 1 - scrnIdx
+
+	lockimg1 = UNLOCK_IMG if (locks & 0x0f) else img
+	lockimg2 = UNLOCK_IMG if (locks & 0xf0) else img
+
+	self.btnDoor1.children[0].children[idi].source = lockimg1
+	self.btnDoor2.children[0].children[idi].source = lockimg2
+
+
+    # ###############################################################
+    def refreshLockIcons(self):
+	"change lock icon activity"
+	global active_display_index
+
+	Logger.debug('%s:' % (whoami()))
+
+	s = len(self.btnDoor1.children[0].children)
+
+	for idx, d in enumerate(self.displays):
+	    locks = d.locks
+
+	    img = LOCK_IMG if active_display_index == idx else INACTIVE_LOCK_IMG
+	    idi = len(self.btnDoor1.children[0].children) - 1 - idx
+
+	    lockimg1 = UNLOCK_IMG if (locks & 0x0f) else img
+	    lockimg2 = UNLOCK_IMG if (locks & 0xf0) else img
+
+	    self.btnDoor1.children[0].children[idi].source = lockimg1
+	    self.btnDoor2.children[0].children[idi].source = lockimg2
 
 
     # ###############################################################
@@ -1142,20 +1252,20 @@ class Indoor(FloatLayout):
     # ###############################################################
     def callback_btn_door1(self, btn=None):
 	"door 1 button"
-        Logger.debug('%s:' % BUTTON_DOOR_1)
+        Logger.debug('%s:' % whoami())
         self.setRelayRQ('relay1')
 
 
     # ###############################################################
     def callback_btn_door2(self, btn=None):
 	"door 2 button"
-        Logger.debug('%s:' % BUTTON_DOOR_2)
+        Logger.debug('%s:' % whoami())
         self.setRelayRQ('relay2')
 
 
     # ###############################################################
     def callback_set_options(self, btn=-1):
-	"start settings"
+	"start quick settings"
 
         Logger.debug("%s: volume=%d mic=%d brightness=%d "\
 	    % (whoami(), self.avolume, self.micvolume, self.brightness))
@@ -1166,12 +1276,19 @@ class Indoor(FloatLayout):
 	classes.mainLayout = mainLayout
 
         self.popupSettings = Popup(title="Options", content=SettingsPopupDlg(),
-              size_hint=(0.8, 0.96), auto_dismiss=False)
+              size_hint=(0.75, 0.8), auto_dismiss=False)
 
-	self.popupSettings.content.valv = self.avolume
-	self.popupSettings.content.valb = self.brightness
-	self.popupSettings.content.valm = self.micvolume
-	self.popupSettings.content.vald = self.dnd_mode
+	content = self.popupSettings.content
+
+	direct = 'horizontal' if self.scrOrientation in [0,180] else 'vertical'
+	content.setline1.orientation = direct
+	content.setline2.orientation = direct
+
+	content.valv = self.avolume
+	content.valb = self.brightness
+	content.valm = self.micvolume
+	content.vald = self.dnd_mode
+
 	self.popupSettings.open()
 
 
@@ -1323,16 +1440,20 @@ class Indoor(FloatLayout):
 
 	if not self.scrmngr.current in CAMERA_SCR or not current_call is None: return
 
+	idx = 0
 	for child in self.walk():
 	    if child is self: continue
 	    if '.VideoLabel' in str(child):
 		if child.collide_point(*touch.pos):
-		    active_display_index = int(child.id) # tid
+		    active_display_index = idx #int(child.id) # tid
 		    Logger.info('%s: child=%r setActiveWin=%s' %(whoami(), child, child.id))
 		    break
+		idx += 1
 
 	for idx, d in enumerate(self.displays):
 	    d.setActive(idx == active_display_index)
+
+	self.refreshLockIcons()
 
 
     # ###############################################################
@@ -1378,13 +1499,14 @@ class Indoor(FloatLayout):
 	if visible:
 	    self.btnAreaH.remove_widget(self.btnScrSaver)
 	    self.btnAreaH.remove_widget(self.btnSettings)
+	    self.btnScrSaver.parent = None
+	    self.btnSettings.parent = None
 	else:
 	    cnt = 5 if self.scrOrientation in [0,180] else 3
-	    Logger.warning('%s: l=%d c=%d' % (whoami(), len(self.btnAreaH.children), cnt))
-	    if len(self.btnAreaH.children) < cnt:
+	    #if len(self.btnAreaH.children) < cnt:
+	    if self.btnScrSaver.parent is None:
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
-		Logger.warning('%s: l=%d c=%d' % (whoami(), len(self.btnAreaH.children), cnt))
 
 
     # ###############################################################
@@ -1396,19 +1518,35 @@ class Indoor(FloatLayout):
 	self.micslider.imgpath = MICROPHONE_IMG
 	self.micslider.on_val = self.onMicVal
 	self.micslider.val = self.micvolume
-	self.micslider.orientation = 'vertical' if self.scrOrientation in [0,180] else 'horizontal'
-	self.micslider.size_hint = (None, .9) if self.scrOrientation in [0,180] else (1,None)
-	if self.scrOrientation in [0,180]: self.micslider.width = 80
-	if not self.scrOrientation in [0,180]: self.micslider.height = 80
+	if self.scrOrientation in [0,180]:
+	    self.micslider.orientation = 'vertical'
+	    self.micslider.width = 80
+	    self.micslider.size_hint = (None, 1.)
+	    self.micslider.imgslider.size_hint = (1, None)
+	    self.micslider.imgslider.height = 32
+	else:
+	    self.micslider.orientation = 'horizontal'
+	    self.micslider.height = 88
+	    self.micslider.size_hint = (1., None)
+	    self.micslider.imgslider.size_hint = (None, 1)
+	    self.micslider.imgslider.width = 32
 
 	self.volslider = SliderArea()
 	self.volslider.imgpath = VOLUME_IMG
 	self.volslider.on_val = self.onVolVal
 	self.volslider.val = self.avolume
-	self.volslider.orientation = 'vertical' if self.scrOrientation in [0,180] else 'horizontal'
-	self.volslider.size_hint = (None, .9) if self.scrOrientation in [0,180] else (1,None)
-	if self.scrOrientation in [0,180]: self.volslider.width = 80
-	if not self.scrOrientation in [0,180]: self.volslider.height = 80
+	if self.scrOrientation in [0,180]:
+	    self.volslider.orientation = 'vertical'
+	    self.volslider.width = 80
+	    self.volslider.size_hint = (None, 1.)
+	    self.volslider.imgslider.size_hint = (1, None)
+	    self.volslider.imgslider.height = 32
+	else:
+	    self.volslider.orientation = 'horizontal'
+	    self.volslider.height = 88
+	    self.volslider.size_hint = (1., None)
+	    self.volslider.imgslider.size_hint = (None, 1)
+	    self.volslider.imgslider.width = 32
 
 	self.micslider.parent = None
 	self.volslider.parent = None

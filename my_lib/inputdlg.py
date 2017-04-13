@@ -37,26 +37,30 @@ BoxLayout:
     tin1: tin1
     btno: btno
     btok: btok
-    spacing: 10
+    spacing: '16px'
 
     Label:
         text: ''
         id: lbl1
+        font_size: 24
+        size_hint_y: None
+        height: '40px'
 
     TextInput:
         text: ''
         id: tin1
         multiline: False
-        padding_y: 10
         size_hint_y: None
-        height: 56
-        font_size: 32
+        height: '48px'
+
+    AsyncImage:
+        source: 'imgs/nothing.png'
 
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
         height: 48
-        spacing: 5
+        spacing: '8px'
 
         Button:
             text: 'OK'
@@ -84,7 +88,7 @@ class MyInputBox(Popup):
 	self.title = kwargs.get('titl')
 	self.auto_dismiss = kwargs.get('ad') or True
 	self.cb = kwargs.get('cb') or None
-	self.size_hint = (.69, .6)
+	self.size_hint = (.6, .5)
 	self.content = self.p
 
 

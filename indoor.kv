@@ -18,48 +18,30 @@
             id: waitscr
             on_enter: lblresult.text = 'Wait a moment...'
 
-            ScatterLayout:
-                do_rotation: False
-                do_scale: False
-                do_translation: False
-                rotation: 0 #app.rotation
-                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-                size_hint: None, None
-                size: root.width, root.height
+            BoxLayout:
+                orientation: 'vertical'
 
-                BoxLayout:
-                    orientation: 'vertical'
-
-                    Label:
-                        text: 'Information:'
-                        font_size: self.height/5
-                        color: 0.6,0.6,0.6,0.9
-                    Label:
-                        text: ''
-                        id: lblresult
-                        font_size: self.height/3
-                        color: 0.9,0.9,0.9,0.9
-                    Label:
-                        text: ''
-                        font_size: self.height/5
-                        color: 0.6,0.6,0.6,0.9
+                Label:
+                    text: 'Information:'
+                    font_size: self.height/5
+                    color: 0.6,0.6,0.6,0.9
+                Label:
+                    text: ''
+                    id: lblresult
+                    font_size: self.height/3
+                    color: 0.9,0.9,0.9,0.9
+                Label:
+                    text: ''
+                    font_size: self.height/5
+                    color: 0.6,0.6,0.6,0.9
 
         Screen:
             name: 'digiclock'
             id: digiclock
             on_touch_down: root.swap2camera()
 
-            ScatterLayout:
-                do_rotation: False
-                do_scale: False
-                do_translation: False
-                rotation: 0 #app.rotation
-                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-                size_hint: None, None
-                size: root.width, root.height
-
-                BoxLayout:
-                    id: clockslayout
+            BoxLayout:
+                id: clockslayout
 
         Screen:
             name: 'camera'
@@ -69,18 +51,9 @@
             on_leave: root.finishScreenTiming()
             on_pre_leave: root.hidePlayers()
 
-            ScatterLayout:
-                id: scatter_layout
-                do_rotation: False
-                do_scale: False
-                do_translation: False
-                rotation: 0 #app.rotation
-                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-                size_hint: None, None
-
-                BoxLayout:
-                    id: scattercameras
-                    orientation: 'vertical'
+            BoxLayout:
+                id: scattercameras
+                orientation: 'vertical'
 
         SetScreen:
             name: 'settings'
@@ -110,6 +83,49 @@
         source: self.parent.imgpath
         center_x: self.parent.center_x
         center_y: self.parent.center_y
+
+
+# door (4 images) button:
+
+<DoorButton>:
+    size_hint: 1, None
+    height: '47px'
+    lockimg1: lockimg1
+    lockimg2: lockimg2
+    lockimg3: lockimg3
+    lockimg4: lockimg4
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        pos: root.pos
+        size: root.size
+        size_hint: root.size_hint
+        center_y: root.center_y
+
+        AsyncImage:
+            id: lockimg1
+            source: 'imgs/lock.png'
+            size_hint: 1, 1
+            center_y: root.center_y
+
+        AsyncImage:
+            id: lockimg2
+            source: 'imgs/nolock.png'
+            size_hint: 1, 1
+            center_y: root.center_y
+
+        AsyncImage:
+            id: lockimg3
+            source: 'imgs/nolock.png'
+            size_hint: 1, 1
+            center_y: root.center_y
+
+        AsyncImage:
+            id: lockimg4
+            source: 'imgs/nolock.png'
+            size_hint: 1, 1
+            center_y: root.center_y
 
 
 #CLOCK:
@@ -149,55 +165,78 @@
 <SettingsPopupDlg>:
     closebutton: closebutton
     detailbutton: detailbutton
-    size_hint: .8, .9
+    size_hint: .85, .85
     orientation: 'vertical'
     valb: 100
     valv: 100
     valm: 100
     vald: False
+    setline1: setline1
+    setline2: setline2
 
     BoxLayout:
         orientation: 'horizontal'
+        id: setline1
 
-        Label:
-            text: 'Volume'
-            size_hint_x: .6
-        Slider:
-            min: 20
-            max: 100
-            step: 10
-            value: root.valv
-            on_value: root.valv = self.value
+        BoxLayout:
+            orientation: 'horizontal'
 
-        Label:
-            text: 'Mic'
-            size_hint_x: .6
-        Slider:
-            min: 20
-            max: 100
-            step: 10
-            value: root.valm
-            on_value: root.valm = self.value
+            AsyncImage:
+                source: 'imgs/speaker.png'
+                size_hint_x: None
+                width: '48px'
+            Slider:
+                size_hint_x: .9
+                min: 20
+                max: 100
+                step: 10
+                value: root.valv
+                on_value: root.valv = self.value
+
+        BoxLayout:
+            orientation: 'horizontal'
+
+            AsyncImage:
+                source: 'imgs/microphone.png'
+                size_hint_x: None
+                width: '48px'
+            Slider:
+                size_hint_x: .9
+                min: 20
+                max: 100
+                step: 10
+                value: root.valm
+                on_value: root.valm = self.value
 
     BoxLayout:
         orientation: 'horizontal'
+        id: setline2
 
-        Label:
-            text: 'Brightness'
-            size_hint_x: .6
-        Slider:
-            min: 15
-            max: 255
-            step: 15
-            value: root.valb
-            on_value: root.valb = self.value
+        BoxLayout:
+            orientation: 'horizontal'
 
-        Label:
-            text: 'Do not disturb'
-            size_hint_x: .6
-        Switch:
-            active: root.vald
-            on_active: root.vald = self.active
+            AsyncImage:
+                source: 'imgs/brightness.png'
+                size_hint_x: None
+                width: '48px'
+            Slider:
+                size_hint_x: .9
+                min: 15
+                max: 255
+                step: 15
+                value: root.valb
+                on_value: root.valb = self.value
+
+        BoxLayout:
+            orientation: 'horizontal'
+
+            AsyncImage:
+                source: 'imgs/call-dnd.png'
+                size_hint_x: None
+                width: '48px'
+            Switch:
+                active: root.vald
+                on_active: root.vald = self.active
 
     BoxLayout:
         orientation: 'horizontal'
@@ -228,9 +267,10 @@
     val: 100
     on_val: None
     audioslider: audioslider
+    imgslider: imgslider
 
     Slider:
-        orientation: root.orientation #'vertical'
+        orientation: root.orientation
         id: audioslider
         min: 20
         max: 100
@@ -239,12 +279,6 @@
         on_value: root.on_val()
 
     AsyncImage:
+        id: imgslider
         source: root.imgpath
-        size_hint: None, None
-        size: '32px', '32px'
-
-    Image:
-        source: 'imgs/nothing.png'
-        size_hint: None, None
-        size: '32px', '32px'
 

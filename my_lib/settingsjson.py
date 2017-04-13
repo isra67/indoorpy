@@ -54,7 +54,7 @@ settings_gui = json.dumps([
      'desc': 'Choose for the display option',
      'section': 'gui',
      'key': 'screen_mode',
-     'options': ['1', '2', '3', '4']},
+     'options': ['1', '2', '4']},
     {'type': 'options',
      'title': 'Rotate',
      'desc': 'Choose for the display orientation',

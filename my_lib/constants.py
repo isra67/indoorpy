@@ -52,12 +52,13 @@ SCREEN_SAVER_IMG = 'imgs/monitor.png'
 SETTINGS_IMG = 'imgs/settings.png'
 LOCK_IMG = 'imgs/lock.png'
 UNLOCK_IMG = 'imgs/unlock.png'
+INACTIVE_LOCK_IMG = 'imgs/nolock.png'
 
 NO_IMG = 'imgs/nothing.png'
 
 # ### screens: ###
 WAIT_SCR = 'waitscr'
-WATCH_SCR = 'clock'
+#WATCH_SCR = 'clock'
 DIGITAL_SCR = 'digiclock'
 CAMERA_SCR = 'camera'
 SETTINGS_SCR = 'settings'

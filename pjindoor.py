@@ -301,23 +301,46 @@ class BasicDisplay:
 	self.playerPosition[2] -= delta
 	self.playerPosition[3] -= delta
 
-	### keep aspect ratio:
-	pheight = self.playerPosition[3] - self.playerPosition[1] if rotation in [0,180] else self.playerPosition[2] - self.playerPosition[0]
-	pwidth = self.playerPosition[2] - self.playerPosition[0] if rotation in [0,180] else self.playerPosition[3] - self.playerPosition[1]
-	if aspectratio == '16:9':
-	    pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
-	elif aspectratio == '4:3':
-	    pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
-	else: pdelta = 0
-	if pdelta < 0: pdelta = 0
-	Logger.info('%s: WxH=%dx%d d=%d %s' % (whoami(), pwidth, pheight, pdelta, aspectratio))
+	if aspectratio in ['16:9','4:3']:
+	    ### keep aspect ratio:
+	    keepW = False
+	    if rotation in [0,180] and scr_mode in [2]\
+		or rotation in [90,270] and scr_mode in [1,2]:
+		keepW = True
 
-	if rotation in [0,180]:
-	    self.playerPosition[0] += pdelta
-	    self.playerPosition[2] -= pdelta
-	else:
-	    self.playerPosition[1] += pdelta
-	    self.playerPosition[3] -= pdelta
+	    pheight = self.playerPosition[3] - self.playerPosition[1] if rotation in [0,180] else self.playerPosition[2] - self.playerPosition[0]
+	    pwidth = self.playerPosition[2] - self.playerPosition[0] if rotation in [0,180] else self.playerPosition[3] - self.playerPosition[1]
+
+	    pdelta = 0
+	    if keepW: #rotation in [0,180]:
+		if aspectratio == '16:9':
+		    pdelta = int((pheight - (int(pwidth / 16) * 9)) / 2)
+		elif aspectratio == '4:3':
+		    pdelta = int((pheight - (int(pwidth / 4) * 3)) / 2)
+	    else:
+		if aspectratio == '16:9':
+		    pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
+		elif aspectratio == '4:3':
+		    pdelta = int((pwidth - (int(pheight / 3) * 4)) / 2)
+
+	    if pdelta < 0: pdelta = 0
+	    Logger.info('%s: WxH=%dx%d d=%d %s' % (whoami(), pwidth, pheight, pdelta, aspectratio))
+
+	    if pdelta > 0:
+		if rotation in [0,180]:
+		    if keepW:
+			self.playerPosition[1] += pdelta
+			self.playerPosition[3] -= pdelta
+		    else:
+			self.playerPosition[0] += pdelta
+			self.playerPosition[2] -= pdelta
+		else:
+		    if not keepW:
+			self.playerPosition[1] += pdelta
+			self.playerPosition[3] -= pdelta
+		    else:
+			self.playerPosition[0] += pdelta
+			self.playerPosition[2] -= pdelta
 
 	self.playerPosition = [str(i) for i in self.playerPosition]
 
@@ -376,7 +399,7 @@ class BasicDisplay:
 
 	self.hidePlayer()
 
-	if scr_mode == 1: return
+#	if scr_mode == 1: return
 
 	pos = []
 	pos = newpos.split(',') if len(newpos) else self.playerPosition
@@ -384,23 +407,24 @@ class BasicDisplay:
 	    pos = [80,16,720,376] if self.rotation == 0 else [80,104,720,464] if self.rotation == 180\
 		else [352,8,700,472] if self.rotation == 90 else [100,8,448,472]
 
-	    ### keep aspect ratio:
-	    pheight = pos[3] - pos[1] if self.rotation in [0,180] else pos[2] - pos[0]
-	    pwidth = pos[2] - pos[0] if self.rotation in [0,180] else pos[3] - pos[1]
+	    if self.aspectratio in ['16:9','4:3']:
+		### keep aspect ratio:
+		pheight = pos[3] - pos[1] if self.rotation in [0,180] else pos[2] - pos[0]
+		pwidth = pos[2] - pos[0] if self.rotation in [0,180] else pos[3] - pos[1]
 
-	    if self.aspectratio == '16:9':
-		pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
-	    elif self.aspectratio == '4:3':
-		pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
-	    else: pdelta = 0
-	    if pdelta < 0: pdelta = 0
+		if self.aspectratio == '16:9':
+		    pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
+		elif self.aspectratio == '4:3':
+		    pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
+		else: pdelta = 0
+		if pdelta < 0: pdelta = 0
 
-	    if self.rotation in [0,180]:
-		pos[0] += pdelta
-		pos[2] -= pdelta
-	    else:
-		pos[1] += pdelta
-		pos[3] -= pdelta
+		if self.rotation in [0,180]:
+		    pos[0] += pdelta
+		    pos[2] -= pdelta
+		else:
+		    pos[1] += pdelta
+		    pos[3] -= pdelta
 
 	self.dbus_command(['setvideopos'] + pos)
 
@@ -740,9 +764,10 @@ class Indoor(FloatLayout):
 	Logger.debug('%s:' % whoami())
 
 	nothing = ImageButton(imgpath=SCREEN_SAVER_IMG)
-	self.btnScrSaver = ImageButton(imgpath=SCREEN_SAVER_IMG, size_hint_x=None, width=72)
+	btnW = 64 #72
+	self.btnScrSaver = ImageButton(imgpath=SCREEN_SAVER_IMG, size_hint_x=None, width=btnW)
 	self.btnScrSaver.bind(on_release=self.callback_set_voice)
-	self.btnSettings = ImageButton(imgpath=SETTINGS_IMG, size_hint_x=None, width=72)
+	self.btnSettings = ImageButton(imgpath=SETTINGS_IMG, size_hint_x=None, width=btnW)
 	self.btnSettings.bind(on_release=self.callback_set_options)
 	self.btnDoCall = ImageButton(imgpath=MAKE_CALL_IMG)
 	self.btnDoCall.bind(on_release=self.callback_btn_docall)
@@ -865,6 +890,7 @@ class Indoor(FloatLayout):
 	self.btnAreaH.add_widget(self.btnReject)
 	self.btnAreaH.remove_widget(self.btnReject)
 
+
     # ###############################################################
     def init_screen(self):
 	"define app screen"
@@ -889,9 +915,9 @@ class Indoor(FloatLayout):
 	    if scr_mode == 1:
 		wins = ['0,47,800,480']
 	    elif scr_mode in [2,3]:
-		wins = ['0,263,800,480', '0,47,800,263']
+#		wins = ['0,263,800,480', '0,47,800,263']
 #	    elif scr_mode == 3:
-#		wins = ['400,47,800,480', '0,47,400,480']
+		wins = ['400,47,800,480', '0,47,400,480']
 	    else:
 		wins = ['400,263,800,480', '0,263,400,480', '400,47,800,263', '0,47,400,263']
 	elif self.scrOrientation == 90:		# portrait
@@ -909,7 +935,7 @@ class Indoor(FloatLayout):
 #	    elif scr_mode == 2:
 #		wins = ['94,0,800,240', '94,240,800,480']
 	    elif scr_mode in [2,3]:
-		wins = ['94,0,447,480', '444,0,800,480']
+		wins = ['446,0,800,480', '94,0,447,480']
 	    else:
 		wins = ['624,0,800,480', '446,0,624,480', '271,0,447,480', '94,0,271,480']
 
@@ -1627,6 +1653,8 @@ class Indoor(FloatLayout):
 		    ret = True
 		else:
 		    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
+
+	self.refreshLockIcons()
 
 	if ret:
 	    self.add_sliders()

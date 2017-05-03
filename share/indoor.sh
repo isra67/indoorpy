@@ -10,6 +10,7 @@ pustaj() {
 
 		## Inoteska Evidence python App
 		/usr/bin/python pjindoor.py
+#		/usr/bin/python test.py
 		sleep 3
 	done
 }

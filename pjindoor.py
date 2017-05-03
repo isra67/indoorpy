@@ -140,8 +140,10 @@ class MyCallCallback(pj.CallCallback):
 	ci = self.call.info()
 	role = 'CALLER' if ci.role == 0 else 'CALLEE'
 
-	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
+	setloginfo(True, 'Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
 	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
+#	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
+#	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
 	Logger.debug('pjSip on_state: sip_call_id=%s outgoing call=%r current call=%s'\
 	    % (ci.sip_call_id, mainLayout.outgoingCall, str(current_call)))
 
@@ -267,8 +269,9 @@ def make_call(uri):
     try:
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
-        Logger.error("pjSip %s exception: %s" % (whoami(), str(e)))
-	mainLayout.mediaErrorFlag = True
+	reason = str(e)
+        Logger.error("pjSip %s exception: %s" % (whoami(), reason))
+	mainLayout.mediaErrorFlag = True if 'udio' in reason else False
 
     return None
 
@@ -618,6 +621,7 @@ class Indoor(FloatLayout):
     workAreaHigh = 0
     buttonAreaHigh = 0
     infoAreaHigh = 0
+    sipPort = '5060'
 
     def __init__(self, **kwargs):
 	"app init"
@@ -627,6 +631,8 @@ class Indoor(FloatLayout):
         super(Indoor, self).__init__(**kwargs)
 
 	mainLayout = self
+
+	initloggers()
 
 	self.testPlayerIdx = 0
 	self.loseNextTouch = False
@@ -780,6 +786,7 @@ class Indoor(FloatLayout):
 
 	docall_button_global = self.btnDoCall
 	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
+	docall_button_global.btntext = ""
 
 	### define button for lockers:
 	btnLayout1 = self.btnDoor1.children[0]
@@ -795,10 +802,18 @@ class Indoor(FloatLayout):
 	    btnLayout2.remove_widget(btnLayout2.children[1])
 
 	cnt = len(btnLayout1.children)
-	w = int(btnLayout1.width / cnt)
-	for i in range(cnt):
-	    btnLayout1.children[i].width = w
-	    btnLayout2.children[i].width = w
+
+	if self.scrOrientation in [0,180]:
+	    w = 48 + 32 * cnt
+	    self.btnDoor1.size_hint_x = None
+	    self.btnDoor2.size_hint_x = None
+	    self.btnDoor1.width = w
+	    self.btnDoor2.width = w
+
+#	w = int(btnLayout1.width / cnt)
+#	for i in range(cnt):
+#	    btnLayout1.children[i].width = w
+#	    btnLayout2.children[i].width = w
 
 
     # ###############################################################
@@ -973,8 +988,6 @@ class Indoor(FloatLayout):
 	"sip phone init"
         global acc, config
 
-	Logger.info('%s: loglevel=%d' % (whoami(), LOG_LEVEL))
-
         # Create library instance
         lib = pj.Lib()
 	self.lib = lib
@@ -982,22 +995,32 @@ class Indoor(FloatLayout):
 	accounttype = 'peer-to-peer'
 	try:
 	    accounttype = config.get('sip', 'sip_mode').strip()
+	    self.sipPort = config.get('sip', 'sip_port').strip()
 	except:
             Logger.warning('Indoor init_myphone: ERROR 10 = read config file!')
 
+	logLevel = LOG_LEVEL
+	try:
+	    v = config.get('service', 'sip_log').strip()
+	    logLevel = 6 if 'all' in v else LOG_LEVEL if 'debug' in v else 5 if 'info' in v else 0
+	except:
+            Logger.warning('Indoor init_myphone: ERROR 11 = read config file!')
+
+	Logger.info('%s: acctype=%s port=%s loglevel=%d' % (whoami(), accounttype, self.sipPort, logLevel))
+
         try:
             # Init library with default config and some customized logging config
-            lib.init(log_cfg = pj.LogConfig(level=LOG_LEVEL, console_level=LOG_LEVEL, callback=log_cb),\
+            lib.init(log_cfg = pj.LogConfig(level=logLevel, console_level=logLevel, callback=log_cb),\
 		    media_cfg = setMediaConfig(), licence=1)
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 	    # bug fix: bad PJSIP start - port in use with another process
-	    send_command("netstat -tulpn | grep :5060 | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
+	    send_command("netstat -tulpn | grep :" + self.sipPort + " | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	    # Create UDP transport which listens to any available port
-	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(5060))
+	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(int(self.sipPort)))
 
             # Start the library
             lib.start()
@@ -1005,15 +1028,11 @@ class Indoor(FloatLayout):
 	    cl = lib.enum_codecs()
 	    for c in cl:
 		Logger.debug('%s CODEC=%s priority=%d' % (whoami(), c.name, c.priority))
-#		priority = 16 if 'PCMA' in c.name else 32 if '722' in c.name else 64 if 'PCMU' in c.name else 128
-		priority = 128 if 'PCMA' in c.name else 64 if '722' in c.name else 32 if 'PCMU' in c.name else 16
-		lib.set_codec_priority(c.name, priority)
-#		p = lib.get_codec_parameter(c.name)
-#		Logger.info('%s: codec param priority=%d' % (whoami(), p.priority))
-
-	    cl = lib.enum_codecs()
-	    for c in cl:
-		Logger.debug('%s CODEC=%s priority=%d' % (whoami(), c.name, c.priority))
+##		priority = 16 if 'PCMA' in c.name else 32 if '722' in c.name else 64 if 'PCMU' in c.name else 128
+#		priority = 128 if 'PCMA' in c.name else 64 if '722' in c.name else 32 if 'PCMU' in c.name else 16
+#		lib.set_codec_priority(c.name, priority)
+##		p = lib.get_codec_parameter(c.name)
+##		Logger.info('%s: codec param priority=%d' % (whoami(), p.priority))
 
 	    # Create local account
 	    if accounttype in 'peer-to-peer':
@@ -1022,15 +1041,17 @@ class Indoor(FloatLayout):
 	    else:
 		s = str(config.get('sip', 'sip_server_addr')).strip()
 		u = str(config.get('sip', 'sip_username')).strip()
+		a = str(config.get('sip', 'sip_authentication_name')).strip()
 		p = str(config.get('sip', 'sip_p4ssw0rd')).strip()
 		self.sipServerAddr = s
+		if a == '': a = u
 
-		acc_cfg = pj.AccountConfig(domain=s, username=u, password=p)
+		acc_cfg = pj.AccountConfig(domain=s, display=u, username=a, password=p)
 #		acc_cfg = pj.AccountConfig()
 #		acc_cfg.id = "sip:" + u + "@" + s
-#		acc_cfg.reg_uri = "sip:" + s + ":5060"
+#		acc_cfg.reg_uri = "sip:" + s + ":" + self.sipPort
 #		acc_cfg.proxy = [ "sip:" + s + ";lr" ]
-#		acc_cfg.auth_cred = [pj.AuthCred("*", u, p)]
+#		acc_cfg.auth_cred = [pj.AuthCred("*", a, p)]
 
 		acc = lib.create_account(acc_cfg)
 		cb = MyAccountCallback(acc)
@@ -1044,10 +1065,11 @@ class Indoor(FloatLayout):
 
             lib.destroy()
             self.lib = lib = None
-	    docall_button_global.text = "No Licence"
-	    docall_button_global.color = COLOR_ERROR_CALL
+#	    docall_button_global.text = "No Licence"
+	    docall_button_global.btntext = "No Licence"
+#	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
-	    docall_button_global.imgpath = ERROR_CALL_IMG
+	    docall_button_global.imgpath = NO_IMG #ERROR_CALL_IMG
 
 
     # ###############################################################
@@ -1060,8 +1082,8 @@ class Indoor(FloatLayout):
         if self.info_state == 0:
             if current_call is None:
 		self.info_state = 1
-	    else:
-		self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
+#	    else:
+#		self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
         elif self.info_state == 1:
             self.info_state = 2
 	    # test if player is alive:
@@ -1075,10 +1097,11 @@ class Indoor(FloatLayout):
 		self.setButtons(False)
 
 	if self.lib is None:
-	    docall_button_global.text = "No Licence"
-	    docall_button_global.color = COLOR_ERROR_CALL
+#	    docall_button_global.text = "No Licence"
+	    docall_button_global.btntext = "No Licence"
+#	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
-	    docall_button_global.imgpath = ERROR_CALL_IMG
+	    docall_button_global.imgpath = NO_IMG #ERROR_CALL_IMG
 
 
     # ###############################################################
@@ -1126,7 +1149,11 @@ class Indoor(FloatLayout):
 	if current_call is None and self.scrmngr.current in CAMERA_SCR:
 	    self.scrmngr.current = DIGITAL_SCR
 	    if WATCHES in 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
-	    else: self.ids.clockslayout.add_widget(MyClockWidget() if WATCHES in 'analog' else DigiClockWidget())
+	    else:
+		if len(self.ids.clockslayout.children):
+		    Logger.error('%s: widgets_cnt=%d' % (whoami(), len(self.ids.clockslayout.children)))
+		    self.ids.clockslayout.clear_widgets()
+		self.ids.clockslayout.add_widget(MyClockWidget() if WATCHES in 'analog' else DigiClockWidget())
 
 
     # ###############################################################
@@ -1143,9 +1170,9 @@ class Indoor(FloatLayout):
 	"swap screen to CAMERA"
         Logger.info('%s:' % whoami())
 
-	self.on_touch_up(None)
-	self.scrmngr.current = CAMERA_SCR
 	self.ids.clockslayout.clear_widgets()
+	self.scrmngr.current = CAMERA_SCR
+	self.on_touch_up(None)
 
 
     # ###############################################################
@@ -1249,10 +1276,12 @@ class Indoor(FloatLayout):
 	    if make_call('sip:' + target + ':5060') is None:
 		txt = 'Audio ERROR' if self.mediaErrorFlag else '--> ' + str(active_display_index + 1) + ' ERROR'
 		docall_button_global.color = COLOR_ERROR_CALL
-		docall_button_global.text = txt
+#		docall_button_global.text = txt
+		docall_button_global.btntext = txt
 		docall_button_global.imgpath = ERROR_CALL_IMG
 	    else:
 		self.setButtons(True)
+		docall_button_global.btntext = ''
 	    del lck
 
 
@@ -1380,7 +1409,7 @@ class Indoor(FloatLayout):
 	"get password"
 	Logger.debug('%s:' % whoami())
 
-	self.popupSettings = MyInputBox(titl='Password', txt='Enter password', cb=self.testPwdSettings, pwdx=True, ad=True)
+	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=True)
 	self.popupSettings.open()
 
 
@@ -1613,6 +1642,9 @@ class Indoor(FloatLayout):
 
 	l = self.workArea if self.scrOrientation in [0,180] else self.cameras
 
+	self.micslider.val = self.micvolume
+	self.volslider.val = self.avolume
+
 	if not self.micslider.parent is None: return
 
 	l.add_widget(self.micslider, 1 if self.scrOrientation in [0,180] else 0)
@@ -1655,12 +1687,10 @@ class Indoor(FloatLayout):
 		    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 	self.refreshLockIcons()
+	self.add_sliders()
 
-	if ret:
-	    self.add_sliders()
-
-	    if not self.scrmngr.current in CAMERA_SCR:
-		self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
+	if ret and not self.scrmngr.current in CAMERA_SCR:
+	    self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 
 	self.scrmngr.current = CAMERA_SCR
 
@@ -1924,7 +1954,15 @@ class IndoorApp(App):
 	    elif token == ('sip', 'sip_mode'):
 		self.restartAppFlag = True
 	elif 'service' in section:
-	    if token == ('service', 'buttonpress'):
+	    if token == ('service', 'app_log'):
+		if value == 'none':
+		    saveKivyCfg('kivy', 'log_level', 'critical')
+		else:
+		    saveKivyCfg('kivy', 'log_level', value)
+		self.restartAppFlag = True
+	    elif token == ('service', 'sip_log'):
+		self.restartAppFlag = True
+	    elif token == ('service', 'buttonpress'):
 		if 'button_status' == value:
 		    myappstatus(titl='App status', uptime=self.get_uptime_value(), cinfo=callstats.call_statistics)
 	    elif token == ('service', 'buttonlogs'):
@@ -1939,20 +1977,27 @@ class IndoorApp(App):
 	    elif token == ('service', 'app_rst'):
 		if 'button_app_rst' == value:
 		    MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
+	    elif token == ('service', 'masterpwd'):
+		self.restartAppFlag = True
 	elif 'about' in section:
 	    if token == ('about', 'licencekey'):
 		self.restartAppFlag = True
 	    elif token == ('about', 'buttonregs'):
 		if 'button_regs' == value:
-		    send_regs_request(registration.REGISTRATION_URL_ADDRESS,\
+		    rsp = send_regs_request(registration.REGISTRATION_URL_ADDRESS,\
 			[self.config.get('about','serial'), self.config.get('about','regaddress'), self.config.get('about','licencekey')])
-		    MyAlertBox(titl='Registration', txt='Your licence key will come to your email address\ntill 3 working days\n\nPress OK', cb=None, ad=True).open()
+		    if len(rsp) > 24:
+			config.set('about', 'licencekey', rsp.strip())
+			config.write()
+			self.restartAppFlag = True
+			MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
+		    else:
+			MyAlertBox(titl='Registration', txt='Your licence key will come to your email address\ntill 3 working days\n\nPress OK',\
+			    cb=None, ad=True).open()
 	elif 'gui' in section:
 	    self.restartAppFlag = True
 	    if token == ('gui', 'screen_orientation'):
-		config.read('/root/.kivy/config.ini')
-		config.set('graphics', 'rotation', value)
-		config.write()
+		saveKivyCfg('graphics', 'rotation', value)
 
 
     # ###############################################################

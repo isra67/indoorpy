@@ -79,10 +79,44 @@
 
 <ImageButton>:
     imgpath: None
+    btntext: ''
+    font_size: '20px'
+    lbltext: lbltext
+
     AsyncImage:
         source: self.parent.imgpath
         center_x: self.parent.center_x
         center_y: self.parent.center_y
+        size_hint: 1, None
+    Label:
+        id: lbltext
+        font_size: '32dp'
+        color: 0.9,0,0,0.9
+        text: self.parent.btntext
+        center_x: self.parent.center_x
+        center_y: self.parent.center_y
+        size_hint: 0, None
+
+<hovno>:
+    BoxLayout:
+        orientation: 'horizontal'
+        pos: root.pos
+        size: root.size
+        size_hint: root.size_hint
+        center_y: root.center_y
+
+        AsyncImage:
+            source: self.parent.imgpath
+            center_x: self.parent.center_x
+            center_y: self.parent.center_y
+            size_hint: 1, None
+        Label:
+            id: lbltext
+            font_size: '20px'
+            text: self.parent.btntext
+            center_x: self.parent.center_x
+            center_y: self.parent.center_y
+            size_hint: 0, None
 
 
 # door (4 images) button:

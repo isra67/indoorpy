@@ -37,8 +37,7 @@ REGISTRATION_PATH = 'licences.php'
 def send_regs_request(dst, args):
     "send registration request to obtain licence key"
 
-    #t = datetime.datetime.now()
-    dt = getdatetimestr()        #t.strftime('%Y-%m-%d %H:%M:%S')
+    dt = getdatetimestr()
 
     url = dst + REGISTRATION_PATH
     values = {'sn' : args[0], 'email' : args[1], 'lk' : args[2], 'date' : dt }
@@ -49,8 +48,11 @@ def send_regs_request(dst, args):
 	response = urllib2.urlopen(req)
 	rsp = response.read()
 	Logger.info('%s: dst=%s args=[%s,%s] >> rsp=%s' % (whoami(), dst, ','.join(args), dt, rsp))
+
+	return rsp
     except URLError as e:
 	Logger.warning('%s: dst=%s args=[%s,%s] ERR=%s' % (whoami(), dst, ','.join(args), dt, str(e)))
+	return 'Error'
 
 
 # ##############################################################################

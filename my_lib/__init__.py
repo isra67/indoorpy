@@ -10,6 +10,10 @@ from classes import *
 # ### config ###
 from config import *
 
+# ### logger to file ###
+from loggerpatch import *
+from loggers import *
+
 # ### definitions for settings screen ###
 from settingsjson import *
 

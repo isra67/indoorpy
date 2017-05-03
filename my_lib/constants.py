@@ -18,13 +18,12 @@ from kivy.graphics import Color
 CMD_KILL = 'kill -9 '
 
 CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
+KIVY_CONFIG_FILE = '/root/.kivy/config.ini'
 
 APP_NAME = '-Indoor-2.0-'
 
 SCREEN_SAVER = 0
-#BRIGHTNESS = 100
 WATCHES = 'analog'
-#AUDIO_VOLUME = 100
 ROTATION = 0
 
 # ### scripts: ###
@@ -58,7 +57,6 @@ NO_IMG = 'imgs/nothing.png'
 
 # ### screens: ###
 WAIT_SCR = 'waitscr'
-#WATCH_SCR = 'clock'
 DIGITAL_SCR = 'digiclock'
 CAMERA_SCR = 'camera'
 SETTINGS_SCR = 'settings'
@@ -86,7 +84,7 @@ DIAL_WAV = APLAYER + ' ' + APARAMS + DIAL_TONE
 ring_event = None
 
 # ### SIP: ###
-LOG_LEVEL = 3 #5				# SIP log level
+LOG_LEVEL = 3 #5				# basic SIP log level
 current_call = None
 acc = None
 
@@ -99,9 +97,6 @@ active_display_index = 0
 TRANSPARENCY_VIDEO_CMD = ['setalpha']
 
 DBUS_PLAYERNAME = 'org.mpris.MediaPlayer2.omxplayer'
-
-#transparency_value = 0
-#transparency_event = None
 
 mainLayout = None
 scrmngr = None

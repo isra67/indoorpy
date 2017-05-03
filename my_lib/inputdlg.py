@@ -37,21 +37,22 @@ BoxLayout:
     tin1: tin1
     btno: btno
     btok: btok
-    spacing: '16px'
+    spacing: '8px'
 
     Label:
         text: ''
         id: lbl1
-        font_size: 24
+        font_size: 20
         size_hint_y: None
-        height: '40px'
+        height: '32px'
 
     TextInput:
         text: ''
         id: tin1
         multiline: False
         size_hint_y: None
-        height: '48px'
+        font_size: '24px'
+        height: '40px'
 
     AsyncImage:
         source: 'imgs/nothing.png'
@@ -79,7 +80,7 @@ class MyInputBox(Popup):
         Logger.debug('%s: titl=$%s msg=%s' % (whoami(),kwargs.get('titl'),kwargs.get('txt')))
 
 	self.p = Builder.load_string(KV)
-	self.p.lbl1.text = kwargs.get('txt') or 'Label'
+	self.p.lbl1.text = kwargs.get('txt') or ''
 	self.p.tin1.text = ''
 	self.p.tin1.password = kwargs.get('pwd') or False
         self.p.btok.bind(on_press=self.buttonOk)

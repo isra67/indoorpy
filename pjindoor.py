@@ -68,6 +68,8 @@ def kill_subprocesses():
     "tidy up at exit or break"
     global mainLayout
 
+    stop_sw_watchdog()
+
     Logger.info('%s: destroy lib at exit' % whoami())
     try:
 	pj.Lib.destroy()
@@ -461,7 +463,8 @@ class BasicDisplay:
 	while True:
 	    try:
 		msg = self.socket.recv(4096) if not self.socket is None else ''
-	    except socket.error as e:
+	    except socket.error as e: ###???
+#	    except exception as e:
 		err = e.args[0]
 		if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
 		    time.sleep(1)				# No data available
@@ -722,6 +725,9 @@ class Indoor(FloatLayout):
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
 
+        init_sw_watchdog()
+        Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
+
 
     # ###############################################################
     def init_widgets(self):
@@ -975,12 +981,19 @@ class Indoor(FloatLayout):
 	self.scrmngr.current = CAMERA_SCR
 
 	# prepare settings:
-	App.get_running_app().open_settings()
-	App.get_running_app().close_settings()
+	Thread(target=self.settings_worker).start()
 
 	self.setButtons(False)
 
 	self.displays[0].setActive()
+
+
+    # ###############################################################
+    def settings_worker(self):
+	"prepare settings"
+	app = App.get_running_app()
+	app.open_settings()
+	app.close_settings()
 
 
     # ###############################################################
@@ -1547,7 +1560,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def setButtons(self, visible):
 	"add/remove buttons"
-	global docall_button_global
+	global docall_button_global, config
 
 	Logger.debug('%s: %r' % (whoami(), visible))
 
@@ -1558,10 +1571,11 @@ class Indoor(FloatLayout):
 	    self.btnSettings.parent = None
 	else:
 	    cnt = 5 if self.scrOrientation in [0,180] else 3
-	    #if len(self.btnAreaH.children) < cnt:
 	    if self.btnScrSaver.parent is None:
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
+
+	    docall_button_global.btntext = '' if not '127.0.0.1' in config.get('system', 'ipaddress') else 'Network ERROR'
 
 
     # ###############################################################

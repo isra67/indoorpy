@@ -27,6 +27,9 @@ from callstats import *
 # ### tools ###
 from itools import *
 
+# ### SW watchdog ###
+from sw_watchdog import *
+
 # ### watches classes ###
 from watches import *
 

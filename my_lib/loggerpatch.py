@@ -6,6 +6,7 @@ import time
 
 from itools import *
 from loggers import *
+from nodeclient import *
 
 
 class LoggerPatch():
@@ -21,6 +22,8 @@ class LoggerPatch():
         self.emit_org=oHandler.emit
         oHandler.emit=self.emit
 
+	initNodeConnection()
+
 
     def emit(self, record):
         # we do not use the formatter by purpose as it runs on failure
@@ -28,8 +31,7 @@ class LoggerPatch():
 
         ct = self.oFormatter.converter(record.created)
         t = time.strftime("%Y-%m-%d %H-%M-%S", ct)
-#        s = "%s.%03d" % (t, record.msecs)
-#        record.msg= s +record.msg
+        t = "%s.%03d" % (t, record.msecs)
 
 	msg = '[%-7s] [%s] %s' % (record.levelname, t, record.msg)
         record.msg= t + ': ' + record.msg
@@ -42,6 +44,8 @@ class LoggerPatch():
     def save(self, msg):
 #	print('%s: %s' % (whoami(), msg))
 	setloginfo(False, msg)
+
+	sendNodeInfo(msg)
 
 
 oLoggerPatch = LoggerPatch()

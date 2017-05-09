@@ -25,8 +25,8 @@ PARENT_DIR = '/tmp/' # '/root/indoorpy/logs/'
 APP_LOG_TMP_FILE = PARENT_DIR + 'app-log.dat'
 SIP_LOG_TMP_FILE = PARENT_DIR + 'sip-log.dat'
 
-MAX_APP_CNT = 1500
-MAX_SIP_CNT = 250
+MAX_APP_CNT = 1000
+MAX_SIP_CNT = 200
 
 app_log = []			# log for last N messages
 sip_log = []			# log for last N messages
@@ -42,7 +42,7 @@ def initloggers():
     "Loggers initialization"
     global app_log, sip_log
 
-    Logger.info('%s:' % (whoami()))
+    Logger.info('%s:' % whoami())
 
     app_log = []
     sip_log = []

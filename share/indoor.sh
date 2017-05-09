@@ -2,6 +2,18 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+pustajNode() {
+	while true
+	do
+		## working dir
+		cd /root/app
+
+		## Inoteska Evidence nodejs App
+		/usr/local/bin/node server.js
+		sleep 3
+	done
+}
+
 pustaj() {
 	while true
 	do
@@ -29,4 +41,13 @@ sleep 1
 cd /root/indoorpy
 ./hid_init.sh
 
+## start node server
+#/usr/local/bin/node /root/app/server >& /dev/null  &
+pustajNode >& /dev/null &
+
+## start python app
 pustaj >& /dev/null &
+
+## start WD
+cd /root/indoorpy/share
+./wdg.sh &

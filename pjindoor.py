@@ -637,6 +637,9 @@ class Indoor(FloatLayout):
 
 	initloggers()
 
+        init_sw_watchdog()
+        Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
+
 	self.testPlayerIdx = 0
 	self.loseNextTouch = False
 
@@ -724,9 +727,6 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
-
-        init_sw_watchdog()
-        Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
 
     # ###############################################################
@@ -1030,7 +1030,7 @@ class Indoor(FloatLayout):
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 	    # bug fix: bad PJSIP start - port in use with another process
-	    send_command("netstat -tulpn | grep :" + self.sipPort + " | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
+#	    send_command("netstat -tulpn | grep :" + self.sipPort + " | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	    # Create UDP transport which listens to any available port
 	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(int(self.sipPort)))
@@ -1116,6 +1116,8 @@ class Indoor(FloatLayout):
 	    docall_button_global.disabled = True
 	    docall_button_global.imgpath = NO_IMG #ERROR_CALL_IMG
 
+	if check_usb_audio() > 0: self.reinitbackgroundtasks()
+
 
     # ###############################################################
     def infinite_loop(self, dt):
@@ -1132,6 +1134,43 @@ class Indoor(FloatLayout):
 		    pass
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
+
+
+    # ###############################################################
+#    def reinitworker(self, dt=0):
+#	"SIP reinitialization worker"
+#	Logger.debug('%s:' % whoami())
+#	time.sleep(2)
+#	self.init_myphone()
+
+
+    # ###############################################################
+    def reinitbackgroundtasks(self):
+	"SIP reinitialization"
+	Logger.info('%s:' % whoami())
+
+	reset_usb_audio()
+
+	time.sleep(2.5)
+
+	kill_subprocesses()
+
+	App.get_running_app().stop()
+
+#	return
+
+#	if not self.lib is None:
+#	    Logger.warning('%s: reinit pjSip' % whoami())
+
+	    # bug fix: bad PJSIP start - port in use with another process
+	    #send_command("netstat -tulpn | grep :" + self.sipPort + " | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
+
+#	    self.lib.destroy()
+#	    self.lib = None
+
+#	send_command('./rstaudio.sh')
+
+#	Clock.schedule_once(self.reinitworker, 1)
 
 
     # ###############################################################
@@ -1256,6 +1295,8 @@ class Indoor(FloatLayout):
         global current_call, active_display_index, docall_button_global, ring_event
 
 	Logger.info('%s: call=%s state=%d outgoing=%r' % (whoami(), str(current_call), main_state, self.outgoingCall))
+
+	if check_usb_audio() > 0: self.reinitbackgroundtasks()
 
 	if len(procs) == 0: return
 
@@ -1767,13 +1808,16 @@ class IndoorApp(App):
 
 	self.config = config
 
+####	kill_subprocesses()
+
+#	reset_usb_audio()
+#	time.sleep(2)
+
         try:
             self.rotation = config.getint('gui', 'screen_orientation')
         except:
             self.rotation = 0
 	ROTATION = self.rotation
-
-	kill_subprocesses()
 
         Config.set('kivy', 'keyboard_mode','systemandmulti')##        Config.set('kivy', 'keyboard_mode','')
         Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r, rotation=%r'\

@@ -26,6 +26,7 @@ from callstats import *
 
 # ### tools ###
 from itools import *
+from audiotools import *
 
 # ### SW watchdog ###
 from sw_watchdog import *

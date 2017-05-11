@@ -38,6 +38,16 @@ def init_sw_watchdog():
     Logger.debug('%s:' % whoami())
 
     wd_val = 0
+    ln = ''
+
+    try:
+	with open(SW_WD_PATH, "r+") as text_file:
+	    ln = text_file.read()
+    except:
+	pass
+
+    if len(ln) > 0 and not ln.isdigit():
+	Logger.critical('%s: RESTART REASON: %s' % (whoami(), ln))
 
 
 # ##############################################################################
@@ -65,8 +75,17 @@ def stop_sw_watchdog():
 
     wd_val = 0
 
-    with open(SW_WD_PATH, "w+") as text_file:
-	text_file.write("")
+    ln = ''
+
+    try:
+	with open(SW_WD_PATH, "r+") as text_file:
+	    ln = text_file.read()
+    except:
+	pass
+
+    if len(ln) > 0 and ln.isdigit():
+	with open(SW_WD_PATH, "w+") as text_file:
+	    text_file.write("")
 
 
 # ##############################################################################

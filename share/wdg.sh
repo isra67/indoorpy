@@ -2,7 +2,7 @@
 
 PROCESS_NAME=python
 TEST_FILE=/tmp/indoor_wd.dat
-TIME_INTERVAL=7
+TIME_INTERVAL=15
 
 old_val=1
 new_val=0

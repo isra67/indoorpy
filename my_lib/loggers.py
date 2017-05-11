@@ -25,8 +25,8 @@ PARENT_DIR = '/tmp/' # '/root/indoorpy/logs/'
 APP_LOG_TMP_FILE = PARENT_DIR + 'app-log.dat'
 SIP_LOG_TMP_FILE = PARENT_DIR + 'sip-log.dat'
 
-MAX_APP_CNT = 1000
-MAX_SIP_CNT = 200
+MAX_APP_CNT = 500 #1000
+MAX_SIP_CNT = 250
 
 app_log = []			# log for last N messages
 sip_log = []			# log for last N messages
@@ -77,6 +77,7 @@ def setloginfo(sipflag=False, msg=''):
 	filename = SIP_LOG_TMP_FILE
 	log = sip_log
     else:
+	if 'DEBUG' in msg or 'TRACE' in msg: return
 	app_log.append(msg)
 	if len(app_log) > MAX_APP_CNT: app_log.pop(0)
 	filename = APP_LOG_TMP_FILE

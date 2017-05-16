@@ -24,7 +24,19 @@ wdg_task() {
 		 #echo test ERR
 		  > $TEST_FILE
 		 old_val=1
-		 pkill $PROCESS_NAME -9
+		 /usr/bin/pkill $PROCESS_NAME -9
+		 echo "AUDIO ERROR $SUCCESS" > "$TEST_FILE.xxx"
+		 echo "AUDIO ERROR" > $TEST_FILE
+#		 /sbin/reboot
+
+#		 sleep 10
+		 SUCCESS=`ps aux | grep -c $PROCESS_NAME`
+		 echo "AUDIO ERROR $SUCCESS" > "$TEST_FILE.xxx"
+		 if [ "1" != "$SUCCESS" ]
+		    then
+		     echo "AUDIO ERROR reboot" >> $TEST_FILE
+		     /sbin/reboot
+		 fi
 	    fi
 	fi
 	sleep $TIME_INTERVAL

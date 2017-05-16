@@ -87,7 +87,8 @@ def reset_usb_audio():
 
     device_id = 0
 
-    threading.Thread(target=reset_usb_audio_worker).start()
+    send_command('./audioini.sh')
+#    threading.Thread(target=reset_usb_audio_worker).start()
 
 
 # ##############################################################################

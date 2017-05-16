@@ -227,7 +227,9 @@ class MyCallCallback(pj.CallCallback):
         	Logger.debug("pjSip %s: Media is now active" % whoami())
 	    except pj.Error, e:
         	Logger.error("pjSip %s: Media is inactive due to ERROR: %s" % (whoami(), str(e)))
+
 		mainLayout.mediaErrorFlag = True
+		if check_usb_audio() > 0: mainLayout.reinitbackgroundtasks()
         else:
             Logger.debug("pjSip %s: Media is inactive" % whoami())
 	    mainLayout.mediaErrorFlag = False
@@ -274,6 +276,8 @@ def make_call(uri):
 	reason = str(e)
         Logger.error("pjSip %s exception: %s" % (whoami(), reason))
 	mainLayout.mediaErrorFlag = True if 'udio' in reason else False
+	if mainLayout.mediaErrorFlag and check_usb_audio() > 0:
+	    mainLayout.reinitbackgroundtasks()
 
     return None
 
@@ -284,6 +288,7 @@ class BasicDisplay:
     "basic screen class"
 
     locks = 0		# stav zamkov na dverach
+    checkEvent = 0	# uloha kontroly stavu videa
 
     def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd,rotation=0,aspectratio='fill'):
 	"display area init"
@@ -382,25 +387,45 @@ class BasicDisplay:
     def initPlayer(self):
 	"start video player"
 
-	Logger.debug('%s:' % whoami())
+	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
 	try:
 	    if len(itools.omxl) and DBUS_PLAYERNAME + str(self.screenIndex) in itools.omxl:
 		del itools.omxl[DBUS_PLAYERNAME + str(self.screenIndex)]
 	except:
 	    pass
 
+	interval = 19. + .2 * self.screenIndex
+	if self.checkEvent > 0: Clock.unschedule(self.checkEvent)
+        self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
+
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys', '--display','0', '--layer', '1',\
 	    '--dbus_name', DBUS_PLAYERNAME + str(self.screenIndex), '--orientation', str(self.rotation),\
+	    '--alpha','0',\
 	    '--aspect-mode', self.aspectratio, '--win', ','.join(self.playerPosition), self.streamUrl],\
 	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
+
+    # ###############################################################
+    def checkLoop(self, dt):
+	"check video player state"
+	global mainLayout, current_call, active_display_index
+
+	Logger.trace('%s: (%d)' % (whoami(), self.screenIndex))
+
+	if (mainLayout.scrmngr.current in CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
+	    (current_call and active_display_index == self.screenIndex):
+	    val = 255
+	else:
+	    val = 0
+
+	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
 
     # ###############################################################
     def resizePlayer(self, newpos=''):
 	"resize video player area"
 	global mainLayout, scr_mode
 
-	Logger.debug('%s: %s' % (whoami(), newpos))
+	Logger.debug('%s: (%d) %s' % (whoami(), self.screenIndex, newpos))
 
 	self.hidePlayer()
 
@@ -476,6 +501,7 @@ class BasicDisplay:
 		    Logger.warning('%s: (%d) %s  ERROR: %s' % (whoami(), self.screenIndex, addr, str(e)))
 		    msg = ''
         	    break
+	    except: pass
 
 	    if not msg is '':
 		# got a message, do something
@@ -552,18 +578,20 @@ class BasicDisplay:
 
 
     # ###############################################################
-    def dbus_worker(self, params):
-	"DBUS thread"
-	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
-	    self.restart_player_window(self.screenIndex)
+#    def dbus_worker(self, params):
+#	"DBUS thread"
+#	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
+#	    self.restart_player_window(self.screenIndex)
 
 
     # ###############################################################
     def dbus_command(self, params=[]):
 	"d-bus command"
-	Logger.debug('%s: %s' % (whoami(), str(params)))
+	Logger.trace('%s: %s' % (whoami(), str(params)))
 
-	Thread(target=self.dbus_worker, kwargs={'params': params}).start()
+#	Thread(target=self.dbus_worker, kwargs={'params': params}).start()
+	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
+	    self.restart_player_window(self.screenIndex)
 
 
     # ###############################################################
@@ -640,7 +668,7 @@ class Indoor(FloatLayout):
         init_sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
-	self.testPlayerIdx = 0
+#	self.testPlayerIdx = 0
 	self.loseNextTouch = False
 
 	self.displays = []
@@ -1095,15 +1123,13 @@ class Indoor(FloatLayout):
         if self.info_state == 0:
             if current_call is None:
 		self.info_state = 1
-#	    else:
-#		self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
         elif self.info_state == 1:
             self.info_state = 2
 	    # test if player is alive:
-	    val = 255 if self.scrmngr.current in CAMERA_SCR and self.popupSettings is None else 0
-	    self.displays[self.testPlayerIdx].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
-	    self.testPlayerIdx += 1
-	    self.testPlayerIdx %= len(self.displays)
+#	    val = 255 if self.scrmngr.current in CAMERA_SCR and self.popupSettings is None else 0
+#	    self.displays[self.testPlayerIdx].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
+#	    self.testPlayerIdx += 1
+#	    self.testPlayerIdx %= len(self.displays)
         elif self.info_state == 2:
             self.info_state = 0
 	    if not self.lib is None and self.scrmngr.current in CAMERA_SCR:
@@ -1149,15 +1175,11 @@ class Indoor(FloatLayout):
 	"SIP reinitialization"
 	Logger.info('%s:' % whoami())
 
-	reset_usb_audio()
-
-	time.sleep(2.5)
+#	reset_usb_audio()
+#	time.sleep(2.5)
 
 	kill_subprocesses()
-
 	App.get_running_app().stop()
-
-#	return
 
 #	if not self.lib is None:
 #	    Logger.warning('%s: reinit pjSip' % whoami())
@@ -1242,7 +1264,7 @@ class Indoor(FloatLayout):
 	"set lock icons"
 	global active_display_index
 
-	Logger.debug('%s: id=%d locks=%.2x' % (whoami(), scrnIdx, locks))
+	Logger.trace('%s: id=%d locks=%.2x' % (whoami(), scrnIdx, locks))
 
 	img = LOCK_IMG if active_display_index == scrnIdx else INACTIVE_LOCK_IMG
 	idi = len(self.btnDoor1.children[0].children) - 1 - scrnIdx
@@ -1603,7 +1625,7 @@ class Indoor(FloatLayout):
 	"add/remove buttons"
 	global docall_button_global, config
 
-	Logger.debug('%s: %r' % (whoami(), visible))
+	Logger.trace('%s: %r' % (whoami(), visible))
 
 	if visible:
 	    self.btnAreaH.remove_widget(self.btnScrSaver)
@@ -1808,10 +1830,10 @@ class IndoorApp(App):
 
 	self.config = config
 
-####	kill_subprocesses()
+	kill_subprocesses()
 
-#	reset_usb_audio()
-#	time.sleep(2)
+	reset_usb_audio()
+	time.sleep(2)
 
         try:
             self.rotation = config.getint('gui', 'screen_orientation')

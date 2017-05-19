@@ -53,6 +53,24 @@ def getdatetimestr():
 
 # ##############################################################################
 
+def ringingTones():
+    "get list of ringing tones"
+
+    Logger.debug('%s:' % whoami())
+
+    tones = []
+    dirs = os.listdir('sounds/')
+
+    # This would print all the files and directories
+    for file in dirs:
+	if 'ring_' in file:
+	    tones.append(file)
+
+    return tones
+
+
+# ##############################################################################
+
 def playTone(tone):
     "start play"
 

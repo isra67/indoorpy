@@ -1946,6 +1946,20 @@ class IndoorApp(App):
 	    acomm = json.dumps(acomm)
 	"""
 
+	# adjust tone list
+	rt = ringingTones()
+	if len(rt):
+	    sys = json.loads(settings_audio)
+	    aaudio = []
+	    for s in sys:
+		item = s
+		if s['type'] not in 'title' and s['key'] == 'ringtone':
+		    item['options'] = s['options'] + rt
+		aaudio.append(item)
+	    aaudio = json.dumps(aaudio)
+	else:
+	    aaudio = settings_audio
+
         settings.add_json_panel('Application',
                                 config,
                                 data=settings_app)
@@ -1957,7 +1971,7 @@ class IndoorApp(App):
                                 data=acomm)
         settings.add_json_panel('Audio Device',
                                 config,
-                                data=settings_audio)
+                                data=aaudio)
         settings.add_json_panel('SIP',
                                 config,
                                 data=asip)

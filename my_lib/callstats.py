@@ -45,19 +45,29 @@ def initcallstat():
     call_log = None
 
     try:
-	with open(CALL_CNTR_TMP_FILE, 'r') as data_file:
+	with open(CALL_CNTR_TMP_FILE, 'w+') as data_file:
 	    call_statistics = json.load(data_file)
     except: call_statistics = {}
 
-    if call_statistics == {} or call_statistics == None:
-	call_statistics = {'in':0, 'out':0, 'noansw': 0, 'noresp':0}
-
     try:
-	with open(CALL_LOG_TMP_FILE, 'r') as data_file:
+	with open(CALL_LOG_TMP_FILE, 'w+') as data_file:
 	    call_log = json.load(data_file)
     except: call_log = []
 
-    if call_log == None: call_log = []
+    # create files if not exists
+    if call_statistics == {} or call_statistics == None or len(call_statistics) == 0:
+	call_statistics = {'in':0, 'out':0, 'noansw': 0, 'noresp':0}
+	try:
+	    with open(CALL_CNTR_TMP_FILE, 'w') as data_file:
+		json.dump(call_statistics, data_file)
+	except Exception: pass
+
+    if call_log == None or len(call_log) == 0:
+	call_log = []
+	try:
+	    with open(CALL_LOG_TMP_FILE, 'w') as data_file:
+		json.dump(call_log, data_file)
+	except Exception: pass
 
 
 # ##############################################################################

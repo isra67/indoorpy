@@ -48,17 +48,29 @@ def initloggers():
     sip_log = []
 
     try:
-	with open(APP_LOG_TMP_FILE, 'r') as data_file:
+	with open(APP_LOG_TMP_FILE, 'w+') as data_file:
 	    app_log = json.load(data_file)
     except: app_log = []
 
     try:
-	with open(SIP_LOG_TMP_FILE, 'r') as data_file:
+	with open(SIP_LOG_TMP_FILE, 'w+') as data_file:
 	    sip_log = json.load(data_file)
     except: sip_log = []
 
-    if app_log == None: app_log = []
-    if sip_log == None: sip_log = []
+    #create files if not exists
+    if app_log == None or len(app_log) == 0:
+	app_log = []
+	try:
+	    with open(APP_LOG_TMP_FILE, 'w+') as data_file:
+		json.dump(app_log, data_file)
+	except: pass
+
+    if sip_log == None or len(sip_log) == 0:
+	sip_log = []
+	try:
+	    with open(SIP_LOG_TMP_FILE, 'w+') as data_file:
+		json.dump(sip_log, data_file)
+	except: pass
 
 
 # ##############################################################################

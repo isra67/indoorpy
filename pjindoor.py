@@ -68,6 +68,8 @@ def kill_subprocesses():
     "tidy up at exit or break"
     global mainLayout
 
+    sendNodeInfo('[***]STOP')
+
     stop_sw_watchdog()
 
     Logger.info('%s: destroy lib at exit' % whoami())
@@ -118,6 +120,13 @@ class MyAccountCallback(pj.AccountCallback):
         current_call.set_callback(call_cb)
 
         current_call.answer(180)
+
+    # ###############################################################
+#    def on_reg_state2(self, info):
+#	"Notification on registration change"
+##        global mainLayout
+#
+#	Logger.warning('%s: info=%r' % (whoami(), info))
 
 
 # ###############################################################
@@ -193,12 +202,14 @@ class MyCallCallback(pj.CallCallback):
 	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
 	    except: pass
 ##	    playTone(BUSY_WAV)
+	    sendNodeInfo('[***]SIP: FREE')
 
         elif main_state == pj.CallState.CONFIRMED:
 	    docall_button_global.imgpath = HANGUP_CALL_IMG
 	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
 	    except: pass
 	    Logger.info('pjSip call status: %s' % self.call.dump_status())
+	    sendNodeInfo('[***]SIP: CALL')
 
         elif main_state == pj.CallState.CALLING:
 	    if not current_call is None:
@@ -227,6 +238,7 @@ class MyCallCallback(pj.CallCallback):
         	Logger.debug("pjSip %s: Media is now active" % whoami())
 	    except pj.Error, e:
         	Logger.error("pjSip %s: Media is inactive due to ERROR: %s" % (whoami(), str(e)))
+		sendNodeInfo('[***]MEDIA: ERROR')
 
 		mainLayout.mediaErrorFlag = True
 		if check_usb_audio() > 0: mainLayout.reinitbackgroundtasks()
@@ -278,8 +290,23 @@ def make_call(uri):
 	mainLayout.mediaErrorFlag = True if 'udio' in reason else False
 	if mainLayout.mediaErrorFlag and check_usb_audio() > 0:
 	    mainLayout.reinitbackgroundtasks()
+	    sendNodeInfo('[***]MEDIA: AUDIO ERROR')
+	else:
+	    sendNodeInfo('[***]SIP: ERROR')
 
     return None
+
+
+# ###############################################################
+
+def log_cb(level, str, len):
+    "pjSip logging callback"
+    Logger.info('pjSip cb: (%d) %s' % (level, str))
+
+    if 'registration failed' in str:
+	sendNodeInfo('[***]SIPREG: ERROR')
+    elif 'registration success' in str:
+	sendNodeInfo('[***]SIPREG: OK')
 
 
 # ##############################################################################
@@ -394,6 +421,8 @@ class BasicDisplay:
 	except:
 	    pass
 
+	sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
+
 	interval = 19. + .2 * self.screenIndex
 	if self.checkEvent > 0: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
@@ -411,6 +440,8 @@ class BasicDisplay:
 	global mainLayout, current_call, active_display_index
 
 	Logger.trace('%s: (%d)' % (whoami(), self.screenIndex))
+
+	sendNodeInfo('[***]VIDEO: %d OK' % self.screenIndex)
 
 	if (mainLayout.scrmngr.current in CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
 	    (current_call and active_display_index == self.screenIndex):
@@ -573,6 +604,7 @@ class BasicDisplay:
 	self.locks = (self.locks & mask) | val
 	Logger.info('%s: (%d) lock=%.2x (%s m=%.2x v=%.2x)'\
 	    % (whoami(), self.screenIndex, self.locks, value, mask, val))
+	sendNodeInfo('[***]LOCK: %d %.2x' % (self.screenIndex, self.locks))
 
 	mainLayout.setLockIcons(self.screenIndex, self.locks)
 
@@ -587,11 +619,13 @@ class BasicDisplay:
     # ###############################################################
     def dbus_command(self, params=[]):
 	"d-bus command"
+	global mainLayout
 	Logger.trace('%s: %s' % (whoami(), str(params)))
 
 #	Thread(target=self.dbus_worker, kwargs={'params': params}).start()
 	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
-	    self.restart_player_window(self.screenIndex)
+	    sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
+	    mainLayout.restart_player_window(self.screenIndex)
 
 
     # ###############################################################
@@ -752,6 +786,8 @@ class Indoor(FloatLayout):
 	self.init_myphone()
 
 	initcallstat()
+
+	sendNodeInfo('[***]START')
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
@@ -1079,6 +1115,7 @@ class Indoor(FloatLayout):
 	    if accounttype in 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
+		sendNodeInfo('[***]SIP:peer-to-peer')
 	    else:
 		s = str(config.get('sip', 'sip_server_addr')).strip()
 		u = str(config.get('sip', 'sip_username')).strip()
@@ -1103,6 +1140,7 @@ class Indoor(FloatLayout):
 
         except pj.Error, e:
             Logger.critical("%s pjSip Exception: %s" % (whoami(), str(e)))
+	    sendNodeInfo('[***]SIP:ERROR')
 
             lib.destroy()
             self.lib = lib = None
@@ -1116,7 +1154,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def info_state_loop(self, dt):
 	"state loop"
-        global current_call, active_display_index, docall_button_global, BUTTON_DO_CALL, COLOR_BUTTON_BASIC
+        global current_call, active_display_index, docall_button_global, config #BUTTON_DO_CALL, COLOR_BUTTON_BASIC
 
         if not current_call is None: self.info_state = 0
 
@@ -1125,15 +1163,16 @@ class Indoor(FloatLayout):
 		self.info_state = 1
         elif self.info_state == 1:
             self.info_state = 2
-	    # test if player is alive:
-#	    val = 255 if self.scrmngr.current in CAMERA_SCR and self.popupSettings is None else 0
-#	    self.displays[self.testPlayerIdx].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
-#	    self.testPlayerIdx += 1
-#	    self.testPlayerIdx %= len(self.displays)
         elif self.info_state == 2:
-            self.info_state = 0
+            self.info_state = 3
 	    if not self.lib is None and self.scrmngr.current in CAMERA_SCR:
 		self.setButtons(False)
+        elif self.info_state == 3:
+            self.info_state = 4
+	    sendNodeInfo('[***]RPISN: %s' % config.get('about','serial'))
+        elif self.info_state == 4:
+            self.info_state = 0
+	    sendNodeInfo('[***]INDOORVER: %s' % config.get('about','app_ver'))
 
 	if self.lib is None:
 #	    docall_button_global.text = "No Licence"

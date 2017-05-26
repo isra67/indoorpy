@@ -48,12 +48,12 @@ def initloggers():
     sip_log = []
 
     try:
-	with open(APP_LOG_TMP_FILE, 'w+') as data_file:
+	with open(APP_LOG_TMP_FILE, 'r') as data_file:
 	    app_log = json.load(data_file)
     except: app_log = []
 
     try:
-	with open(SIP_LOG_TMP_FILE, 'w+') as data_file:
+	with open(SIP_LOG_TMP_FILE, 'r') as data_file:
 	    sip_log = json.load(data_file)
     except: sip_log = []
 

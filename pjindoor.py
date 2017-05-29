@@ -182,8 +182,8 @@ class MyCallCallback(pj.CallCallback):
 	    self.callTimerEvent = Clock.schedule_once(self.callTimerWD, self.CALL_TIMEOUT)
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
-	    if not mainLayout.outgoingCall:
-		docall_button_global.imgpath = ANSWER_CALL_IMG
+#	    if not mainLayout.outgoingCall:
+#		docall_button_global.imgpath = ANSWER_CALL_IMG
 	    mainLayout.setButtons(True)
 	    mainLayout.finishScreenTiming()
 
@@ -218,7 +218,7 @@ class MyCallCallback(pj.CallCallback):
 		return
 ##	    playTone(DIAL_WAV)
 	    current_call = self.call
-	    docall_button_global.imgpath = ANSWER_CALL_IMG
+	    docall_button_global.imgpath = MAKE_CALL_IMG #ANSWER_CALL_IMG
 
 	setcallstat(outflag=(ci.role==0), status=main_state, prev_status=prev_state, call=ci.remote_uri)
 	if main_state == 6: main_state = 0
@@ -820,9 +820,9 @@ class Indoor(FloatLayout):
 	self.buttonAreaHigh = h2
 	self.infoAreaHigh = h3
 
-	self.workArea = BoxLayout(orientation='horizontal')
-	self.infoArea = BoxLayout(orientation='horizontal', size_hint_y=None, height=self.infoAreaHigh)
-	self.btnArea = BoxLayout(orientation='vertical', size_hint_y=None, height=self.buttonAreaHigh)
+	self.workArea = MBoxLayout(orientation='horizontal')
+	self.infoArea = MBoxLayout(orientation='horizontal', size_hint_y=None, height=self.infoAreaHigh)
+	self.btnArea = MBoxLayout(orientation='vertical', size_hint_y=None, height=self.buttonAreaHigh)
 	self.camerascreen.add_widget(self.workArea)
 	self.camerascreen.add_widget(self.infoArea)
 	self.camerascreen.add_widget(self.btnArea)
@@ -893,11 +893,11 @@ class Indoor(FloatLayout):
 
 	Logger.debug('%s:' % whoami())
 
-	self.cameras = BoxLayout(orientation='vertical')
+	self.cameras = MBoxLayout(orientation='vertical')
 	self.workArea.add_widget(self.cameras)
 
 	if self.scrOrientation in [0,180]:
-	    self.cameras1 = BoxLayout(orientation='horizontal')
+	    self.cameras1 = MBoxLayout(orientation='horizontal')
 	    self.cameras.add_widget(self.cameras1)
 
 	    if scr_mode >= 1:
@@ -905,7 +905,7 @@ class Indoor(FloatLayout):
 	    if scr_mode in [2,4]:
 		self.cameras1.add_widget(VideoLabel(id='1'))
 	    if scr_mode >= 3:
-		self.cameras2 = BoxLayout(orientation='horizontal')
+		self.cameras2 = MBoxLayout(orientation='horizontal')
 		self.cameras.add_widget(self.cameras2)
 		self.cameras2.add_widget(VideoLabel(id='2'))
 	    if scr_mode == 4:
@@ -956,7 +956,7 @@ class Indoor(FloatLayout):
 	"init buttons"
 	Logger.debug('%s:' % whoami())
 
-	self.btnAreaH = BoxLayout(orientation='horizontal')
+	self.btnAreaH = MBoxLayout(orientation='horizontal')
 	self.btnArea.add_widget(self.btnAreaH)
 
 	if self.scrOrientation in [0,180]:
@@ -964,7 +964,7 @@ class Indoor(FloatLayout):
 	    self.btnAreaH.add_widget(self.btnDoCall)
 	    self.btnAreaH.add_widget(self.btnDoor2)
 	else:
-	    self.btnAreaB = BoxLayout(orientation='horizontal')
+	    self.btnAreaB = MBoxLayout(orientation='horizontal')
 	    self.btnArea.add_widget(self.btnAreaB)
 
 	    self.btnAreaH.add_widget(self.btnDoCall)
@@ -1765,6 +1765,7 @@ class Indoor(FloatLayout):
 
 	l.add_widget(self.micslider, 1 if self.scrOrientation in [0,180] else 0)
 	l.add_widget(self.volslider)
+	#print('%s: cnt=%d' % (whoami(), len(l.children)))
 
 
     # ###############################################################
@@ -1777,6 +1778,7 @@ class Indoor(FloatLayout):
 	l.remove_widget(self.volslider)
 	self.micslider.parent = None
 	self.volslider.parent = None
+#	print('%s: cnt=%d' % (whoami(), len(l.children)))
 
 
     # ###############################################################
@@ -2032,6 +2034,8 @@ class IndoorApp(App):
 
         Logger.debug('%s:' % whoami())
 
+	mainLayout.ids.settings.clear_widgets()
+
 #        return super(IndoorApp, self).display_settings(settings)
 	mainLayout.ids.settings.add_widget(settings)
 
@@ -2191,7 +2195,7 @@ class IndoorApp(App):
 
 	Logger.debug('%s: title=%s' % (whoami(), titl))
 
-	box = BoxLayout(orientation='vertical', spacing=5)
+	box = MBoxLayout(orientation='vertical', spacing=5)
 
 	if 'Call log' in titl:
 	    args_converter = lambda row_idx, rec: {'text': rec, 'size_hint_y': None,

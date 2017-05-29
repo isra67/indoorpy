@@ -18,7 +18,7 @@
             id: waitscr
             on_enter: lblresult.text = 'Wait a moment...'
 
-            BoxLayout:
+            MBoxLayout:
                 orientation: 'vertical'
 
                 Label:
@@ -40,7 +40,7 @@
             id: digiclock
             on_touch_down: root.swap2camera()
 
-            BoxLayout:
+            MBoxLayout:
                 id: clockslayout
 
         Screen:
@@ -51,7 +51,7 @@
             on_leave: root.finishScreenTiming()
             on_pre_leave: root.hidePlayers()
 
-            BoxLayout:
+            MBoxLayout:
                 id: scattercameras
                 orientation: 'vertical'
 
@@ -97,27 +97,34 @@
         center_y: self.parent.center_y
         size_hint: 0, None
 
-<hovno>:
+
+# call (2 images) button:
+
+<CallButton>:
+    size_hint: 1, None
+    height: '47px'
+    imgpath: imgpath
+    imgpath2: imgpath2
+
     BoxLayout:
         orientation: 'horizontal'
+        size_hint: 1, None
         pos: root.pos
         size: root.size
         size_hint: root.size_hint
         center_y: root.center_y
 
         AsyncImage:
-            source: self.parent.imgpath
-            center_x: self.parent.center_x
-            center_y: self.parent.center_y
-            size_hint: 1, None
-        Label:
-            id: lbltext
-            font_size: '20px'
-            text: self.parent.btntext
-            center_x: self.parent.center_x
-            center_y: self.parent.center_y
-            size_hint: 0, None
+            id: imgpath
+            source: 'imgs/phone-call.png'
+            size_hint: 1, 1
+            center_y: root.center_y
 
+        AsyncImage:
+            id: imgpath2
+            source: 'imgs/call-dnd.png'
+            size_hint: 1, 1
+            center_y: root.center_y
 
 # door (4 images) button:
 
@@ -316,3 +323,13 @@
         id: imgslider
         source: root.imgpath
 
+
+# BoxLayout + black background:
+
+<MBoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0, 0, 0, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size

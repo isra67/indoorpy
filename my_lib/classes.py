@@ -72,6 +72,13 @@ class DoorButton(Button):
 
 # ##############################################################################
 
+class MBoxLayout(BoxLayout):
+    "layout + black color background"
+    pass
+
+
+# ##############################################################################
+
 class HorizontalCameraLayout(BoxLayout):
     "landscape camera layout"
     pass
@@ -86,7 +93,7 @@ class VerticalCameraLayout(BoxLayout):
 
 # ##############################################################################
 
-class SliderArea(BoxLayout):
+class SliderArea(MBoxLayout):
     "volume slider next to the call window"
     pass
 

@@ -106,7 +106,9 @@ class Ticks(Widget):
         time = datetime.datetime.now()
         self.canvas.clear()
 
-        self.remove_widget(self.ln)
+        self.clear_widgets()
+#        self.remove_widget(self.ln)
+	self.ln.parent = None
         self.ln.pos = self.pos
         self.ln.size = self.size
         self.ln.text = '[color=0000f0] ' + APP_LABEL + ' [/color]'

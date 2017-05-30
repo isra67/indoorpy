@@ -610,19 +610,11 @@ class BasicDisplay:
 
 
     # ###############################################################
-#    def dbus_worker(self, params):
-#	"DBUS thread"
-#	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
-#	    self.restart_player_window(self.screenIndex)
-
-
-    # ###############################################################
     def dbus_command(self, params=[]):
 	"d-bus command"
 	global mainLayout
 	Logger.trace('%s: %s' % (whoami(), str(params)))
 
-#	Thread(target=self.dbus_worker, kwargs={'params': params}).start()
 	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
 	    sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
 	    mainLayout.restart_player_window(self.screenIndex)
@@ -1045,7 +1037,7 @@ class Indoor(FloatLayout):
 	self.scrmngr.current = CAMERA_SCR
 
 	# prepare settings:
-	Thread(target=self.settings_worker).start()
+        Clock.schedule_once(self.settings_worker, 7.5)
 
 	self.setButtons(False)
 
@@ -1053,7 +1045,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    def settings_worker(self):
+    def settings_worker(self, dt=7.5):
 	"prepare settings"
 	app = App.get_running_app()
 	app.open_settings()
@@ -1640,23 +1632,12 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    def worker1serial(self):
-	"thread - hide video serial"
-	for d in self.displays:
-	    d.hidePlayer()
-	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
-
-
-    # ###############################################################
     def hidePlayers(self, serial=False):
 	"d-bus command to hide video"
 	Logger.debug('%s:' % whoami())
 
-	if serial:
-	    Thread(target=self.worker1serial).start()
-	else:
-	    for d in self.displays:
-		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
+	for d in self.displays:
+	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
 
 
     # ###############################################################

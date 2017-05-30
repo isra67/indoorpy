@@ -28,7 +28,7 @@ from itools import *
 VENDOR_ID = 0x0572		# Conexant
 PRODUCT_ID = 0x1410		# USB audio
 
-RST_PIN = 24
+RST_PIN = 2 #24
 RST_TIME = .2
 
 device_id = 0
@@ -60,20 +60,23 @@ def check_usb_audio():
 
 
 # ##############################################################################
-
 def reset_usb_audio_worker(dt=0):
     "reset usb audio board"
+    "!!!!! USE share/audioini.py !!!!!"
     Logger.error('%s: RESET USB AUDIO BOARD' % whoami())
+
+    VALUE_INI = GPIO.HIGH
+    VALUE_RST = GPIO.LOW
 
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
-    GPIO.setup(RST_PIN, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(RST_PIN, GPIO.OUT, initial=VALUE_INI)
 
-    GPIO.output(RST_PIN, GPIO.LOW)
+    GPIO.output(RST_PIN, VALUE_INI)
     sleep(RST_TIME)
-    GPIO.output(RST_PIN, GPIO.HIGH)
+    GPIO.output(RST_PIN, VALUE_RST)
     sleep(RST_TIME)
-    GPIO.output(RST_PIN, GPIO.LOW)
+    GPIO.output(RST_PIN, VALUE_INI)
     sleep(RST_TIME)
 
 

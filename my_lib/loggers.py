@@ -79,9 +79,7 @@ def setloginfo(sipflag=False, msg=''):
     "Save msg to TMP file"
     global app_log, sip_log
 
-    dt = getdatetimestr()
-
-#    print('%s: dt=%s sipflag=%r msg=%s'% (whoami(), dt, sipflag, msg))
+#    print('%s: dt=%s sipflag=%r msg=%s'% (whoami(), getdatetimestr(), sipflag, msg))
 
     if sipflag:
 	sip_log.append(msg)
@@ -89,7 +87,7 @@ def setloginfo(sipflag=False, msg=''):
 	filename = SIP_LOG_TMP_FILE
 	log = sip_log
     else:
-	if 'DEBUG' in msg or 'TRACE' in msg: return
+	if '[DEBUG' in msg or '[TRACE' in msg: return
 	app_log.append(msg)
 	if len(app_log) > MAX_APP_CNT: app_log.pop(0)
 	filename = APP_LOG_TMP_FILE

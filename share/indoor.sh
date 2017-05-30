@@ -14,6 +14,18 @@ pustajNode() {
 	done
 }
 
+pustajDiag() {
+	while true
+	do
+		## working dir
+		cd /root/indoorpy
+
+		## Diag request 1x 20min
+		./diag.sh
+		sleep 1200
+	done
+}
+
 pustaj() {
 	while true
 	do
@@ -47,6 +59,9 @@ pustajNode >& /dev/null &
 
 ## start python app
 pustaj >& /dev/null &
+
+## start diag
+pustajDiag >& /dev/null &
 
 ## start WD
 cd /root/indoorpy/share

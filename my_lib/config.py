@@ -52,6 +52,7 @@ dict_common = {'server_ip_address_1': '192.168.1.250',
             'sip_call4': '' }
 dict_service = {'masterpwd': '1234',
             'app_log': 'none',
+            'tunnel_flag': False,
             'sip_log': 'none' }
 dict_about = {'app_name': 'Indoor 2.0',
             'app_ver': '2.0.0.0',

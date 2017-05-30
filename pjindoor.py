@@ -2095,6 +2095,13 @@ class IndoorApp(App):
 	    elif token == ('service', 'app_rst'):
 		if 'button_app_rst' == value:
 		    MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
+	    elif token == ('service', 'tunnel_flag'):
+		try:
+		    v = int(value) > 0
+		except:
+		    v = False
+		infoTxt = 'Tunnel is ENABLED' if v else 'Tunnel is DISABLED'
+		MyAlertBox(titl='WARNING', txt=infoTxt, cb=self.tunnelChanges, ad=False).open()
 	    elif token == ('service', 'masterpwd'):
 		self.restartAppFlag = True
 	elif 'about' in section:
@@ -2141,6 +2148,23 @@ class IndoorApp(App):
 
 	MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
 	    cb=self.popupClosed, ad=False).open()
+
+
+    # ###############################################################
+    def tunnelChanges(self):
+	"enable/disable tunnel"
+	global config
+
+	try:
+	    flag = int(config.get('service', 'tunnel_flag')) > 0
+	except:
+	    flag = False
+        Logger.warning('%s: flag=%r' % (whoami(), flag))
+
+	if flag:
+	    send_command('./tunnelservice.sh')
+	else:
+	    send_command('./tunnel.sh stop')
 
 
     # ###############################################################

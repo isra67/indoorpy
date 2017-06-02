@@ -100,18 +100,3 @@ class SliderArea(MBoxLayout):
 
 # ##############################################################################
 
-class SettingsPopupDlg(BoxLayout):
-    "settings popup content"
-    def closePopupSettings(self):
-        global mainLayout
-        mainLayout.closePopupSettings()
-        mainLayout.showPlayers()
-
-    def openDetailSettings(self):
-        global mainLayout
-        mainLayout.closePopupSettings(False)
-        mainLayout.openAppSettings()
-
-
-# ##############################################################################
-

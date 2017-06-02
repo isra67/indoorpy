@@ -27,6 +27,7 @@ from callstats import *
 # ### tools ###
 from itools import *
 from audiotools import *
+from tones import *
 
 # ### SW watchdog ###
 from sw_watchdog import *
@@ -46,4 +47,5 @@ from yesnodlg import *
 # ###  popup dialogs ###
 from alertdlg import *
 from appstatusdlg import *
+from settingsdlg import *
 

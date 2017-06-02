@@ -87,7 +87,7 @@ class MyInputBox(Popup):
         self.p.btno.bind(on_press=self.buttonNo)
 
 	self.title = kwargs.get('titl')
-	self.auto_dismiss = kwargs.get('ad') or True
+	self.auto_dismiss = kwargs.get('ad') or False
 	self.cb = kwargs.get('cb') or None
 	self.size_hint = (.6, .5)
 	self.content = self.p

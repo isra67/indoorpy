@@ -111,6 +111,11 @@ class MyAccountCallback(pj.AccountCallback):
             call.answer(486, "Busy")
             return
 
+	if mainLayout.popupSettings:
+	    mainLayout.popupSettings.dismiss()
+	    mainLayout.popupSettings = None
+	    mainLayout.showPlayers()
+
         Logger.info("%s: Incoming call from %s" % (whoami(), call.info().remote_uri))
         current_call = call
 
@@ -120,13 +125,6 @@ class MyAccountCallback(pj.AccountCallback):
         current_call.set_callback(call_cb)
 
         current_call.answer(180)
-
-    # ###############################################################
-#    def on_reg_state2(self, info):
-#	"Notification on registration change"
-##        global mainLayout
-#
-#	Logger.warning('%s: info=%r' % (whoami(), info))
 
 
 # ###############################################################
@@ -427,9 +425,9 @@ class BasicDisplay:
 	if self.checkEvent > 0: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
 
-	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys', '--display','0', '--layer', '1',\
+	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys', '--display','0',\
+	    '--alpha','0', '--layer', '1',\
 	    '--dbus_name', DBUS_PLAYERNAME + str(self.screenIndex), '--orientation', str(self.rotation),\
-	    '--alpha','0',\
 	    '--aspect-mode', self.aspectratio, '--win', ','.join(self.playerPosition), self.streamUrl],\
 	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
@@ -757,7 +755,7 @@ class Indoor(FloatLayout):
             Logger.warning('Indoor init: ERROR 11 = read config file!')
 	    RING_TONE = 'oldphone.wav'
 
-	itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
+	tones.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
 
         try:
 	    self.masterPwd = config.get('service', 'masterpwd').strip()
@@ -1427,6 +1425,7 @@ class Indoor(FloatLayout):
 
     # ###############################################################
     def callback_set_options(self, btn=-1):
+	global SCREEN_SAVER, WATCHES, RING_TONE
 	"start quick settings"
 
         Logger.debug("%s: volume=%d mic=%d brightness=%d "\
@@ -1436,32 +1435,77 @@ class Indoor(FloatLayout):
 	self.finishScreenTiming()
 
 	classes.mainLayout = mainLayout
+	settingsdlg.mainLayout = mainLayout
 
         self.popupSettings = Popup(title="Options", content=SettingsPopupDlg(),
-              size_hint=(0.75, 0.8), auto_dismiss=False)
+              size_hint=(0.9, 0.9), auto_dismiss=False)
 
 	content = self.popupSettings.content
 
 	direct = 'horizontal' if self.scrOrientation in [0,180] else 'vertical'
 	content.setline1.orientation = direct
 	content.setline2.orientation = direct
+	content.setline3.orientation = direct
+	content.setline4.orientation = direct
+
+	spinmusic = content.setline3.subbox2.musicspinner
+	spinclock = content.setline3.subbox3.clockspinner
+	spinclock.text = WATCHES
+#	spinclock.bind(text=self.show_selected_value)
+
+	# adjust tone list
+	rt = ringingTones()
+	sys = json.loads(settings_audio)
+	aaudio = []
+	for s in sys:
+	    item = s
+	    if s['type'] not in 'title' and s['key'] == 'ringtone':
+		aaudio = s['options'] + rt
+#		aaudio.append(item)
+	spinmusic.text = RING_TONE
+	spinmusic.values = aaudio
+	spinmusic.bind(text=self.show_selected_value)
 
 	content.valv = self.avolume
 	content.valb = self.brightness
 	content.valm = self.micvolume
 	content.vald = self.dnd_mode
+	content.vals = SCREEN_SAVER / 60
 
 	self.popupSettings.open()
 
 
     # ###############################################################
+    def show_selected_value(self, spinner, text):
+	"clock|tine item change"
+	global SCREEN_SAVER, WATCHES, RING_TONE
+
+	Logger.info('%s: %s' % (whoami(), text))
+
+	content = self.popupSettings.content
+	spinmusic = content.setline3.subbox2.musicspinner
+#	spinclock = content.setline3.subbox3.clockspinner
+
+	if spinner == spinmusic:
+	    stopWAV()
+	    Clock.schedule_once(lambda dt: playTone(APLAYER + ' ' + APARAMS + spinmusic.text))
+
+
+    # ###############################################################
     def closePopupSettings(self, small=True):
+	global SCREEN_SAVER, WATCHES, RING_TONE
 	"close quick settings dialog"
 
-	a = int(self.popupSettings.content.valv)
-	m = int(self.popupSettings.content.valm)
-	b = int(self.popupSettings.content.valb)
-	d = bool(self.popupSettings.content.vald)
+	content = self.popupSettings.content
+	a = int(content.valv)
+	m = int(content.valm)
+	b = int(content.valb)
+	s = int(content.vals)
+	d = bool(content.vald)
+	music = content.setline3.subbox2.musicspinner.text
+	clock = content.setline3.subbox3.clockspinner.text
+
+	stopWAV()
 
 	if a != self.avolume:
 	    self.avolume = a
@@ -1478,14 +1522,27 @@ class Indoor(FloatLayout):
 	    config.set('command', 'brightness', self.brightness)
 	    send_command('%s %d' % (BRIGHTNESS_SCRIPT, self.brightness))
 
+	if s != (SCREEN_SAVER / 60):
+	    SCREEN_SAVER = s * 60
+	    config.set('command', 'screen_saver', s)
+
+	if music != RING_TONE:
+	    RING_TONE = music
+	    tones.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + music
+	    config.set('devices', 'ringtone', music)
+
+	if clock != WATCHES:
+	    WATCHES = clock
+	    config.set('command', 'watches', clock)
+
 	if d != self.dnd_mode:
 	    self.dnd_mode = d
 	    config.set('command', 'dnd_mode', self.dnd_mode)
 
 	config.write()
 
-	Logger.info('%s: volume=%d mic=%d brightness=%d dnd=%r'\
-	    % (whoami(), self.avolume, self.micvolume, self.brightness, self.dnd_mode))
+	Logger.info('%s: volume=%d mic=%d brightness=%d dnd=%r saver=%d music=%s clock=%s'\
+	    % (whoami(), self.avolume, self.micvolume, self.brightness, self.dnd_mode, s, music, clock))
 
 	self.popupSettings.dismiss()
 	self.popupSettings = None
@@ -1516,7 +1573,7 @@ class Indoor(FloatLayout):
 	"get password"
 	Logger.debug('%s:' % whoami())
 
-	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=True)
+	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=False)
 	self.popupSettings.open()
 
 
@@ -1589,10 +1646,10 @@ class Indoor(FloatLayout):
 	    self.checkTripleTap(touch)
 	    return
 
-	if not touch is None and touch.is_double_tap:
-	    if not current_call and self.scrmngr.current in CAMERA_SCR and self.popupSettings is None:
-		self.restart_player_window(active_display_index)
-	    return
+#	if not touch is None and touch.is_double_tap:
+#	    if not current_call and self.scrmngr.current in CAMERA_SCR and self.popupSettings is None:
+#		self.restart_player_window(active_display_index)
+#	    return
 
 	if current_call is None: self.startScreenTiming()
 
@@ -1607,7 +1664,7 @@ class Indoor(FloatLayout):
 	    if child is self: continue
 	    if '.VideoLabel' in str(child):
 		if child.collide_point(*touch.pos):
-		    active_display_index = idx #int(child.id) # tid
+		    active_display_index = idx
 		    Logger.info('%s: child=%r setActiveWin=%s' %(whoami(), child, child.id))
 		    break
 		idx += 1
@@ -1969,31 +2026,31 @@ class IndoorApp(App):
 	"""
 
 	# adjust tone list
-	rt = ringingTones()
-	if len(rt):
-	    sys = json.loads(settings_audio)
-	    aaudio = []
-	    for s in sys:
-		item = s
-		if s['type'] not in 'title' and s['key'] == 'ringtone':
-		    item['options'] = s['options'] + rt
-		aaudio.append(item)
-	    aaudio = json.dumps(aaudio)
-	else:
-	    aaudio = settings_audio
+#	rt = ringingTones()
+#	if len(rt):
+#	    sys = json.loads(settings_audio)
+#	    aaudio = []
+#	    for s in sys:
+#		item = s
+#		if s['type'] not in 'title' and s['key'] == 'ringtone':
+#		    item['options'] = s['options'] + rt
+#		aaudio.append(item)
+#	    aaudio = json.dumps(aaudio)
+#	else:
+#	    aaudio = settings_audio
 
-        settings.add_json_panel('Application',
-                                config,
-                                data=settings_app)
+#        settings.add_json_panel('Application',
+#                                config,
+#                                data=settings_app)
         settings.add_json_panel('GUI',
                                 config,
                                 data=settings_gui)
         settings.add_json_panel('Outdoor Devices',
                                 config,
                                 data=acomm)
-        settings.add_json_panel('Audio Device',
-                                config,
-                                data=aaudio)
+#        settings.add_json_panel('Audio Device',
+#                                config,
+#                                data=aaudio)
         settings.add_json_panel('SIP',
                                 config,
                                 data=asip)
@@ -2035,21 +2092,21 @@ class IndoorApp(App):
 
 	if section == 'common':
 	    self.restartAppFlag = True
-	elif 'command' in section:
-	    if token == ('command', 'screen_saver'):
-		try:
-		    v = int(value)
-		    SCREEN_SAVER = v * 60
-		except:
-		    SCREEN_SAVER = 0
-	    elif token == ('command', 'watches'):
-		if value in 'analog' or value in 'digital': WATCHES = value
-		else: WATCHES = 'None'
-	elif token == ('devices', 'ringtone'):
-	    RING_TONE = value
-	    stopWAV()
-	    itools.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
-	    playWAV(3.0)
+#	elif 'command' in section:
+#	    if token == ('command', 'screen_saver'):
+#		try:
+#		    v = int(value)
+#		    SCREEN_SAVER = v * 60
+#		except:
+#		    SCREEN_SAVER = 0
+#	    elif token == ('command', 'watches'):
+#		if value in 'analog' or value in 'digital': WATCHES = value
+#		else: WATCHES = 'None'
+#	elif token == ('devices', 'ringtone'):
+#	    RING_TONE = value
+#	    stopWAV()
+#	    tones.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
+#	    playWAV(3.0)
 	elif 'system' in section:
 	    if token == ('system', 'inet'):
 		self.changeInet = True
@@ -2103,6 +2160,10 @@ class IndoorApp(App):
 		infoTxt = 'Tunnel is ENABLED' if v else 'Tunnel is DISABLED'
 		MyAlertBox(titl='WARNING', txt=infoTxt, cb=self.tunnelChanges, ad=False).open()
 	    elif token == ('service', 'masterpwd'):
+		if len(value) < 1:
+		    config.set(section, key, self.config.get(section, key))
+		    config.write()
+		    MyAlertBox(titl='WARNING', txt='Bad password!\n\nPassword will not change', cb=None, ad=False).open()
 		self.restartAppFlag = True
 	elif 'about' in section:
 	    if token == ('about', 'licencekey'):
@@ -2118,7 +2179,7 @@ class IndoorApp(App):
 			MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
 		    else:
 			MyAlertBox(titl='Registration', txt='Your licence key will come to your email address\ntill 3 working days\n\nPress OK',\
-			    cb=None, ad=True).open()
+			    cb=None, ad=False).open()
 	elif 'gui' in section:
 	    self.restartAppFlag = True
 	    if token == ('gui', 'screen_orientation'):

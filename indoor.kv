@@ -206,18 +206,65 @@
 <SettingsPopupDlg>:
     closebutton: closebutton
     detailbutton: detailbutton
-    size_hint: .85, .85
+#    size_hint: .8, .8
+#    spacing: 8
     orientation: 'vertical'
     valb: 100
     valv: 100
     valm: 100
+    vals: 10
     vald: False
+    valmusic: 'oldphone.wav'
+    valclock: 'none'
     setline1: setline1
     setline2: setline2
+    setline3: setline3
+    setline4: setline4
+
+    BoxLayout:
+        orientation: 'horizontal'
+        id: setline3
+        subbox2: subbox2
+        subbox3: subbox3
+        size_hint_y: 1
+
+        BoxLayout:
+            orientation: 'horizontal'
+            id: subbox2
+            musicspinner: musicspinner
+
+            AsyncImage:
+                source: 'imgs/music.png'
+                size_hint_x: None
+                width: '48px'
+            Spinner:
+                id: musicspinner
+                size_hint: .5, None
+                height: '40px'
+                text: root.valmusic
+                pos_hint: {'center_x': .5, 'center_y': .5}
+
+        BoxLayout:
+            orientation: 'horizontal'
+            id: subbox3
+            clockspinner: clockspinner
+
+            AsyncImage:
+                source: 'imgs/clock.png'
+                size_hint_x: None
+                width: '48px'
+            Spinner:
+                id: clockspinner
+                size_hint: .8, None
+                height: '40px'
+                text: root.valclock
+                values: ('analog','digital','None')
+                pos_hint: {'center_x': .5, 'center_y': .5}
 
     BoxLayout:
         orientation: 'horizontal'
         id: setline1
+        size_hint_y: 1
 
         BoxLayout:
             orientation: 'horizontal'
@@ -252,21 +299,58 @@
     BoxLayout:
         orientation: 'horizontal'
         id: setline2
+        subbox1: subbox1
+        size_hint_y: 1
 
         BoxLayout:
+            id: subbox1
             orientation: 'horizontal'
+            brightslider: brightslider
 
             AsyncImage:
                 source: 'imgs/brightness.png'
                 size_hint_x: None
                 width: '48px'
             Slider:
+                id: brightslider
                 size_hint_x: .9
                 min: 15
                 max: 255
                 step: 15
                 value: root.valb
-                on_value: root.valb = self.value
+                on_value: root.valb = root.brightslider()
+
+        BoxLayout:
+            orientation: 'horizontal'
+
+            AsyncImage:
+                source: 'imgs/monitor.png'
+                size_hint_x: None
+                width: '48px'
+            Slider:
+                size_hint_x: .9
+                min: 0
+                max: 120
+                step: 1
+                value: root.vals
+                on_value: root.vals = self.value
+
+    BoxLayout:
+        orientation: 'horizontal'
+        id: setline4
+        size_hint_y: 1
+
+        BoxLayout:
+            orientation: 'horizontal'
+
+            AsyncImage:
+                source: 'imgs/nothing.png'
+                size_hint_x: None
+                width: '48px'
+            AsyncImage:
+                source: 'imgs/nothing.png'
+                size_hint_x: None
+                width: '48px'
 
         BoxLayout:
             orientation: 'horizontal'
@@ -292,7 +376,7 @@
         Image:
             source: 'imgs/nothing.png'
             size_hint: None, None
-            size: '16px', '32px'
+            size: '8px', '8px'
         Button:
             id: closebutton
             text: 'Close'

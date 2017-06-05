@@ -216,7 +216,7 @@ class MyCallCallback(pj.CallCallback):
 		return
 ##	    playTone(DIAL_WAV)
 	    current_call = self.call
-	    docall_button_global.imgpath = MAKE_CALL_IMG #ANSWER_CALL_IMG
+	    docall_button_global.imgpath = ANSWER_CALL_IMG #MAKE_CALL_IMG #
 
 	setcallstat(outflag=(ci.role==0), status=main_state, prev_status=prev_state, call=ci.remote_uri)
 	if main_state == 6: main_state = 0

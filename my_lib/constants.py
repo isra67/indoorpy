@@ -39,7 +39,7 @@ SETIPADDRESS_SCRIPT = './setipaddress.sh'
 
 # ### images: ###
 MAKE_CALL_IMG = 'imgs/phone-call.png'
-#ANSWER_CALL_IMG = 'imgs/call-answer.png'
+ANSWER_CALL_IMG = 'imgs/call-answer.png'
 HANGUP_CALL_IMG = 'imgs/call-disconnect.png'
 ERROR_CALL_IMG = 'imgs/call-reject.png'
 DND_CALL_IMG = 'imgs/call-dnd.png'

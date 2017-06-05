@@ -15,13 +15,16 @@ pustajNode() {
 }
 
 pustajDiag() {
+	sleep 60
+
 	while true
 	do
 		## working dir
 		cd /root/indoorpy
 
 		## Diag request 1x 20min
-		./diag.sh
+#		./diag.sh
+		./tunnelservice.sh diag
 		sleep 1200
 	done
 }

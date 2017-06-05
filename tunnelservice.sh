@@ -8,11 +8,20 @@ DATEY=`date +%Y-%m-%d`
 DATEH=`date +%H:%M:%S`
 SERIAL=`cat /proc/cpuinfo | grep Serial | awk -F \: '{print $2}'`
 
-wget -T 30 -O $TMP_FILE -o /tmp/wgets "$URL?t=$DATEY%20$DATEH&i=$SERIAL&d=$1"
+
+CMMD=diag
+if [ $# -eq 1 ]
+then
+    # zapis informacie do DB
+    CMMD=$1
+fi
+
+
+wget -T 30 -O $TMP_FILE -o /tmp/wgets "$URL?t=$DATEY%20$DATEH&i=$SERIAL&d=$CMMD"
 service=`cat $TMP_FILE`
 if [ "$service" != "" ]
     then
-	echo $service $DATEY $DATEH $SERIAL $1 >$TMP_FILE
+	echo $service $DATEY $DATEH $SERIAL $CMMD >$TMP_FILE
 	$FINAL_SCRIPT $TMP_FILE
     else
 	echo ERR

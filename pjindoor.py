@@ -1034,9 +1034,6 @@ class Indoor(FloatLayout):
 
 	self.scrmngr.current = CAMERA_SCR
 
-	# prepare settings:
-        Clock.schedule_once(self.settings_worker, 7.5)
-
 	self.setButtons(False)
 
 	self.displays[0].setActive()
@@ -1575,6 +1572,9 @@ class Indoor(FloatLayout):
 
 	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=False)
 	self.popupSettings.open()
+
+	# prepare settings:
+        Clock.schedule_once(self.settings_worker)
 
 
     # ###############################################################

@@ -8,7 +8,7 @@ words=`echo $service | awk '{print NF}'`
 
 #echo $words
 
-if [ "$words" == "6" ]
+if [ "$words" == "7" ]
     then
     if [ "$service" != "" ]
 	then

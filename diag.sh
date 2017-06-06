@@ -10,7 +10,9 @@
 SERIAL=`/bin/cat /proc/cpuinfo | grep -i '^serial' | grep -Eo '[a-fA-F0-9]{16}$'`
 DAT=$(/bin/date "+%Y-%m-%d %H:%M:%S")
 CMMD=diag
-if [ $# -eq 1 ]
+
+#if [ $# -eq 1 ]
+if [ -n $1 ]
 then
     # zapis informacie do DB
     CMMD=$1

@@ -36,6 +36,7 @@ VOLUMEINFO_SCRIPT = './volumeinfo.sh'
 SETVOLUME_SCRIPT = './setvolume.sh'
 SETMICVOLUME_SCRIPT = './setmicvolume.sh'
 SETIPADDRESS_SCRIPT = './setipaddress.sh'
+HIDINIT_SCRIPT = './hid_init.sh'
 
 # ### images: ###
 MAKE_CALL_IMG = 'imgs/phone-call.png'

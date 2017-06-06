@@ -8,9 +8,9 @@ words=`echo $service | awk '{print NF}'`
 
 #echo $words
 
-if [ "$words" == "7" ]
+if [ "$words" = "7" ]
     then
-    if [ "$service" != "" ]
+    if [ -n $service ]
 	then
 	    PORT=`echo $service | awk '{print $2}'`
 #	echo $PORT

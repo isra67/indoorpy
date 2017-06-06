@@ -18,7 +18,7 @@ NETWORK=`netstat -rn | grep eth0 | awk '{if($1!="0.0.0.0") print $1}'`
 DNS=`cat /etc/resolv.conf | grep nameserver | awk 'NR==1 {print $2}'`
 
 INET_TMP=`cat /etc/dhcpcd.conf | grep "interface eth0"`
-if [ "$INET_TMP" = "" ]; then
+if [ -z $INET_TMP ]; then
   INET='dhcp'
 else
   INET='static'

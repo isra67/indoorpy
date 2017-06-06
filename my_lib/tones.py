@@ -56,13 +56,14 @@ def ringingTones():
 def playTone(tone):
     "start play"
 
-    stopWAV()
+#    stopWAV()
 
     Logger.debug('%s: %s' %(whoami(), tone))
-##    send_command(PHONERING_PLAYER)
-    send_command(tone)
-#    subprocess.Popen(tone.split())
+###    send_command(PHONERING_PLAYER)
+##    send_command(tone)
+    subprocess.Popen(tone.split())
     #Clock.schedule_once(lambda dt: subprocess.Popen(tone.split()), .5)
+#    Clock.schedule_once(lambda dt: send_command(tone))
 
 
 # ##############################################################################

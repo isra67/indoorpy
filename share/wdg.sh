@@ -12,7 +12,7 @@ wdg_task() {
 	if [ -f $TEST_FILE ]
 	    then
 	    new_val=`cat $TEST_FILE`
-	    if [ "$new_val" == "" ]
+	    if [ -z "$new_val" ]
 	    then
 	     #echo empty file
 	     old_val=1
@@ -22,7 +22,7 @@ wdg_task() {
 		 old_val=$new_val
 		else
 		 #echo test ERR
-		  > $TEST_FILE
+#		  > $TEST_FILE
 		 old_val=1
 #		 /usr/bin/pkill $PROCESS_NAME -9
 		 echo "AUDIO ERROR $SUCCESS" > /tmp/test.xxx

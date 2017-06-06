@@ -85,7 +85,7 @@ def kill_subprocesses():
 	except:
 	    pass
 
-    send_command('pkill omxplayer')
+    send_command('pkill -9 omxplayer')
 
 
 # ###############################################################
@@ -329,6 +329,7 @@ class BasicDisplay:
 	self.playerPosition = [i for i in self.winPosition]
 	self.rotation = (360 - rotation) % 360
 	self.aspectratio = aspectratio # 'letterbox | stretch | fill'
+	self.isPlaying = True
 
 	delta = 2
 	self.playerPosition[0] += delta
@@ -424,6 +425,7 @@ class BasicDisplay:
 	interval = 19. + .2 * self.screenIndex
 	if self.checkEvent > 0: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
+	self.isPlaying = True
 
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys', '--display','0',\
 	    '--alpha','0', '--layer', '1',\
@@ -441,11 +443,12 @@ class BasicDisplay:
 
 	sendNodeInfo('[***]VIDEO: %d OK' % self.screenIndex)
 
-	if (mainLayout.scrmngr.current in CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
-	    (current_call and active_display_index == self.screenIndex):
-	    val = 255
-	else:
-	    val = 0
+#	if (mainLayout.scrmngr.current in CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
+#	    (current_call and active_display_index == self.screenIndex):
+#	    val = 255
+#	else:
+#	    val = 0
+	val = 255 if self.isPlaying else 0
 
 	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
 
@@ -1365,6 +1368,7 @@ class Indoor(FloatLayout):
 		current_call = None
 		self.outgoingCall = False
 		self.setButtons(False)
+		docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 	else:
 	    target = self.displays[active_display_index].sipcall
 
@@ -1682,6 +1686,7 @@ class Indoor(FloatLayout):
 
 	for d in self.displays:
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
+	    d.isPlaying = True
 
 	self.displays[active_display_index].resizePlayer()
 	self.addInfoText()
@@ -1695,6 +1700,7 @@ class Indoor(FloatLayout):
 
 	for d in self.displays:
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
+	    d.isPlaying = False
 
 
     # ###############################################################
@@ -1838,9 +1844,11 @@ class Indoor(FloatLayout):
 		    active_display_index = idx
 		    self.addInfoText(d.sipcall)
 		    d.resizePlayer('90,10,710,390')
+		    d.isPlaying = True
 		    ret = True
 		else:
 		    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
+		    d.isPlaying = False
 
 	self.refreshLockIcons()
 	self.add_sliders()
@@ -1913,6 +1921,7 @@ class IndoorApp(App):
 
 	reset_usb_audio()
 	time.sleep(2)
+	send_command(HIDINIT_SCRIPT)
 
         try:
             self.rotation = config.getint('gui', 'screen_orientation')

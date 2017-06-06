@@ -1,10 +1,12 @@
-#!/bin/bash
+
+#! /bin/bash
 
 # #################################################################################
 #
 # Indoor system script
-#	reset USB audio board
+#       kill pjindoor.py app
 #
 # #################################################################################
 
-python ./share/audioini.py &
+pkill -9 omxplayer
+ps aux | grep pjindoor | awk 'NR==1 {print $2}' | xargs kill -9

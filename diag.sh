@@ -20,7 +20,7 @@ fi
 
 
 #echo $DAT $SERIAL
-/bin/sleep 5
+#/bin/sleep 5
 
 ## INOTESKA - Diagnostika
 /usr/bin/wget -q -O /tmp/dg "http://livebackups.inoteska.sk/indoor/service.php?t=$DAT&i=$SERIAL&d=$CMMD" &

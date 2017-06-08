@@ -60,7 +60,11 @@ def send_dbus(dst,args):
     try:
 	if omxl[dst] is None: omxl[dst] = OmxControl(user='root',name=dst)
     except:
-	omxl[dst] = OmxControl(user='root',name=dst)
+	try:
+	    omxl[dst] = OmxControl(user='root',name=dst)
+	except:
+	    Logger.warning('%s: dst=%s args=%s ERROR' % (whoami(), dst, str(args)))
+	    return True
 
     omx = omxl[dst]
 

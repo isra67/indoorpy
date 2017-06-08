@@ -53,6 +53,7 @@ def initNodeConnection(addr='localhost', port=8123):
 	appSocket.connect(server_address)
 	connErr = False
     except socket.error, e:
+	connErr = True
 	Logger.error('%s ERROR: %r' % (whoami(), e))
 	Clock.schedule_once(lambda dt: initNodeConnection(address, server_port), RECONNECT_TIMER)
 

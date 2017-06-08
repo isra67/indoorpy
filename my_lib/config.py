@@ -106,9 +106,14 @@ def setDefaultConfig(config, full=False):
     config.setdefaults('about', dict_about)
     config.setdefaults('system', dict_system)
 
-    s = get_info(SYSTEMINFO_SCRIPT).split()
+    try:
+	s = get_info(SYSTEMINFO_SCRIPT).split()
+    except:
+	s = []
 
-    config.set('about', 'serial', s[1])
+    cnt = len(s)
+
+    if cnt > 1: config.set('about', 'serial', s[1])
 
     dns = ''
     try:
@@ -116,7 +121,7 @@ def setDefaultConfig(config, full=False):
     except:
         dns = ''
 
-    if len(s) < 6:
+    if cnt < 6:
 	config.set('system', 'inet', 'manual')
 	config.set('system', 'ipaddress', '127.0.0.1')
 	config.set('system', 'gateway', '')

@@ -43,6 +43,7 @@ def initloggers():
     global app_log, sip_log
 
     Logger.info('%s:' % whoami())
+#    send_command('echo "start" > /tmp/deb.txt')
 
     app_log = []
     sip_log = []
@@ -80,6 +81,7 @@ def setloginfo(sipflag=False, msg=''):
     global app_log, sip_log
 
 #    print('%s: dt=%s sipflag=%r msg=%s'% (whoami(), getdatetimestr(), sipflag, msg))
+#    if not '/tmp/deb.txt' in msg: send_command('echo "%s" >> /tmp/deb.txt' % msg)
 
     if sipflag:
 	sip_log.append(msg)

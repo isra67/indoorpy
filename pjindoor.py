@@ -785,6 +785,8 @@ class Indoor(FloatLayout):
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 10.)
 
+	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 20)
+
 
     # ###############################################################
     def init_widgets(self):
@@ -1866,7 +1868,10 @@ class Indoor(FloatLayout):
 	"retrieve current volume level"
         Logger.debug('%s:' % whoami())
 
-	s = get_info(VOLUMEINFO_SCRIPT).split()
+	try:
+	    s = get_info(VOLUMEINFO_SCRIPT).split()
+	except:
+	    s = []
 
 	# speaker:
 	if len(s) < 4: vol = 100		# script problem!
@@ -1962,10 +1967,13 @@ class IndoorApp(App):
     # ###############################################################
     def get_uptime_value(self):
 	"retrieve system uptime"
-	with open('/proc/uptime', 'r') as f:
-	    uptime_seconds = float(f.readline().split()[0]) or 0
-	    uptime_string = str(datetime.timedelta(seconds = uptime_seconds))
-	    uptime_string = uptime_string[:uptime_string.find('.')]
+	uptime_string = ''
+	try:
+	    with open('/proc/uptime', 'r') as f:
+		uptime_seconds = float(f.readline().split()[0]) or 0
+		uptime_string = str(datetime.timedelta(seconds = uptime_seconds))
+		uptime_string = uptime_string[:uptime_string.find('.')]
+	except: pass
 
         Logger.debug('%s: uptime=%s' % (whoami(), uptime_string))
 
@@ -2101,21 +2109,6 @@ class IndoorApp(App):
 
 	if section == 'common':
 	    self.restartAppFlag = True
-#	elif 'command' in section:
-#	    if token == ('command', 'screen_saver'):
-#		try:
-#		    v = int(value)
-#		    SCREEN_SAVER = v * 60
-#		except:
-#		    SCREEN_SAVER = 0
-#	    elif token == ('command', 'watches'):
-#		if value in 'analog' or value in 'digital': WATCHES = value
-#		else: WATCHES = 'None'
-#	elif token == ('devices', 'ringtone'):
-#	    RING_TONE = value
-#	    stopWAV()
-#	    tones.PHONERING_PLAYER = APLAYER + ' ' + APARAMS + RING_TONE
-#	    playWAV(3.0)
 	elif 'system' in section:
 	    if token == ('system', 'inet'):
 		self.changeInet = True

@@ -26,6 +26,7 @@ Builder.load_string("""
     lblAudio: lblAudio
     lblApp: lblApp
     lblRemc: lblRemc
+    lblDebug: lblDebug
 
     Label:
         size_hint: 1, 2.5
@@ -55,6 +56,9 @@ Builder.load_string("""
         text: 'Application: wait...'
         font_size: self.height/2
     Label:
+        id: lblDebug
+        text: '...'
+    Label:
         text: ''
 """)
 
@@ -81,6 +85,9 @@ class Root(BoxLayout):
 	self.lAudio = self.ids.lblAudio
 	self.lRemc = self.ids.lblRemc
 	self.lApp = self.ids.lblApp
+	self.lDebug = self.ids.lblDebug
+
+	self.ipaddr = ''
 
 	self.update()
 
@@ -115,6 +122,9 @@ class Root(BoxLayout):
 #	s.bind((os.getpid(), RTMGRP_LINK))
 	s.bind((0, -1))
 
+	old_msg = -1
+	link_status = ''
+
 	while True:
 	    if self.stop.is_set(): return
 
@@ -128,9 +138,13 @@ class Root(BoxLayout):
 		#print "error"
 		break
 
+	    if old_msg == msg_type: continue
+
+	    old_msg = msg_type
+
 	    # We fundamentally only care about NEWLINK messages in this version.
 	    #if msg_type != RTM_NEWLINK:
-	    if not (msg_type == RTM_NEWLINK or msg_type == RTM_DELLINK or msg_type == RTM_NEWADDR or msg_type == RTM_DELADDR):
+	    if not msg_type in [RTM_NEWLINK, RTM_DELLINK, RTM_NEWADDR, RTM_DELADDR]:
 		continue
 
 	    data = data[16:]
@@ -152,9 +166,8 @@ class Root(BoxLayout):
 		data = data[increment:]
 		remaining -= increment
 
-		if not (msg_type == RTM_NEWLINK or msg_type == RTM_DELLINK\
-		    or msg_type == RTM_NEWADDR or msg_type == RTM_DELADDR):
-		    continue
+#		self.lDebug.text = ('%s: %d %s' % (whoami(), msg_type, rta_data))
+		print('%s: %d %s' % (whoami(), msg_type, rta_data))
 
 		ip = ''
 		# Hoorah, a link is up!
@@ -164,6 +177,9 @@ class Root(BoxLayout):
 		elif msg_type == RTM_DELLINK:
 #		    print "Link %s is DOWN" % rta_data
 		    ip = DOWN_TXT
+		elif msg_type in [RTM_NEWADDR, RTM_DELADDR]:
+#		    print "Link %s ADDRESS" % rta_data
+		    ip = WAIT_TXT
 
 		if len(ip) == 0: continue
 
@@ -175,8 +191,14 @@ class Root(BoxLayout):
 		self.lLink.text = t
 		print('%s: %s %s' % (whoami(), t, ip))
 
-		if rta_type == IFLA_IFNAME and msg_type == RTM_NEWLINK:
-		    send_command('./killme.sh')
+		if rta_type == IFLA_IFNAME and msg_type in [RTM_NEWLINK, RTM_DELLINK]:
+		    if link_status != ip and ip != WAIT_TXT:
+#			send_command('./killme.sh')
+			link_status = ip
+		    continue
+		elif rta_type == IFLA_IFNAME and msg_type == RTM_NEWADDR:
+#		    send_command('./killme.sh')
+		    continue
 
 
 
@@ -191,6 +213,10 @@ class Root(BoxLayout):
 	elif OK_TXT in t: t = t[:len(t) - len(OK_TXT)]
 	t = t + ip
 	self.lNet.text = t
+#	if len(info) > 3:
+#	    if len(self.ipaddr) and self.ipaddr != info[3]: send_command('./killme.sh')
+#	    self.ipaddr = info[3]
+##	self.lDebug.text = t
 	print('%s: %s %r' % (whoami(), t, info))
 	interval = 23 if ip is OK_TXT else 2
 	Clock.schedule_once(self.getNetwork, interval)

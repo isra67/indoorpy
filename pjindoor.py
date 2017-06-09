@@ -68,9 +68,11 @@ def kill_subprocesses():
     "tidy up at exit or break"
     global mainLayout
 
+#    send_command('/usr/bin/python /root/indoorpy/runme.py')
+
     sendNodeInfo('[***]STOP')
 
-    stop_sw_watchdog()
+#    stop_sw_watchdog()
 
     Logger.info('%s: destroy lib at exit' % whoami())
     try:
@@ -535,7 +537,7 @@ class BasicDisplay:
         	    break
 	    except: pass
 
-	    if not msg is '':
+	    if len(msg) > 0:
 		# got a message, do something
 		noDataCounter = 0
 		if '[' in msg and ']' in msg:
@@ -572,7 +574,7 @@ class BasicDisplay:
 
 	tmsg = []
 	for m in msg:
-	    if '' is m or '[' in m or ('=' in m and not ';' in m): tmsg.append(m)
+	    if '' == m or '[' in m or ('=' in m and not ';' in m): tmsg.append(m)
 
 	while len(tmsg):
 	    msg = tmsg[:tmsg.index('') + 1]
@@ -720,7 +722,7 @@ class Indoor(FloatLayout):
 
         try:
 	    value = config.get('command', 'watches').strip()
-	    if value in 'analog' or value in 'digital': WATCHES = value
+	    if value == 'analog' or value == 'digital': WATCHES = value
 	    else: WATCHES = 'None'
         except:
             Logger.warning('Indoor init: ERROR 4 = read config file!')
@@ -1104,7 +1106,7 @@ class Indoor(FloatLayout):
 ##		Logger.info('%s: codec param priority=%d' % (whoami(), p.priority))
 
 	    # Create local account
-	    if accounttype in 'peer-to-peer':
+	    if accounttype == 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
 		sendNodeInfo('[***]SIP:peer-to-peer')
@@ -1157,7 +1159,7 @@ class Indoor(FloatLayout):
             self.info_state = 2
         elif self.info_state == 2:
             self.info_state = 3
-	    if not self.lib is None and self.scrmngr.current in CAMERA_SCR:
+	    if not self.lib is None and self.scrmngr.current == CAMERA_SCR:
 		self.setButtons(False)
         elif self.info_state == 3:
             self.info_state = 4
@@ -1179,18 +1181,38 @@ class Indoor(FloatLayout):
     # ###############################################################
     def infinite_loop(self, dt):
 	"main neverendig loop"
-        global current_call, active_display_index, procs
+        global current_call, active_display_index, procs, docall_button_global, config
 
 	if len(procs) == 0: return
 
 	for idx, p in enumerate(procs):
-	    if p.poll() is not None:
+	    if not p.poll() is None:
 		try:
 		    p.kill()
 		except:
 		    pass
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
+
+	try:
+	    s = get_info(SYSTEMINFO_SCRIPT).split()
+	except:
+	    s = []
+
+	docall_button_global.btntext = '' if len(s) > 8 else 'Network ERROR'
+	if '127.0.0.1' == config.get('system', 'ipaddress') and len(s) > 8:
+	    Logger.error('%s: network ipaddress %r' % (whoami(), s))
+
+	    try:
+		config.set('system', 'inet', s[2])
+		config.set('system', 'ipaddress', s[3])
+		config.set('system', 'gateway', s[6])
+		config.set('system', 'netmask', s[4])
+		config.set('system', 'dns', s[8])
+		config.write()
+	    except:
+		Logger.error('%s: config %r' % (whoami(), config))
+		docall_button_global.btntext = 'ERROR'
 
 
     # ###############################################################
@@ -1251,14 +1273,14 @@ class Indoor(FloatLayout):
         Clock.unschedule(self.screenTimerEvent)
 	self.screenTimerEvent = None
 
-	if current_call is None and self.scrmngr.current in CAMERA_SCR:
+	if current_call is None and self.scrmngr.current == CAMERA_SCR:
 	    self.scrmngr.current = DIGITAL_SCR
-	    if WATCHES in 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
+	    if WATCHES == 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
 	    else:
 		if len(self.ids.clockslayout.children):
 		    Logger.error('%s: widgets_cnt=%d' % (whoami(), len(self.ids.clockslayout.children)))
 		    self.ids.clockslayout.clear_widgets()
-		self.ids.clockslayout.add_widget(MyClockWidget() if WATCHES in 'analog' else DigiClockWidget())
+		self.ids.clockslayout.add_widget(MyClockWidget() if WATCHES == 'analog' else DigiClockWidget())
 
 
     # ###############################################################
@@ -1376,7 +1398,7 @@ class Indoor(FloatLayout):
 
 	    if len(target) == 0: return
 
-	    if len(self.sipServerAddr) and '.' not in target:
+	    if len(self.sipServerAddr) and not '.' in target:
 		target = target + '@' + self.sipServerAddr
 
 	    lck = self.lib.auto_lock()
@@ -1462,7 +1484,7 @@ class Indoor(FloatLayout):
 	aaudio = []
 	for s in sys:
 	    item = s
-	    if s['type'] not in 'title' and s['key'] == 'ringtone':
+	    if not s['type'] in 'title' and s['key'] == 'ringtone':
 		aaudio = s['options'] + rt
 #		aaudio.append(item)
 	spinmusic.text = RING_TONE
@@ -1653,7 +1675,7 @@ class Indoor(FloatLayout):
 	    return
 
 #	if not touch is None and touch.is_double_tap:
-#	    if not current_call and self.scrmngr.current in CAMERA_SCR and self.popupSettings is None:
+#	    if not current_call and self.scrmngr.current == CAMERA_SCR and self.popupSettings is None:
 #		self.restart_player_window(active_display_index)
 #	    return
 
@@ -1663,7 +1685,7 @@ class Indoor(FloatLayout):
 	    self.loseNextTouch = True
 	    return
 
-	if not self.scrmngr.current in CAMERA_SCR or not current_call is None: return
+	if not self.scrmngr.current == CAMERA_SCR or not current_call is None: return
 
 	idx = 0
 	for child in self.walk():
@@ -1723,7 +1745,7 @@ class Indoor(FloatLayout):
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
 
-	    docall_button_global.btntext = '' if not '127.0.0.1' in config.get('system', 'ipaddress') else 'Network ERROR'
+#	    docall_button_global.btntext = '' if '127.0.0.1' != config.get('system', 'ipaddress') else 'Network ERROR'
 
 
     # ###############################################################
@@ -1855,7 +1877,7 @@ class Indoor(FloatLayout):
 	self.refreshLockIcons()
 	self.add_sliders()
 
-	if ret and not self.scrmngr.current in CAMERA_SCR:
+	if ret and not self.scrmngr.current == CAMERA_SCR:
 	    self.displays[active_display_index].dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 
 	self.scrmngr.current = CAMERA_SCR
@@ -1922,7 +1944,9 @@ class IndoorApp(App):
 
 	self.config = config
 
-	kill_subprocesses()
+	#kill_subprocesses()
+	send_command('pkill -9 omxplayer')
+#	send_command('./killapp.sh runme')
 
 	reset_usb_audio()
 	time.sleep(2)
@@ -2109,18 +2133,18 @@ class IndoorApp(App):
 
 	if section == 'common':
 	    self.restartAppFlag = True
-	elif 'system' in section:
+	elif 'system' == section:
 	    if token == ('system', 'inet'):
 		self.changeInet = True
 	    elif key in ['ipaddress', 'netmask', 'gateway', 'dns']:
-		if config.get('system', 'inet') in 'dhcp':
+		if config.get('system', 'inet') == 'dhcp':
 		    config.set(section, key, self.config.get(section, key))
 		    config.write()
 		else:
 		    self.changeInet = True
-	elif 'sip' in section:
+	elif 'sip' == section:
 	    if (key in ['sip_server_addr', 'sip_username', 'sip_p4ssw0rd']):
-		if config.get('sip', 'sip_mode') in 'peer-to-peer':
+		if config.get('sip', 'sip_mode') == 'peer-to-peer':
 		    config.set(section, key, self.config.get(section, key))
 		    config.write()
 		else:
@@ -2130,7 +2154,7 @@ class IndoorApp(App):
 		    self.myAlertListBox('Call log history', reversed(callstats.call_log))
 	    elif token == ('sip', 'sip_mode'):
 		self.restartAppFlag = True
-	elif 'service' in section:
+	elif 'service' == section:
 	    if token == ('service', 'app_log'):
 		if value == 'none':
 		    saveKivyCfg('kivy', 'log_level', 'critical')
@@ -2167,7 +2191,7 @@ class IndoorApp(App):
 		    config.write()
 		    MyAlertBox(titl='WARNING', txt='Bad password!\n\nPassword will not change', cb=None, ad=False).open()
 		self.restartAppFlag = True
-	elif 'about' in section:
+	elif 'about' == section:
 	    if token == ('about', 'licencekey'):
 		self.restartAppFlag = True
 	    elif token == ('about', 'buttonregs'):
@@ -2182,7 +2206,7 @@ class IndoorApp(App):
 		    else:
 			MyAlertBox(titl='Registration', txt='Your licence key will come to your email address\ntill 3 working days\n\nPress OK',\
 			    cb=None, ad=False).open()
-	elif 'gui' in section:
+	elif 'gui' == section:
 	    self.restartAppFlag = True
 	    if token == ('gui', 'screen_orientation'):
 		saveKivyCfg('graphics', 'rotation', value)
@@ -2254,6 +2278,8 @@ class IndoorApp(App):
 	else:
 	    self.changeInet = False
 	    scrmngr.current = CAMERA_SCR
+
+	self.destroy_settings()
 
 
     # ###############################################################

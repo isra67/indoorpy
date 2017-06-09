@@ -44,7 +44,7 @@ pustajpozadie() {
 
 
 pustaj() {
-	/bin/sleep 1
+	/bin/sleep 2
 
 	while true
 	do
@@ -74,9 +74,10 @@ cd /root/indoorpy/share
 pustajNode >& /dev/null &
 
 ## start background app:
-pustajpozadie >& /dev/null &
-
-/bin/sleep 2
+cd /root/indoorpy
+/usr/bin/python runme.py > /dev/null &
+#pustajpozadie >& /dev/null &
+##pustajpozadie >& /tmp/deb.txt &
 
 ## start python app:
 pustaj >& /dev/null &

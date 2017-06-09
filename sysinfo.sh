@@ -7,6 +7,10 @@
 #
 # #################################################################################
 
+
+#ifconfig eth0 >> /tmp/ifc.txt
+#netstat -rn >> /tmp/ns.txt
+
 SERIAL=`cat /proc/cpuinfo | grep -i '^serial' | grep -Eo '[a-fA-F0-9]{16}$'`
 DAT=$(date "+%Y-%m-%d")
 IP_ADDR=`hostname -I`

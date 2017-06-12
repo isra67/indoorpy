@@ -4,10 +4,10 @@
 # #################################################################################
 #
 # Indoor system script
-#       kill app
+#       kill all apps named $1
 #
 # #################################################################################
 
 if [ -n "$1" ]; then
-    ps aux | grep $1 | awk 'NR==1 {print $2}' | xargs kill -9
+    ps aux | grep $1 | awk '{print $2}' | xargs kill -9
 fi

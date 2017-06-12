@@ -7,4 +7,10 @@
 #
 # #################################################################################
 
-echo $1 > /sys/class/backlight/rpi_backlight/brightness
+VAL=50
+if [ -n "$1" ];
+then
+    VAL=$1
+fi
+
+echo $VAL > /sys/class/backlight/rpi_backlight/brightness

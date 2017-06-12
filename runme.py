@@ -1,66 +1,81 @@
 import kivy
+
 from kivy.app import App
-
 from kivy.clock import Clock
-#from kivy.graphics import Rectangle
-from kivy.uix.boxlayout import BoxLayout
+from kivy.config import Config#, ConfigParser
 from kivy.lang import Builder
-from kivy.properties import NumericProperty#, StringProperty
-#from random import randint
-
-import subprocess
-
-import threading
+#from kivy.properties import NumericProperty
 
 import os
 import socket
 import struct
+import threading
 
 from my_lib import *
+
 
 Builder.load_string("""
 <Root>:
     orientation: 'vertical'
     lblLink: lblLink
     lblNet: lblNet
+    lblInet: lblInet
     lblAudio: lblAudio
     lblApp: lblApp
     lblRemc: lblRemc
     lblDebug: lblDebug
+    lbOrientation: 'horizontal'
 
     Label:
         size_hint: 1, 2.5
         text: 'Indoor'
         font_size: self.height/2
-    Label:
-        text: 'System: OK'
-        font_size: self.height/2
-    Label:
-        id: lblLink
-        text: 'ETH link: wait...'
-        font_size: self.height/2
-    Label:
-        id: lblNet
-        text: 'Network: wait...'
-        font_size: self.height/2
-    Label:
-        id: lblAudio
-        text: 'Audio: wait...'
-        font_size: self.height/2
-    Label:
-        id: lblRemc
-        text: 'Remote control status: wait...'
-        font_size: self.height/2
-    Label:
-        id: lblApp
-        text: 'Application: wait...'
-        font_size: self.height/2
+    BoxLayout:
+        orientation: root.lbOrientation
+        Label:
+            text: 'System: OK'
+            font_size: self.height/2
+        Label:
+            id: lblLink
+            text: 'ETH link: wait...'
+            font_size: self.height/2
+    BoxLayout:
+        orientation: root.lbOrientation
+        Label:
+            id: lblNet
+            text: 'Network: wait...'
+            font_size: self.height/2
+        Label:
+            id: lblInet
+            text: 'Internet: wait...'
+            font_size: self.height/2
+    BoxLayout:
+        orientation: root.lbOrientation
+        Label:
+            id: lblAudio
+            text: 'Audio: wait...'
+            font_size: self.height/2
+        Label:
+            id: lblRemc
+            text: 'Remote control: wait...'
+            font_size: self.height/2
+    BoxLayout:
+        orientation: root.lbOrientation
+        Label:
+            id: lblApp
+            text: 'Application: wait...'
+            font_size: self.height/2
+        Label:
+            id: lblSrv
+            text: 'Internal webserver: wait...'
+            font_size: self.height/2
     Label:
         id: lblDebug
         text: '...'
     Label:
         text: ''
 """)
+
 
 WAIT_TXT = ' wait...'
 OK_TXT = ' OK '
@@ -74,17 +89,19 @@ DOWN_TXT = ' down '
 
 class Root(BoxLayout):
 
-    counter = NumericProperty(0)
+#    counter = NumericProperty(0)
     stop = threading.Event()
 
     def __init__(self, **kwargs):
 	super(Root, self).__init__(**kwargs)
 
 	self.lNet = self.ids.lblNet
+	self.lInet = self.ids.lblInet
 	self.lLink = self.ids.lblLink
 	self.lAudio = self.ids.lblAudio
 	self.lRemc = self.ids.lblRemc
 	self.lApp = self.ids.lblApp
+	self.lSrv = self.ids.lblSrv
 	self.lDebug = self.ids.lblDebug
 
 	self.ipaddr = ''
@@ -93,11 +110,21 @@ class Root(BoxLayout):
 
 	threading.Thread(target=self.procNetlink).start()
 
+#	Config.read('/root/.kivy/config.ini')
+
+	rot = Config.getint('graphics','rotation')
+	if rot in [90, 270]:
+	    self.lbOrientation = 'vertical'
+
+	print whoami(), rot, self.lbOrientation
+
 
     def update(self):
 	self.getNetwork()
+	self.getINet()
 	self.getAudio()
 	self.getTunnel()
+	self.getNodeServer()
 
 
     def procNetlink(self):
@@ -167,18 +194,15 @@ class Root(BoxLayout):
 		remaining -= increment
 
 #		self.lDebug.text = ('%s: %d %s' % (whoami(), msg_type, rta_data))
-		print('%s: %d %s' % (whoami(), msg_type, rta_data))
+#		print('%s: %d %s' % (whoami(), msg_type, rta_data))
 
 		ip = ''
 		# Hoorah, a link is up!
 		if msg_type == RTM_NEWLINK:
-#		    print "Link %s is UP" % rta_data
 		    ip = UP_TXT
 		elif msg_type == RTM_DELLINK:
-#		    print "Link %s is DOWN" % rta_data
 		    ip = DOWN_TXT
 		elif msg_type in [RTM_NEWADDR, RTM_DELADDR]:
-#		    print "Link %s ADDRESS" % rta_data
 		    ip = WAIT_TXT
 
 		if len(ip) == 0: continue
@@ -189,15 +213,13 @@ class Root(BoxLayout):
 		elif DOWN_TXT in t: t = t[:len(t) - len(DOWN_TXT)]
 		t = t + ip
 		self.lLink.text = t
-		print('%s: %s %s' % (whoami(), t, ip))
+#		print('%s: %s %s' % (whoami(), t, ip))
 
 		if rta_type == IFLA_IFNAME and msg_type in [RTM_NEWLINK, RTM_DELLINK]:
 		    if link_status != ip and ip != WAIT_TXT:
-#			send_command('./killme.sh')
 			link_status = ip
 		    continue
 		elif rta_type == IFLA_IFNAME and msg_type == RTM_NEWADDR:
-#		    send_command('./killme.sh')
 		    continue
 
 
@@ -213,13 +235,25 @@ class Root(BoxLayout):
 	elif OK_TXT in t: t = t[:len(t) - len(OK_TXT)]
 	t = t + ip
 	self.lNet.text = t
-#	if len(info) > 3:
-#	    if len(self.ipaddr) and self.ipaddr != info[3]: send_command('./killme.sh')
-#	    self.ipaddr = info[3]
-##	self.lDebug.text = t
-	print('%s: %s %r' % (whoami(), t, info))
-	interval = 23 if ip is OK_TXT else 2
+#	print('%s: %s %r' % (whoami(), t, info))
+	interval = 12 if ip is OK_TXT else 2
 	Clock.schedule_once(self.getNetwork, interval)
+
+    def getINet(self, speed=30):
+	try:
+	    info = get_info('./checkinet.sh')
+	except Exception as e:
+	    info = '0'
+	ip = OK_TXT if '1' in info else NO_TXT
+	t = self.lInet.text
+	if WAIT_TXT in t: t = t[:len(t) - len(WAIT_TXT)]
+	elif OK_TXT in t: t = t[:len(t) - len(OK_TXT)]
+	elif NO_TXT in t: t = t[:len(t) - len(NO_TXT)]
+	t = t + ip
+	self.lInet.text = t
+	print('%s: %s %r' % (whoami(), t, info))
+	interval = 14 if ip == OK_TXT else 5
+	Clock.schedule_once(self.getINet, interval)
 
     def getTunnel(self, speed=30):
 	ps = subprocess.Popen("ps aux | grep tunnel | grep -c -v 'grep tunnel'", shell=True, stdout=subprocess.PIPE)
@@ -233,8 +267,8 @@ class Root(BoxLayout):
 	elif OK_TXT in t: t = t[:len(t) - len(OK_TXT)]
 	t = t + ip
 	self.lRemc.text = t
-	print('%s: %s %s' % (whoami(), t, info))
-	interval = 35
+#	print('%s: %s %s' % (whoami(), t, info))
+	interval = 13
 	Clock.schedule_once(self.getTunnel, interval)
 
     def getAudio(self, speed=30):
@@ -249,18 +283,30 @@ class Root(BoxLayout):
 	elif OK_TXT in t: t = t[:len(t) - len(OK_TXT)]
 	t = t + ip
 	self.lAudio.text = t
-	print('%s: %s %s' % (whoami(), t, info))
+#	print('%s: %s %s' % (whoami(), t, info))
 	interval = 10
 	Clock.schedule_once(self.getAudio, interval)
 
+    def getNodeServer(self, speed=30):
+	ps = subprocess.Popen("ps aux | grep node | grep -c -v 'grep node'", shell=True, stdout=subprocess.PIPE)
+	info = ps.stdout.read()
+	ps.stdout.close()
+	ps.wait()
+	ip = OK_TXT if '1' in info else NO_TXT
+	t = self.lSrv.text
+	if WAIT_TXT in t: t = t[:len(t) - len(WAIT_TXT)]
+	elif NO_TXT in t: t = t[:len(t) - len(NO_TXT)]
+	elif OK_TXT in t: t = t[:len(t) - len(OK_TXT)]
+	t = t + ip
+	self.lSrv.text = t
+#	print('%s: %s %s' % (whoami(), t, info))
+	interval = 15
+	Clock.schedule_once(self.getNodeServer, interval)
 
 
 class Tester(App):
     def build(self):
 	return Root()
-
-#    def on_stop(self):
-#	self.root.stop.set()
 
 
 if __name__ == '__main__':

@@ -9,4 +9,4 @@
 # #################################################################################
 
 pkill -9 omxplayer
-ps aux | grep pjindoor | awk 'NR==1 {print $2}' | xargs kill -9
+ps aux | grep pjindoor | awk '{print $2}' | xargs kill -9

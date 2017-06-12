@@ -1199,7 +1199,7 @@ class Indoor(FloatLayout):
 	except:
 	    s = []
 
-	docall_button_global.btntext = '' if len(s) > 8 else 'Network ERROR'
+	docall_button_global.btntext = '' if len(s) >= 8 else 'Network ERROR'
 	if '127.0.0.1' == config.get('system', 'ipaddress') and len(s) > 8:
 	    Logger.error('%s: network ipaddress %r' % (whoami(), s))
 
@@ -2217,6 +2217,8 @@ class IndoorApp(App):
 	"restart App after alert box"
         Logger.debug('%s:' % whoami())
 
+#	send_command('/usr/bin/python /root/indoorpy/runme.py &')
+
 	kill_subprocesses()
 	App.get_running_app().stop()
 
@@ -2330,4 +2332,5 @@ class IndoorApp(App):
 # ###############################################################
 
 if __name__ == '__main__':
+    Clock.schedule_once(lambda dt: send_command('./killapp.sh runme.py'), 20)
     IndoorApp().run()

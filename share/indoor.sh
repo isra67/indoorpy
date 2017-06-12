@@ -44,7 +44,7 @@ pustajpozadie() {
 
 
 pustaj() {
-	/bin/sleep 2
+	/bin/sleep 4
 
 	while true
 	do
@@ -53,6 +53,7 @@ pustaj() {
 
 		## Inoteska Evidence python App
 		/usr/bin/python pjindoor.py
+		/usr/bin/python runme.py &
 #		echo "LIGLO" >> /tmp/pokus.txt
 		/bin/sleep 3
 	done
@@ -75,13 +76,15 @@ pustajNode >& /dev/null &
 
 ## start background app:
 cd /root/indoorpy
-/usr/bin/python runme.py > /dev/null &
+/usr/bin/python runme.py >& /dev/null &
 #pustajpozadie >& /dev/null &
-##pustajpozadie >& /tmp/deb.txt &
+#pustajpozadie >& /tmp/deb.txt &
+
+## start diag:
+pustajDiag >& /dev/null &
+
+/bin/sleep 2
 
 ## start python app:
 pustaj >& /dev/null &
 #pustaj >& /tmp/deb.txt &
-
-## start diag:
-pustajDiag >& /dev/null &

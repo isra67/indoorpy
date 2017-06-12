@@ -7,4 +7,6 @@
 #
 # #################################################################################
 
-echo $1 > /sys/class/backlight/rpi_backlight/bl_power
+if [ -n "$1" ]; then
+    echo $1 > /sys/class/backlight/rpi_backlight/bl_power
+fi

@@ -1,14 +1,15 @@
 #!/bin/bash
 
-#IFACE="ppp0"
-DEST="dev.inoteska.sk"
-#DEST="192.168.1.123"
-PORT=2124
+# #################################################################################
+#
+# Indoor system script
+#      build remote control access via tunnel
+#
+# #################################################################################
 
-#if [ "$3" != "" ]
-#    then
-#	DEST=$3
-#    fi
+
+DEST="dev.inoteska.sk"
+PORT=2124
 
 
 if [ "$2" != "" ]
@@ -19,7 +20,6 @@ if [ "$2" != "" ]
 tunnel_task() {
 	while true; do
 			ssh -N  $DEST -o "RemoteForward $PORT 127.0.0.1:22" &> /dev/null
-#			ssh -N $DEST &> /dev/null
 		sleep 30
 	done
 }

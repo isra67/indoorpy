@@ -16,13 +16,13 @@ words=`echo $service | awk '{print NF}'`
 
 if [ "$words" = "7" ]
     then
-    if [ -n $service ]
+    if [ -n "$service" ]
 	then
 	    PORT=`echo $service | awk '{print $2}'`
 	    $FINAL_SCRIPT start $PORT
 	else
 	    echo ERR
 	fi
-    else
-	echo ERR $words
+#    else
+#	echo ERR $words $service
     fi

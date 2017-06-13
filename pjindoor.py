@@ -616,7 +616,7 @@ class BasicDisplay:
     def dbus_command(self, params=[]):
 	"d-bus command"
 	global mainLayout
-	Logger.trace('%s: %s' % (whoami(), str(params)))
+	Logger.debug('%s: %s' % (whoami(), str(params)))
 
 	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
 	    sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
@@ -785,7 +785,8 @@ class Indoor(FloatLayout):
 	sendNodeInfo('[***]START')
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
-        Clock.schedule_interval(self.info_state_loop, 10.)
+        Clock.schedule_interval(self.info_state_loop, 13.)
+        Clock.schedule_interval(self.checkNetStatus, 19.)
 
 	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 20)
 
@@ -1138,17 +1139,15 @@ class Indoor(FloatLayout):
 
             lib.destroy()
             self.lib = lib = None
-#	    docall_button_global.text = "No Licence"
 	    docall_button_global.btntext = "No Licence"
-#	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
-	    docall_button_global.imgpath = NO_IMG #ERROR_CALL_IMG
+	    docall_button_global.imgpath = NO_IMG
 
 
     # ###############################################################
     def info_state_loop(self, dt):
 	"state loop"
-        global current_call, active_display_index, docall_button_global, config #BUTTON_DO_CALL, COLOR_BUTTON_BASIC
+        global current_call, active_display_index, docall_button_global, config
 
         if not current_call is None: self.info_state = 0
 
@@ -1157,23 +1156,19 @@ class Indoor(FloatLayout):
 		self.info_state = 1
         elif self.info_state == 1:
             self.info_state = 2
-        elif self.info_state == 2:
-            self.info_state = 3
 	    if not self.lib is None and self.scrmngr.current == CAMERA_SCR:
 		self.setButtons(False)
-        elif self.info_state == 3:
-            self.info_state = 4
-	    sendNodeInfo('[***]RPISN: %s' % config.get('about','serial'))
-        elif self.info_state == 4:
-            self.info_state = 0
+        elif self.info_state == 2:
+            self.info_state = 3
 	    sendNodeInfo('[***]INDOORVER: %s' % config.get('about','app_ver'))
+        elif self.info_state == 3:
+            self.info_state = 0
+	    sendNodeInfo('[***]RPISN: %s' % config.get('about','serial'))
 
 	if self.lib is None:
-#	    docall_button_global.text = "No Licence"
 	    docall_button_global.btntext = "No Licence"
-#	    docall_button_global.color = COLOR_ERROR_CALL
 	    docall_button_global.disabled = True
-	    docall_button_global.imgpath = NO_IMG #ERROR_CALL_IMG
+	    docall_button_global.imgpath = NO_IMG
 
 	if check_usb_audio() > 0: self.reinitbackgroundtasks()
 
@@ -1181,7 +1176,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def infinite_loop(self, dt):
 	"main neverendig loop"
-        global current_call, active_display_index, procs, docall_button_global, config
+        global current_call, active_display_index, procs
 
 	if len(procs) == 0: return
 
@@ -1193,6 +1188,12 @@ class Indoor(FloatLayout):
 		    pass
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
+
+
+    # ###############################################################
+    def checkNetStatus(self, dt=20):
+	"test ETH status"
+        global docall_button_global, config
 
 	try:
 	    s = get_info(SYSTEMINFO_SCRIPT).split()
@@ -1213,14 +1214,6 @@ class Indoor(FloatLayout):
 	    except:
 		Logger.error('%s: config %r' % (whoami(), config))
 		docall_button_global.btntext = 'ERROR'
-
-
-    # ###############################################################
-#    def reinitworker(self, dt=0):
-#	"SIP reinitialization worker"
-#	Logger.debug('%s:' % whoami())
-#	time.sleep(2)
-#	self.init_myphone()
 
 
     # ###############################################################
@@ -1406,7 +1399,6 @@ class Indoor(FloatLayout):
 	    if make_call('sip:' + target + ':5060') is None:
 		txt = 'Audio ERROR' if self.mediaErrorFlag else '--> ' + str(active_display_index + 1) + ' ERROR'
 		docall_button_global.color = COLOR_ERROR_CALL
-#		docall_button_global.text = txt
 		docall_button_global.btntext = txt
 		docall_button_global.imgpath = ERROR_CALL_IMG
 	    else:
@@ -1476,7 +1468,6 @@ class Indoor(FloatLayout):
 	spinmusic = content.setline3.subbox2.musicspinner
 	spinclock = content.setline3.subbox3.clockspinner
 	spinclock.text = WATCHES
-#	spinclock.bind(text=self.show_selected_value)
 
 	# adjust tone list
 	rt = ringingTones()
@@ -1509,7 +1500,6 @@ class Indoor(FloatLayout):
 
 	content = self.popupSettings.content
 	spinmusic = content.setline3.subbox2.musicspinner
-#	spinclock = content.setline3.subbox3.clockspinner
 
 	if spinner == spinmusic:
 	    stopWAV()
@@ -1671,13 +1661,13 @@ class Indoor(FloatLayout):
 	if len(procs) == 0: return
 
 	if not touch is None and touch.is_triple_tap:
-	    self.checkTripleTap(touch)
+	    if not current_call and self.scrmngr.current == CAMERA_SCR and self.popupSettings is None:
+		self.restart_player_window(active_display_index)
 	    return
 
-#	if not touch is None and touch.is_double_tap:
-#	    if not current_call and self.scrmngr.current == CAMERA_SCR and self.popupSettings is None:
-#		self.restart_player_window(active_display_index)
-#	    return
+	if not touch is None and touch.is_double_tap:
+	    self.checkTripleTap(touch)
+	    return
 
 	if current_call is None: self.startScreenTiming()
 

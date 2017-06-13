@@ -25,8 +25,7 @@ then
 fi
 
 
-#wget -T 30 -O $TMP_FILE -o /tmp/wgets "$URL?t=$DATEY%20$DATEH&i=$SERIAL&d=$CMMD"
-wget -T 10 -O $TMP_FILE "$URL?t=$DATEY%20$DATEH&i=$SERIAL&d=$CMMD"
+wget -T 30 -O $TMP_FILE -o /tmp/wgets "$URL?t=$DATEY%20$DATEH&i=$SERIAL&d=$CMMD"
 
 service=`cat $TMP_FILE`
 if [ -n "$service" ]

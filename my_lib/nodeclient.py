@@ -65,7 +65,6 @@ def sendNodeInfo(msg=''):
     global server_port, address, connErr
 
     if connErr: return
-
 #    print('%s: %s' % (whoami(), msg))
 
     try:

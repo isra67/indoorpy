@@ -88,7 +88,7 @@ def send_dbus(dst,args):
 
 def send_command(cmd):
     "send shell command"
-    Logger.info('%s: cmd=%s' % (whoami(), cmd))
+    Logger.debug('%s: cmd=%s' % (whoami(), cmd))
     try:
         os.system(cmd)
     except:
@@ -101,7 +101,7 @@ def get_info(cmd):
     "get information from shell script"
     proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, shell=False)
     (out, err) = proc.communicate()
-    Logger.info('%s: cmd=%s out=%s (err=%s)' % (whoami(), cmd, out, str(err)))
+    Logger.debug('%s: cmd=%s out=%s (err=%s)' % (whoami(), cmd, out, str(err)))
     return out
 
 

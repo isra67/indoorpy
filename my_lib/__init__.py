@@ -29,6 +29,9 @@ from itools import *
 from audiotools import *
 from tones import *
 
+# ### NETLINK socket ###
+from netlink import *
+
 # ### SW watchdog ###
 from sw_watchdog import *
 

@@ -53,7 +53,7 @@ Builder.load_string("""
         orientation: root.lbOrientation
         Label:
             id: lblAudio
-            text: 'Audio: wait...'
+            text: 'Audio board: wait...'
             font_size: self.height/2
         Label:
             id: lblRemc
@@ -67,7 +67,7 @@ Builder.load_string("""
             font_size: self.height/2
         Label:
             id: lblSrv
-            text: 'Internal webserver: wait...'
+            text: 'Internal web server: wait...'
             font_size: self.height/2
     Label:
         id: lblDebug

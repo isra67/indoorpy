@@ -68,8 +68,6 @@ def kill_subprocesses():
     "tidy up at exit or break"
     global mainLayout
 
-#    send_command('/usr/bin/python /root/indoorpy/runme.py')
-
     sendNodeInfo('[***]STOP')
 
 #    stop_sw_watchdog()
@@ -414,6 +412,7 @@ class BasicDisplay:
     # ###############################################################
     def initPlayer(self):
 	"start video player"
+	global mainLayout, current_call, active_display_index
 
 	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
 	try:
@@ -427,7 +426,8 @@ class BasicDisplay:
 	interval = 19. + .2 * self.screenIndex
 	if self.checkEvent > 0: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
-	self.isPlaying = True
+	self.isPlaying = (mainLayout.scrmngr.current == CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
+	    (current_call and active_display_index == self.screenIndex)
 
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys', '--display','0',\
 	    '--alpha','0', '--layer', '1',\
@@ -445,11 +445,6 @@ class BasicDisplay:
 
 	sendNodeInfo('[***]VIDEO: %d OK' % self.screenIndex)
 
-#	if (mainLayout.scrmngr.current in CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
-#	    (current_call and active_display_index == self.screenIndex):
-#	    val = 255
-#	else:
-#	    val = 0
 	val = 255 if self.isPlaying else 0
 
 	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
@@ -462,8 +457,6 @@ class BasicDisplay:
 	Logger.debug('%s: (%d) %s' % (whoami(), self.screenIndex, newpos))
 
 	self.hidePlayer()
-
-#	if scr_mode == 1: return
 
 	pos = []
 	pos = newpos.split(',') if len(newpos) else self.playerPosition
@@ -616,7 +609,7 @@ class BasicDisplay:
     def dbus_command(self, params=[]):
 	"d-bus command"
 	global mainLayout
-	Logger.debug('%s: %s' % (whoami(), str(params)))
+	Logger.trace('%s: (%d) %s' % (whoami(), self.screenIndex, str(params)))
 
 	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
 	    sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
@@ -657,15 +650,15 @@ class BasicDisplay:
 
 class Indoor(FloatLayout):
 
-    lib = None
+    lib = None			# pjsip library
     outgoingCall = False
     dnd_mode = False
     avolume = 100
     micvolume = 100
     brightness = 255
     appRestartEvent = None
-    mediaErrorFlag = False
-    popupSettings = None
+    mediaErrorFlag = False	# audio error
+    popupSettings = None	# popup window is opened
     volslider = None
     micslider = None
     masterPwd = '1234'
@@ -682,6 +675,7 @@ class Indoor(FloatLayout):
     buttonAreaHigh = 0
     infoAreaHigh = 0
     sipPort = '5060'
+    preparing = False		# preparing Settings
 
     def __init__(self, **kwargs):
 	"app init"
@@ -697,7 +691,6 @@ class Indoor(FloatLayout):
         init_sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
-#	self.testPlayerIdx = 0
 	self.loseNextTouch = False
 
 	self.displays = []
@@ -785,10 +778,14 @@ class Indoor(FloatLayout):
 	sendNodeInfo('[***]START')
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
-        Clock.schedule_interval(self.info_state_loop, 13.)
-        Clock.schedule_interval(self.checkNetStatus, 19.)
+        Clock.schedule_interval(self.info_state_loop, 12.)
+        Clock.schedule_interval(self.checkNetStatus, 24.)
 
-	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 20)
+	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 15)
+
+	t = threading.Thread(target=procNetlink)
+	t.daemon = True
+	t.start()
 
 
     # ###############################################################
@@ -877,11 +874,6 @@ class Indoor(FloatLayout):
 	    self.btnDoor2.size_hint_x = None
 	    self.btnDoor1.width = w
 	    self.btnDoor2.width = w
-
-#	w = int(btnLayout1.width / cnt)
-#	for i in range(cnt):
-#	    btnLayout1.children[i].width = w
-#	    btnLayout2.children[i].width = w
 
 
     # ###############################################################
@@ -990,24 +982,18 @@ class Indoor(FloatLayout):
 		wins = ['0,0,800,432']
 	    elif scr_mode in [2,3]:
 		wins = ['0,0,400,432', '400,0,800,432']
-#	    elif scr_mode == 3:
-#		wins = ['0,0,800,216', '0,216,800,432']
 	    else:
 		wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
 	elif self.scrOrientation == 180:	# landscape
 	    if scr_mode == 1:
 		wins = ['0,47,800,480']
 	    elif scr_mode in [2,3]:
-#		wins = ['0,263,800,480', '0,47,800,263']
-#	    elif scr_mode == 3:
 		wins = ['400,47,800,480', '0,47,400,480']
 	    else:
 		wins = ['400,263,800,480', '0,263,400,480', '400,47,800,263', '0,47,400,263']
 	elif self.scrOrientation == 90:		# portrait
 	    if scr_mode == 1:
 		wins = ['0,0,706,480']
-#	    elif scr_mode == 2:
-#		wins = ['0,0,706,240', '0,240,706,480']
 	    elif scr_mode in [2,3]:
 		wins = ['0,0,353,480', '353,0,706,480']
 	    else:
@@ -1015,8 +1001,6 @@ class Indoor(FloatLayout):
 	else:					# portrait 270
 	    if scr_mode == 1:
 		wins = ['94,0,800,480']
-#	    elif scr_mode == 2:
-#		wins = ['94,0,800,240', '94,240,800,480']
 	    elif scr_mode in [2,3]:
 		wins = ['446,0,800,480', '94,0,447,480']
 	    else:
@@ -1045,14 +1029,6 @@ class Indoor(FloatLayout):
 	self.setButtons(False)
 
 	self.displays[0].setActive()
-
-
-    # ###############################################################
-    def settings_worker(self, dt=7.5):
-	"prepare settings"
-	app = App.get_running_app()
-	app.open_settings()
-	app.close_settings()
 
 
     # ###############################################################
@@ -1087,9 +1063,6 @@ class Indoor(FloatLayout):
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-	    # bug fix: bad PJSIP start - port in use with another process
-#	    send_command("netstat -tulpn | grep :" + self.sipPort + " | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
 
 	    # Create UDP transport which listens to any available port
 	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(int(self.sipPort)))
@@ -1172,6 +1145,10 @@ class Indoor(FloatLayout):
 
 	if check_usb_audio() > 0: self.reinitbackgroundtasks()
 
+	if netlink.netstatus == 0:
+	    sendNodeInfo('[***]NETLINK: %d' % netlink.netstatus)
+	docall_button_global.btntext = "ETH ERROR" if netlink.netstatus == 0 else ''
+
 
     # ###############################################################
     def infinite_loop(self, dt):
@@ -1220,9 +1197,6 @@ class Indoor(FloatLayout):
     def reinitbackgroundtasks(self):
 	"SIP reinitialization"
 	Logger.info('%s:' % whoami())
-
-#	reset_usb_audio()
-#	time.sleep(2.5)
 
 	kill_subprocesses()
 	App.get_running_app().stop()
@@ -1584,15 +1558,30 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
+    def settings_worker(self, dt=7.5):
+	"prepare settings"
+	Logger.info('%s:' % whoami())
+	app = App.get_running_app()
+	app.destroy_settings()
+	app.open_settings()
+	app.close_settings()
+	self.preparing = False
+	self.popupSettings.p.btok.disabled = False
+
+
+    # ###############################################################
     def openAppSettings(self):
 	"get password"
 	Logger.debug('%s:' % whoami())
 
 	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=False)
 	self.popupSettings.open()
+	self.popupSettings.p.btok.disabled = True
 
 	# prepare settings:
-        Clock.schedule_once(self.settings_worker)
+	if not self.preparing:
+	    self.preparing = True
+	    Clock.schedule_once(lambda dt: threading.Thread(target=self.settings_worker).start(), .4)
 
 
     # ###############################################################
@@ -1836,7 +1825,6 @@ class Indoor(FloatLayout):
 	l.remove_widget(self.volslider)
 	self.micslider.parent = None
 	self.volslider.parent = None
-#	print('%s: cnt=%d' % (whoami(), len(l.children)))
 
 
     # ###############################################################
@@ -1887,34 +1875,41 @@ class Indoor(FloatLayout):
 
 	# speaker:
 	if len(s) < 4: vol = 100		# script problem!
-	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) or 100
+	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) #or 100
 
 	# available volume steps:
-	if vol > 90: vol = 100
-	elif vol > 80: vol = 90
-	elif vol > 70: vol = 80
-	elif vol > 60: vol = 70
-	elif vol > 60: vol = 60
-	elif vol > 40: vol = 50
-	elif vol > 30: vol = 40
-	elif vol > 20: vol = 30
-	else: vol = 20
+	if vol > 99: vol = 100
+	elif vol < 20: vol = 20
+#	"""
+#	if vol > 90: vol = 100
+#	elif vol > 80: vol = 90
+#	elif vol > 70: vol = 80
+#	elif vol > 60: vol = 70
+#	elif vol > 60: vol = 60
+#	elif vol > 40: vol = 50
+#	elif vol > 30: vol = 40
+#	elif vol > 20: vol = 30
+#	else: vol = 20
+#	"""
 	self.avolume = vol
 
 	# mic:
 	if len(s) < 8: self.micvolume = 100		# script problem!
-	else: self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100.0)) or 100
+	else: self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100.0)) #or 100
 
 	# available volume steps:
-	if self.micvolume > 90: self.micvolume = 100
-	elif self.micvolume > 80: self.micvolume = 90
-	elif self.micvolume > 70: self.micvolume = 80
-	elif self.micvolume > 60: self.micvolume = 70
-	elif self.micvolume > 60: self.micvolume = 60
-	elif self.micvolume > 40: self.micvolume = 50
-	elif self.micvolume > 30: self.micvolume = 40
-	elif self.micvolume > 20: self.micvolume = 30
-	else: self.micvolume = 20
+	if self.micvolume > 99: self.micvolume = 100
+	elif self.micvolume < 20: self.micvolume = 20
+#	"""
+#	elif self.micvolume > 80: self.micvolume = 90
+#	elif self.micvolume > 70: self.micvolume = 80
+#	elif self.micvolume > 60: self.micvolume = 70
+#	elif self.micvolume > 60: self.micvolume = 60
+#	elif self.micvolume > 40: self.micvolume = 50
+#	elif self.micvolume > 30: self.micvolume = 40
+#	elif self.micvolume > 20: self.micvolume = 30
+#	else: self.micvolume = 20
+#	"""
 
 	return vol
 
@@ -1934,13 +1929,10 @@ class IndoorApp(App):
 
 	self.config = config
 
-	#kill_subprocesses()
 	send_command('pkill -9 omxplayer')
-#	send_command('./killapp.sh runme')
 
 	reset_usb_audio()
-	time.sleep(2)
-	send_command(HIDINIT_SCRIPT)
+	Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
 
         try:
             self.rotation = config.getint('gui', 'screen_orientation')
@@ -2105,7 +2097,6 @@ class IndoorApp(App):
 
 	mainLayout.ids.settings.clear_widgets()
 
-#        return super(IndoorApp, self).display_settings(settings)
 	mainLayout.ids.settings.add_widget(settings)
 
 
@@ -2207,8 +2198,6 @@ class IndoorApp(App):
 	"restart App after alert box"
         Logger.debug('%s:' % whoami())
 
-#	send_command('/usr/bin/python /root/indoorpy/runme.py &')
-
 	kill_subprocesses()
 	App.get_running_app().stop()
 
@@ -2271,8 +2260,6 @@ class IndoorApp(App):
 	    self.changeInet = False
 	    scrmngr.current = CAMERA_SCR
 
-	self.destroy_settings()
-
 
     # ###############################################################
     def myAlertListBox(self, titl, ldata, cb=None, ad=True):
@@ -2322,5 +2309,5 @@ class IndoorApp(App):
 # ###############################################################
 
 if __name__ == '__main__':
-    Clock.schedule_once(lambda dt: send_command('./killapp.sh runme.py'), 20)
+    Clock.schedule_once(lambda dt: send_command('./killapp.sh runme.py'), 30)
     IndoorApp().run()

@@ -10,8 +10,14 @@
 ## working dir
 cd /root/indoorpy
 
+## clean backups
+rm -f backups/*.*
+
 ## backup INI file
-cp -f indoor.ini /tmp
+cp -f indoor.ini backups
+
+## backup sound files
+cp -f sounds/ring_* backups
 
 ## synchronize
 git fetch --all
@@ -22,4 +28,7 @@ git clean -dn
 rm -f my_lib/*.py
 
 ## restore INI file
-cp /tmp/indoor.ini /root/indoorpy
+cp backups/indoor.ini /root/indoorpy
+
+## restore sound files
+cp backups/ring_* /root/indoorpy/sounds

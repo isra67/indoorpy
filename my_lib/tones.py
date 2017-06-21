@@ -41,7 +41,8 @@ def ringingTones():
     Logger.debug('%s:' % whoami())
 
     tones = []
-    dirs = os.listdir('sounds/')
+    try: dirs = os.listdir('sounds/')
+    except: dirs = []
 
     # This would print all the files and directories
     for file in dirs:
@@ -49,6 +50,23 @@ def ringingTones():
 	    tones.append(file)
 
     return tones
+
+
+# ##############################################################################
+
+def delCustomRingingTones():
+    "delete customer's ringing tones"
+
+    Logger.debug('%s:' % whoami())
+
+    try: dirs = os.listdir('sounds/')
+    except: dirs = []
+
+    # This would print all the files and directories
+    for file in dirs:
+	if 'ring_' in file:
+	    try: os.remove('sounds/' + file)
+	    except: pass
 
 
 # ##############################################################################

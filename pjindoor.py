@@ -2211,6 +2211,8 @@ class IndoorApp(App):
 
 	scrmngr.current = WAIT_SCR
 
+	delCustomRingingTones()
+
 	config = setDefaultConfig(config, True)
 	config.update_config(config.filename, True)
 

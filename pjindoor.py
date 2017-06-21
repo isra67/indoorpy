@@ -115,6 +115,7 @@ class MyAccountCallback(pj.AccountCallback):
 	    mainLayout.popupSettings.dismiss()
 	    mainLayout.popupSettings = None
 	    mainLayout.showPlayers()
+	    Window.release_all_keyboards()
 
         Logger.info("%s: Incoming call from %s" % (whoami(), call.info().remote_uri))
         current_call = call

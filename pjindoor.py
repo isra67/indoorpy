@@ -382,10 +382,7 @@ class BasicDisplay:
 
 	procs.append(self.initPlayer())
 
-	self.socket = None
-	self.bgrThread = Thread(target=self.tcpip_worker, kwargs={'addr': servaddr})
-	self.bgrThread.daemon = True
-	self.bgrThread.start()
+	self.startThread()
 
 	self.color = INACTIVE_DISPLAY_BACKGROUND
 
@@ -407,6 +404,17 @@ class BasicDisplay:
 
 	self.printInfo()
 	self.setActive(False)
+
+
+    # ###############################################################
+    def startThread(self):
+	"start communication thread to external devicer"
+	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
+
+	self.socket = None
+	self.bgrThread = Thread(target=self.tcpip_worker, kwargs={'addr': self.serverAddr})
+	self.bgrThread.daemon = True
+	self.bgrThread.start()
 
 
     # ###############################################################
@@ -448,6 +456,9 @@ class BasicDisplay:
 	val = 255 if self.isPlaying else 0
 
 	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
+
+	if not self.bgrThread.isAlive(): self.startThread()
+
 
     # ###############################################################
     def resizePlayer(self, newpos=''):
@@ -499,16 +510,19 @@ class BasicDisplay:
 	else:
 	    a = (addr, 80)
 
-	try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect(a)
-	    time.sleep(1)
-	    fcntl.fcntl(self.socket, fcntl.F_SETFL, os.O_NONBLOCK)
-	    time.sleep(1)
-	    self.socket.send(SERVER_REQ)
-        except IOError as e:
-            Logger.warning('%s: (%d) %s CONNECT ERROR %s' % (whoami(), self.screenIndex, addr, str(e)))
-	    return
+	while True:
+	    try:
+        	self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        	self.socket.connect(a)
+		time.sleep(1)
+		fcntl.fcntl(self.socket, fcntl.F_SETFL, os.O_NONBLOCK)
+		time.sleep(1)
+		self.socket.send(SERVER_REQ)
+		break
+	    except IOError as e:
+		Logger.warning('%s: (%d) %s CONNECT ERROR %s' % (whoami(), self.screenIndex, addr, str(e)))
+		#return
+		time.sleep(60)
 
 	msg = ''
 	noDataCounter = 0
@@ -554,7 +568,7 @@ class BasicDisplay:
 		    self.socket.send(SERVER_REQ)
 		except:
 		    self.socket = None
-		    time.sleep(5)
+		    time.sleep(15)
 
 
     # ###############################################################

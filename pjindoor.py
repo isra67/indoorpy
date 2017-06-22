@@ -103,7 +103,7 @@ class MyAccountCallback(pj.AccountCallback):
     # ###############################################################
     def on_incoming_call(self, call):
 	"Notification on incoming call"
-        global current_call, mainLayout, docall_button_global, ROTATION
+        global current_call, mainLayout, docall_button_global, ROTATION, active_display_index
 
 	Logger.trace('%s: DND mode=%d' % (whoami(), mainLayout.dnd_mode))
 
@@ -111,11 +111,19 @@ class MyAccountCallback(pj.AccountCallback):
             call.answer(486, "Busy")
             return
 
-	if mainLayout.popupSettings:
-	    mainLayout.popupSettings.dismiss()
-	    mainLayout.popupSettings = None
+	if mainLayout.showVideoEvent or mainLayout.popupSettings:
+	    if mainLayout.popupSettings:
+		mainLayout.popupSettings.dismiss()
+		mainLayout.popupSettings = None
+#		mainLayout.showPlayers()
+		Window.release_all_keyboards()
+
+	    if mainLayout.showVideoEvent:
+		mainLayout.displays[active_display_index].resizePlayer()
+		Clock.unschedule(mainLayout.showVideoEvent)
+		mainLayout.showVideoEvent = None
+
 	    mainLayout.showPlayers()
-	    Window.release_all_keyboards()
 
         Logger.info("%s: Incoming call from %s" % (whoami(), call.info().remote_uri))
         current_call = call
@@ -691,6 +699,9 @@ class Indoor(FloatLayout):
     infoAreaHigh = 0
     sipPort = '5060'
     preparing = False		# preparing Settings
+    touches = {}		# resize video player (to bigger)
+    touchdistance = -1.		# touch distance
+    showVideoEvent = None	# timer to return size back
 
     def __init__(self, **kwargs):
 	"app init"
@@ -1653,33 +1664,40 @@ class Indoor(FloatLayout):
 	"process touch up event"
 	global active_display_index, current_call
 
-	Logger.info('%s:' % whoami())
-	if not touch is None:
+#	Logger.info('%s:' % whoami())
+	if touch:
+#	if not touch is None:
 	    Logger.debug('%s: touch=%d,%d double=%d triple=%d loseNext=%r'\
 		% (whoami(), touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap, self.loseNextTouch))
+#	    if len(self.touches):
+#		del self.touches[touch.uid]
+##		self.touches.remove(touch.uid) #pop(0)
+	    self.touchdistance = -1.
 
 	if self.loseNextTouch:
 	    self.loseNextTouch = False
-	    return
+	    return True
 
-	if len(procs) == 0: return
+	if len(procs) == 0: return True
 
 	if not touch is None and touch.is_triple_tap:
 	    if not current_call and self.scrmngr.current == CAMERA_SCR and self.popupSettings is None:
 		self.restart_player_window(active_display_index)
-	    return
+	    return True
 
 	if not touch is None and touch.is_double_tap:
 	    self.checkTripleTap(touch)
-	    return
+	    return True
 
 	if current_call is None: self.startScreenTiming()
 
 	if touch is None:
 	    self.loseNextTouch = True
-	    return
+	    return True
 
-	if not self.scrmngr.current == CAMERA_SCR or not current_call is None: return
+	if not self.scrmngr.current == CAMERA_SCR or not current_call is None: return True
+
+	self.touches = {}
 
 	idx = 0
 	for child in self.walk():
@@ -1696,6 +1714,76 @@ class Indoor(FloatLayout):
 
 	self.refreshLockIcons()
 
+	return super(Indoor, self).on_touch_up(touch)
+
+
+    # ###############################################################
+    def on_touch_down(self, touch):
+	"touch down event"
+	global current_call, scr_mode
+
+	Logger.debug('%s: cnt=%d %r' % (whoami(), len(self.touches)+1, touch.uid))
+
+	if not current_call and scr_mode > 1:
+	    self.touches[touch.uid] = [touch,None]
+	    self.touchdistance = -1.
+
+	return super(Indoor, self).on_touch_down(touch)
+
+
+    # ###############################################################
+    def on_touch_move(self, touch):
+	"touch move event"
+	global current_call
+
+	Logger.trace('%s: %r' % (whoami(), touch.uid))
+
+	if not current_call and len(self.touches) > 1:
+	    self.touches[touch.uid][1] = touch
+	    self.testTouches()
+
+	return super(Indoor, self).on_touch_move(touch)
+
+
+    # ###############################################################
+    def testTouches(self):
+	"test multitouch gesture to resize video window"
+	global active_display_index
+
+	k = self.touches.keys()
+
+        if self.touchdistance == -1.: self.touchdistance = self.touches[k[0]][0].distance(self.touches[k[1]][0])
+	distance = self.touches[k[0]][0].distance(self.touches[k[1]][0])
+
+	Logger.info('%s: n=%d o=%d' % (whoami(), distance, self.touchdistance))
+
+	if (distance - self.touchdistance) > 60:
+	    # make video bigger
+	    idx = 0
+	    for child in self.walk():
+		if child is self: continue
+		if '.VideoLabel' in str(child):
+		    if child.collide_point(*self.touches[k[0]][0].pos):
+			active_display_index = idx
+			Logger.info('%s: child=%r setActiveWin=%s' %(whoami(), child, child.id))
+			break
+		    idx += 1
+
+	    for idx, d in enumerate(self.displays):
+		d.setActive(False)
+		d.hidePlayer()
+		if active_display_index == idx:
+		    self.addInfoText('')
+		    d.resizePlayer('0,0,0,0')
+		    d.isPlaying = True
+		else:
+		    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
+		    d.isPlaying = False
+
+	    self.showVideoEvent = Clock.schedule_once(lambda dt: self.showPlayers(), 5.)
+
+	    self.touches = {}
+
 
     # ###############################################################
     def showPlayers(self):
@@ -1703,18 +1791,27 @@ class Indoor(FloatLayout):
 	Logger.debug('%s:' % whoami())
 
 	for d in self.displays:
-	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
-	    d.isPlaying = True
+	    if d.isPlaying:
+		d.resizePlayer()
+	    else:
+		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
+		d.isPlaying = True
 
-	self.displays[active_display_index].resizePlayer()
+#	self.displays[active_display_index].resizePlayer()
 	self.addInfoText()
 	self.displays[active_display_index].setActive()
+
+	if self.showVideoEvent: Clock.unschedule(self.showVideoEvent)
+	self.showVideoEvent = None
 
 
     # ###############################################################
     def hidePlayers(self, serial=False):
 	"d-bus command to hide video"
 	Logger.debug('%s:' % whoami())
+
+	if self.showVideoEvent: Clock.unschedule(self.showVideoEvent)
+	self.showVideoEvent = None
 
 	for d in self.displays:
 	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
@@ -1895,17 +1992,6 @@ class Indoor(FloatLayout):
 	# available volume steps:
 	if vol > 99: vol = 100
 	elif vol < 20: vol = 20
-#	"""
-#	if vol > 90: vol = 100
-#	elif vol > 80: vol = 90
-#	elif vol > 70: vol = 80
-#	elif vol > 60: vol = 70
-#	elif vol > 60: vol = 60
-#	elif vol > 40: vol = 50
-#	elif vol > 30: vol = 40
-#	elif vol > 20: vol = 30
-#	else: vol = 20
-#	"""
 	self.avolume = vol
 
 	# mic:
@@ -1915,16 +2001,6 @@ class Indoor(FloatLayout):
 	# available volume steps:
 	if self.micvolume > 99: self.micvolume = 100
 	elif self.micvolume < 20: self.micvolume = 20
-#	"""
-#	elif self.micvolume > 80: self.micvolume = 90
-#	elif self.micvolume > 70: self.micvolume = 80
-#	elif self.micvolume > 60: self.micvolume = 70
-#	elif self.micvolume > 60: self.micvolume = 60
-#	elif self.micvolume > 40: self.micvolume = 50
-#	elif self.micvolume > 30: self.micvolume = 40
-#	elif self.micvolume > 20: self.micvolume = 30
-#	else: self.micvolume = 20
-#	"""
 
 	return vol
 

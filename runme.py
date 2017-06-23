@@ -234,7 +234,7 @@ class Root(BoxLayout):
 	t = t + ip
 	self.lNet.text = t
 #	print('%s: %s %r' % (whoami(), t, info))
-	self.lDebug.text = ('IP address: %s' % info[3])
+	self.lDebug.text = ('IP address: %s' % (info[3] if ip == OK_TXT else WAIT_TXT))
 	interval = 12 if ip is OK_TXT else 2
 	Clock.schedule_once(self.getNetwork, interval)
 

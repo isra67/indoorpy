@@ -106,17 +106,17 @@ class Root(BoxLayout):
 
 	self.ipaddr = ''
 
-	self.update()
-
-	threading.Thread(target=self.procNetlink).start()
-
-#	Config.read('/root/.kivy/config.ini')
-
 	rot = Config.getint('graphics','rotation')
 	if rot in [90, 270]:
 	    self.lbOrientation = 'vertical'
 
-	print whoami(), rot, self.lbOrientation
+	threading.Thread(target=self.procNetlink).start()
+
+	self.update()
+
+#	Config.read('/root/.kivy/config.ini')
+
+#	print whoami(), rot, self.lbOrientation
 
 
     def update(self):
@@ -225,10 +225,8 @@ class Root(BoxLayout):
 
 
     def getNetwork(self, speed=30):
-	try:
-	    info = get_info(SYSTEMINFO_SCRIPT).split()
-	except:
-	    info = []
+	try: info = get_info(SYSTEMINFO_SCRIPT).split()
+	except: info = []
 	ip = OK_TXT if len(info) >= 6 else WAIT_TXT
 	t = self.lNet.text
 	if WAIT_TXT in t: t = t[:len(t) - len(WAIT_TXT)]
@@ -236,14 +234,13 @@ class Root(BoxLayout):
 	t = t + ip
 	self.lNet.text = t
 #	print('%s: %s %r' % (whoami(), t, info))
+	self.lDebug.text = ('IP address: %s' % info[3])
 	interval = 12 if ip is OK_TXT else 2
 	Clock.schedule_once(self.getNetwork, interval)
 
     def getINet(self, speed=30):
-	try:
-	    info = get_info('./checkinet.sh')
-	except Exception as e:
-	    info = '0'
+	try: info = get_info('./checkinet.sh')
+	except: info = '0'
 	ip = OK_TXT if '1' in info else NO_TXT
 	t = self.lInet.text
 	if WAIT_TXT in t: t = t[:len(t) - len(WAIT_TXT)]

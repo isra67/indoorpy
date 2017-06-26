@@ -2307,6 +2307,9 @@ class IndoorApp(App):
 	config = setDefaultConfig(config, True)
 	config.update_config(config.filename, True)
 
+	saveKivyCfg('kivy', 'log_level', 'debug')
+	saveKivyCfg('graphics', 'rotation', '0')
+
 	MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
 	    cb=self.popupClosed, ad=False).open()
 

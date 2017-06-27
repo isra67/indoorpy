@@ -702,6 +702,7 @@ class Indoor(FloatLayout):
     touches = {}		# resize video player (to bigger)
     touchdistance = -1.		# touch distance
     showVideoEvent = None	# timer to return size back
+    netstatus = 0		# old value of NetLink.netstatus
 
     def __init__(self, **kwargs):
 	"app init"
@@ -805,8 +806,9 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 12.)
-        Clock.schedule_interval(self.checkNetStatus, 24.)
+#        Clock.schedule_interval(self.checkNetStatus, 24.)
 
+        Clock.schedule_once(self.checkNetStatus, 5.)
 	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 15)
 
 	t = threading.Thread(target=procNetlink)
@@ -1148,14 +1150,14 @@ class Indoor(FloatLayout):
 	"state loop"
         global current_call, active_display_index, docall_button_global, config
 
-        if not current_call is None: self.info_state = 0
+        if current_call != None: self.info_state = 0
 
         if self.info_state == 0:
             if current_call is None:
 		self.info_state = 1
         elif self.info_state == 1:
             self.info_state = 2
-	    if not self.lib is None and self.scrmngr.current == CAMERA_SCR:
+	    if self.lib != None and self.scrmngr.current == CAMERA_SCR:
 		self.setButtons(False)
         elif self.info_state == 2:
             self.info_state = 3
@@ -1173,7 +1175,11 @@ class Indoor(FloatLayout):
 
 	if netlink.netstatus == 0:
 	    sendNodeInfo('[***]NETLINK: %d' % netlink.netstatus)
-	docall_button_global.btntext = "ETH ERROR" if netlink.netstatus == 0 else ''
+	    docall_button_global.btntext = "ETH ERROR"
+
+	if netlink.netstatus == 0 or self.netstatus != netlink.netstatus:
+	    self.netstatus = netlink.netstatus
+	    Clock.schedule_once(self.checkNetStatus, 5.)
 
 
     # ###############################################################
@@ -1185,10 +1191,9 @@ class Indoor(FloatLayout):
 
 	for idx, p in enumerate(procs):
 	    if not p.poll() is None:
-		try:
-		    p.kill()
-		except:
-		    pass
+		try: p.kill()
+		except: pass
+
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
 
@@ -1198,12 +1203,11 @@ class Indoor(FloatLayout):
 	"test ETH status"
         global docall_button_global, config
 
-	try:
-	    s = get_info(SYSTEMINFO_SCRIPT).split()
-	except:
-	    s = []
+	try: s = get_info(SYSTEMINFO_SCRIPT).split()
+	except: s = []
 
-	docall_button_global.btntext = '' if len(s) >= 8 else 'Network ERROR'
+	docall_button_global.btntext = '' if self.lib else 'No Licence'
+	docall_button_global.btntext = docall_button_global.btntext if len(s) >= 8 else 'Network ERROR'
 	if '127.0.0.1' == config.get('system', 'ipaddress') and len(s) > 8:
 	    Logger.error('%s: network ipaddress %r' % (whoami(), s))
 
@@ -1217,6 +1221,8 @@ class Indoor(FloatLayout):
 	    except:
 		Logger.error('%s: config %r' % (whoami(), config))
 		docall_button_global.btntext = 'ERROR'
+
+#        Clock.schedule_once(self.checkNetStatus, 24.)
 
 
     # ###############################################################
@@ -1836,8 +1842,6 @@ class Indoor(FloatLayout):
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
 
-#	    docall_button_global.btntext = '' if '127.0.0.1' != config.get('system', 'ipaddress') else 'Network ERROR'
-
 
     # ###############################################################
     def init_sliders(self):
@@ -2025,10 +2029,8 @@ class IndoorApp(App):
 	reset_usb_audio()
 	Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
 
-        try:
-            self.rotation = config.getint('gui', 'screen_orientation')
-        except:
-            self.rotation = 0
+        try: self.rotation = config.getint('gui', 'screen_orientation')
+        except: self.rotation = 0
 	ROTATION = self.rotation
 
         Config.set('kivy', 'keyboard_mode','systemandmulti')##        Config.set('kivy', 'keyboard_mode','')
@@ -2319,16 +2321,12 @@ class IndoorApp(App):
 	"enable/disable tunnel"
 	global config
 
-	try:
-	    flag = int(config.get('service', 'tunnel_flag')) > 0
-	except:
-	    flag = False
+	try: flag = int(config.get('service', 'tunnel_flag')) > 0
+	except: flag = False
         Logger.warning('%s: flag=%r' % (whoami(), flag))
 
-	if flag:
-	    send_command('./tunnelservice.sh')
-	else:
-	    send_command('./tunnel.sh stop')
+	if flag: send_command('./tunnelservice.sh')
+	else: send_command('./tunnel.sh stop')
 
 
     # ###############################################################

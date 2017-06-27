@@ -56,7 +56,7 @@ def procNetlink():
     link_status = ''
 
     while True:
-        time.sleep(.2)
+        time.sleep(.3)
 
         data = s.recv(65535)
         msg_len, msg_type, flags, seq, pid = struct.unpack("=LHHLL", data[:16])
@@ -91,7 +91,6 @@ def procNetlink():
             data = data[increment:]
             remaining -= increment
 
-	    Logger.debug('%s: %d %s' % (whoami(), msg_type, rta_data))
 #           print('%s: %d %s' % (whoami(), msg_type, rta_data))
 
             ip = ''
@@ -110,8 +109,6 @@ def procNetlink():
 		netstatus = 0
 
             if len(ip) == 0: continue
-
-#           print('%s: %s' % (whoami(), ip))
 
             if rta_type == IFLA_IFNAME and msg_type in [RTM_NEWLINK, RTM_DELLINK]:
                 if link_status != ip:

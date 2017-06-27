@@ -69,6 +69,14 @@ Builder.load_string("""
             id: lblSrv
             text: 'Internal web server: wait...'
             font_size: self.height/2
+    BoxLayout:
+        orientation: root.lbOrientation
+        Label:
+            id: lblSdc
+            text: 'SD card: wait...'
+        Label:
+            id: lblUpt
+            text: 'Uptime: wait...'
     Label:
         id: lblDebug
         text: '...'
@@ -103,6 +111,8 @@ class Root(BoxLayout):
 	self.lApp = self.ids.lblApp
 	self.lSrv = self.ids.lblSrv
 	self.lDebug = self.ids.lblDebug
+	self.lSdc = self.ids.lblSdc
+	self.lUpt = self.ids.lblUpt
 
 	self.ipaddr = ''
 
@@ -120,6 +130,8 @@ class Root(BoxLayout):
 
 
     def update(self):
+	self.getSDcard()
+	self.getUptime()
 	self.getNetwork()
 	self.getINet()
 	self.getAudio()
@@ -193,9 +205,6 @@ class Root(BoxLayout):
 		data = data[increment:]
 		remaining -= increment
 
-#		self.lDebug.text = ('%s: %d %s' % (whoami(), msg_type, rta_data))
-#		print('%s: %d %s' % (whoami(), msg_type, rta_data))
-
 		ip = ''
 		# Hoorah, a link is up!
 		if msg_type == RTM_NEWLINK:
@@ -213,7 +222,6 @@ class Root(BoxLayout):
 		elif DOWN_TXT in t: t = t[:len(t) - len(DOWN_TXT)]
 		t = t + ip
 		self.lLink.text = t
-#		print('%s: %s %s' % (whoami(), t, ip))
 
 		if rta_type == IFLA_IFNAME and msg_type in [RTM_NEWLINK, RTM_DELLINK]:
 		    if link_status != ip and ip != WAIT_TXT:
@@ -235,7 +243,7 @@ class Root(BoxLayout):
 	self.lNet.text = t
 #	print('%s: %s %r' % (whoami(), t, info))
 	self.lDebug.text = ('IP address: %s' % (info[3] if ip == OK_TXT else WAIT_TXT))
-	interval = 12 if ip is OK_TXT else 2
+	interval = 24 if ip is OK_TXT else 2
 	Clock.schedule_once(self.getNetwork, interval)
 
     def getINet(self, speed=30):
@@ -249,7 +257,7 @@ class Root(BoxLayout):
 	t = t + ip
 	self.lInet.text = t
 	print('%s: %s %r' % (whoami(), t, info))
-	interval = 14 if ip == OK_TXT else 5
+	interval = 34 if ip == OK_TXT else 5
 	Clock.schedule_once(self.getINet, interval)
 
     def getTunnel(self, speed=30):
@@ -281,7 +289,7 @@ class Root(BoxLayout):
 	t = t + ip
 	self.lAudio.text = t
 #	print('%s: %s %s' % (whoami(), t, info))
-	interval = 10
+	interval = 11
 	Clock.schedule_once(self.getAudio, interval)
 
     def getNodeServer(self, speed=30):
@@ -297,8 +305,25 @@ class Root(BoxLayout):
 	t = t + ip
 	self.lSrv.text = t
 #	print('%s: %s %s' % (whoami(), t, info))
-	interval = 15
+	interval = 25
 	Clock.schedule_once(self.getNodeServer, interval)
+
+    def getSDcard(self):
+	ps = subprocess.Popen("df -h | grep '/dev/root'", shell=True, stdout=subprocess.PIPE)
+	info = ps.stdout.read()
+	ps.stdout.close()
+	ps.wait()
+	try:
+	    t = info.split()
+	    self.lSdc.text = 'SD card: size=%s used=%s' % (t[1], t[-2])
+	except: pass
+
+    def getUptime(self):
+	ps = subprocess.Popen("uptime -p", shell=True, stdout=subprocess.PIPE)
+	info = ps.stdout.read()
+	ps.stdout.close()
+	ps.wait()
+	self.lUpt.text = info
 
 
 class Tester(App):

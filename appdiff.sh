@@ -25,7 +25,11 @@ then
 else
 
     ## synchronize
-    ./share/update.sh
+    if [ -z "$1" ]; then
+        ./share/update.sh
+    else
+        ./share/update.sh $1
+    fi
 
     PID=`ps aux | grep -i 'python pjindoor' | grep -iv 'grep ' | sed 's/\s\+/ /g' | cut -d' ' -f 2`
     kill $PID

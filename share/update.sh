@@ -20,9 +20,11 @@ cp -f indoor.ini backups
 cp -f sounds/ring_* backups
 
 ## synchronize
-#git fetch --all
-git fetch https://isra67:eloeii3769@github.com/isra67/indoorpy.git
-#git reset --hard origin/master
+if [ -z "$1" ]; then
+    git fetch https://github.com/isra67/indoorjs.git
+else
+    git fetch https://isra67:$1@github.com/isra67/indoorjs.git
+fi
 git reset --hard gh/master
 git clean -dn
 

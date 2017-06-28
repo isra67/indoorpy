@@ -21,9 +21,9 @@ cp -f sounds/ring_* backups
 
 ## synchronize
 if [ -z "$1" ]; then
-    git fetch https://github.com/isra67/indoorjs.git
+    git fetch https://github.com/isra67/indoorpy.git
 else
-    git fetch https://isra67:$1@github.com/isra67/indoorjs.git
+    git fetch https://isra67:$1@github.com/isra67/indoorpy.git
 fi
 git reset --hard gh/master
 git clean -dn
@@ -36,3 +36,6 @@ cp backups/indoor.ini /root/indoorpy
 
 ## restore sound files
 cp backups/ring_* /root/indoorpy/sounds
+
+## save from cache
+sync

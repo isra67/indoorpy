@@ -26,6 +26,11 @@ else
     git fetch https://isra67:$1@github.com/isra67/indoorpy.git
 fi
 git reset --hard gh/master
+if [ -z "$1" ]; then
+    git pull --rebase https://github.com/isra67/indoorpy.git
+else
+    git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git
+fi
 git clean -dn
 
 ## remove unnecessary files

@@ -21,17 +21,17 @@ cp -f sounds/ring_* backups
 
 ## synchronize
 if [ -z "$1" ]; then
-    git fetch https://github.com/isra67/indoorpy.git
+    git fetch https://github.com/isra67/indoorpy.git master
 else
-    git fetch https://isra67:$1@github.com/isra67/indoorpy.git
+    git fetch https://isra67:$1@github.com/isra67/indoorpy.git master
 fi
 git reset --hard gh/master
-if [ -z "$1" ]; then
-    git pull --rebase https://github.com/isra67/indoorpy.git
-else
-    git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git
-fi
 git clean -dn
+if [ -z "$1" ]; then
+    git pull --rebase https://github.com/isra67/indoorpy.git master
+else
+    git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git master
+fi
 
 ## remove unnecessary files
 rm -f my_lib/*.py

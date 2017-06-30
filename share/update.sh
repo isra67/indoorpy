@@ -25,7 +25,7 @@ if [ -z "$1" ]; then
 else
     git fetch https://isra67:$1@github.com/isra67/indoorpy.git master
 fi
-git reset --hard gh/master
+git reset --hard ##gh/master
 git clean -dn
 if [ -z "$1" ]; then
     git pull --rebase https://github.com/isra67/indoorpy.git master

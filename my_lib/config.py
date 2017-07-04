@@ -50,6 +50,7 @@ dict_common = {'server_ip_address_1': '192.168.1.250',
             'server_stream_4': 'http://192.168.1.250/video.mjpg',
             'picture_4': 'fill',
             'sip_call4': '' }
+dict_timezone = {'timezone': 'Europe/Brussels'}
 dict_service = {'masterpwd': '1234',
             'app_log': 'none',
             'tunnel_flag': False,
@@ -102,6 +103,7 @@ def setDefaultConfig(config, full=False):
     config.setdefaults('devices', dict_dev)
     config.setdefaults('gui', dict_gui)
     config.setdefaults('common', dict_common)
+    config.setdefaults('timezones', dict_timezone)
     config.setdefaults('service', dict_service)
     config.setdefaults('about', dict_about)
     config.setdefaults('system', dict_system)
@@ -140,6 +142,7 @@ def setDefaultConfig(config, full=False):
 	config.setall('devices', dict_dev)
 	config.setall('gui', dict_gui)
 	config.setall('common', dict_common)
+	config.setall('timezones', dict_timezone)
 	config.setall('service', dict_service)
 	config.setall('system', dict_system)
 

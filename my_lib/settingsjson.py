@@ -297,6 +297,20 @@ settings_about = json.dumps([
 # ###############################################################
 
 # service function
+timezone_settings = json.dumps([
+    {'type': 'title',
+     'title': 'Timezone settings'},
+    {'type': 'options',
+     'title': 'Timezone',
+     'desc': 'Choose time zone',
+     'section': 'timezones',
+     'key': 'timezone',
+     'options': ['Europe/Brussels', 'Etc/Greenwich', 'America/Havana']}
+])
+
+# ###############################################################
+
+# service function
 settings_services = json.dumps([
     {'type': 'title',
      'title': 'Service functions'},

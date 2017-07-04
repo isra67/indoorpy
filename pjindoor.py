@@ -2164,15 +2164,15 @@ class IndoorApp(App):
         settings.add_json_panel('Outdoor Devices',
                                 config,
                                 data=acomm)
-#        settings.add_json_panel('Audio Device',
-#                                config,
-#                                data=aaudio)
         settings.add_json_panel('SIP',
                                 config,
                                 data=asip)
         settings.add_json_panel('Network',
                                 config,
                                 data=asystem)
+        settings.add_json_panel('Time zone',
+                                config,
+                                data=timezone_settings)
         settings.add_json_panel('Service',
                                 config,
                                 data=settings_services)
@@ -2228,6 +2228,9 @@ class IndoorApp(App):
 		    self.myAlertListBox('Call log history', reversed(callstats.call_log))
 	    elif token == ('sip', 'sip_mode'):
 		self.restartAppFlag = True
+	elif 'timezones' == section:
+	    if token == ('timezones', 'timezone'):
+		send_command('./settimezone.sh ' + value)
 	elif 'service' == section:
 	    if token == ('service', 'app_log'):
 		if value == 'none':

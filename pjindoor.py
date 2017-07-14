@@ -2087,6 +2087,7 @@ class IndoorApp(App):
         Logger.debug('%s:' % whoami())
 
 	settings.register_type('buttons', SettingButtons)
+#	settings.register_type('scrolloptions', SettingScrollOptions)
 
 	config.set('devices', 'ringtone', RING_TONE)
 
@@ -2148,7 +2149,8 @@ class IndoorApp(App):
 	atimezone = []
 	for s in sys:
 	    item = s
-	    if s['type'] in 'options' and s['key'] in 'timezone': item['options'] = getTimeZoneList()
+	    if s['type'] in 'scrolloptions' and s['key'] in 'timezone':
+		item['options'] = getTimeZoneList()
 	    atimezone.append(item)
 	atimezone = json.dumps(atimezone)
 	"""

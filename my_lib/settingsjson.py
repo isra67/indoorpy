@@ -305,13 +305,16 @@ timezone_settings = json.dumps([
      'desc': 'Enter valid timezone string',
      'section': 'timezones',
      'key': 'timezone'}
-#    {'type': 'options',
-#     'title': 'Timezone',
-#     'desc': 'Choose time zone',
-#     'section': 'timezones',
-#     'key': 'timezone',
-#     'options': []}
 ])
+
+"""
+    {'type': 'scrolloptions',
+     'title': 'Timezone',
+     'desc': 'Choose time zone',
+     'section': 'timezones',
+     'key': 'timezone',
+     'options': []}
+"""
 
 # ###############################################################
 

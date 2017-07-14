@@ -2141,44 +2141,25 @@ class IndoorApp(App):
 	    acomm = json.dumps(acomm)
 	"""
 
-	# adjust tone list
-#	rt = ringingTones()
-#	if len(rt):
-#	    sys = json.loads(settings_audio)
-#	    aaudio = []
-#	    for s in sys:
-#		item = s
-#		if s['type'] not in 'title' and s['key'] == 'ringtone':
-#		    item['options'] = s['options'] + rt
-#		aaudio.append(item)
-#	    aaudio = json.dumps(aaudio)
-#	else:
-#	    aaudio = settings_audio
+	atimezone = timezone_settings
+	"""
+	# fill timezones
+	sys = json.loads(timezone_settings)
+	atimezone = []
+	for s in sys:
+	    item = s
+	    if s['type'] in 'options' and s['key'] in 'timezone': item['options'] = getTimeZoneList()
+	    atimezone.append(item)
+	atimezone = json.dumps(atimezone)
+	"""
 
-#        settings.add_json_panel('Application',
-#                                config,
-#                                data=settings_app)
-        settings.add_json_panel('GUI',
-                                config,
-                                data=settings_gui)
-        settings.add_json_panel('Outdoor Devices',
-                                config,
-                                data=acomm)
-        settings.add_json_panel('SIP',
-                                config,
-                                data=asip)
-        settings.add_json_panel('Network',
-                                config,
-                                data=asystem)
-        settings.add_json_panel('Time zone',
-                                config,
-                                data=timezone_settings)
-        settings.add_json_panel('Service',
-                                config,
-                                data=settings_services)
-        settings.add_json_panel('About',
-                                config,
-                                data=settings_about)
+        settings.add_json_panel('GUI', config, data=settings_gui)
+        settings.add_json_panel('Outdoor Devices', config, data=acomm)
+        settings.add_json_panel('SIP', config, data=asip)
+        settings.add_json_panel('Network', config, data=asystem)
+        settings.add_json_panel('Time zone', config, data=atimezone)
+        settings.add_json_panel('Service', config, data=settings_services)
+        settings.add_json_panel('About', config, data=settings_about)
 
 
     # ###############################################################
@@ -2230,13 +2211,16 @@ class IndoorApp(App):
 		self.restartAppFlag = True
 	elif 'timezones' == section:
 	    if token == ('timezones', 'timezone'):
-		send_command('./settimezone.sh ' + value)
+		tzlist = getTimeZoneList()
+		if value in tzlist:
+		    send_command('./settimezone.sh ' + value)
+		else:
+		    config.set(section, key, self.config.get(section, key))
+		    config.write()
+		    MyAlertBox(titl='WARNING', txt='Bad timezone string!\n\nTimezone will not change', cb=None, ad=False).open()
 	elif 'service' == section:
 	    if token == ('service', 'app_log'):
-		if value == 'none':
-		    saveKivyCfg('kivy', 'log_level', 'critical')
-		else:
-		    saveKivyCfg('kivy', 'log_level', value)
+		saveKivyCfg('kivy', 'log_level', 'critical' if value == 'none' else value)
 		self.restartAppFlag = True
 	    elif token == ('service', 'sip_log'):
 		self.restartAppFlag = True

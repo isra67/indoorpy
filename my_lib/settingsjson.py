@@ -300,12 +300,17 @@ settings_about = json.dumps([
 timezone_settings = json.dumps([
     {'type': 'title',
      'title': 'Timezone settings'},
-    {'type': 'options',
+    {'type': 'string',
      'title': 'Timezone',
-     'desc': 'Choose time zone',
+     'desc': 'Enter valid timezone string',
      'section': 'timezones',
-     'key': 'timezone',
-     'options': ['Europe/Brussels', 'Etc/Greenwich', 'America/Havana']}
+     'key': 'timezone'}
+#    {'type': 'options',
+#     'title': 'Timezone',
+#     'desc': 'Choose time zone',
+#     'section': 'timezones',
+#     'key': 'timezone',
+#     'options': []}
 ])
 
 # ###############################################################

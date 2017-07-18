@@ -6,6 +6,16 @@
 #
 # ###############################################################
 
+
+from kivy.adapters.listadapter import ListAdapter
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.listview import ListItemButton, ListView
+from kivy.uix.popup import Popup
+from kivy.uix.settings import Settings, SettingsWithSidebar, SettingString, SettingSpacer
+from kivy.uix.widget import Widget
+
 from kivy.logger import Logger
 
 from itools import *
@@ -40,3 +50,142 @@ def getTimeZoneList():
     return l
 
 # ###############################################################
+
+
+# ###############################################################
+#
+# Classes
+#
+# ###############################################################
+
+"""
+    dialog - select timezone in Settings
+"""
+class TzSettingDialog(SettingString):
+    tz = getTimeZoneList()
+    final_region = 'Europe'
+    final_city = 'Brussels'
+
+    def _validate(self, instance):
+        """ validate and set result """
+        self._dismiss()
+        self.value = "%s/%s" % (self.final_region, self.final_city)
+	Logger.debug('%s: %s' % (whoami(), self.value))
+
+    def redraw_citylist(self, region):
+        """ redraw city list """
+        self.data_city = []
+        for k in self.tz:
+            a = k.split('/')
+            if a[0] in region and a[1] not in self.data_city:
+                self.data_city.extend({a[1]})
+
+        self.data_city = sorted(self.data_city)
+
+        self.list_adapter_city.data = self.data_city
+
+        try: idc = self.data_city.index(self.final_city)
+        except: idc = -1
+
+        if idc >= 0:
+            self.list_adapter_city.get_view(idc).trigger_action(duration=0)
+            self.list_city.scroll_to(idc  if idc < 5 else idc - 5)
+        else:
+            self.final_city = self.data_city[0]
+        """
+        self.list_region._trigger_reset_populate()
+        if(hasattr(self.list_city, 'populate')): self.list_city.populate()
+        else: self.list_city._trigger_reset_populate()
+        """
+
+    def region_changed(self, adapter, **args):
+        """ new region has been selected """
+        self.final_region = adapter.selection[0] if type(adapter.selection[0]) is str else adapter.selection[0].text
+        self.redraw_citylist(self.final_region)
+
+    def city_changed(self, adapter, **args):
+        """ new city has been selected """
+        if not len(adapter.selection): return
+        self.final_city = adapter.selection[0] if type(adapter.selection[0]) is str else adapter.selection[0].text
+
+    def _create_popup(self, instance):
+        """ create popup layout """
+	a = self.value.split('/')
+        self.final_region = a[0]
+        self.final_city = a[1]
+
+        content = BoxLayout(orientation='vertical', spacing='5dp')
+        self.popup = popup = Popup(title=self.title, content=content, size_hint=(.69, .89))
+
+        ### content - start
+        region = []
+        self.data_city = []
+        for k in self.tz:
+            a = k.split('/')
+            if a[0] not in region:
+                region.extend({a[0]})
+
+        args_converter = lambda idx, rec: {'text': rec,
+                                         'size_hint_y': None,
+                                         'height': 32}
+
+        self.list_adapter_city = ListAdapter(data=self.data_city,
+                           args_converter=args_converter,
+                           cls=ListItemButton,
+                           selection_mode='single',
+                           allow_empty_selection=False)
+
+        self.list_city = ListView(adapter=self.list_adapter_city)
+
+        region = sorted(region)
+        list_adapter_region = ListAdapter(data=region,
+                           args_converter=args_converter,
+                           cls=ListItemButton,
+                           selection_mode='single',
+                           allow_empty_selection=False)
+        list_adapter_region.bind(on_selection_change=self.region_changed)
+
+        self.list_region = ListView(adapter=list_adapter_region, size_hint_x=.6)
+
+        # construct the content, widget are used as a spacer
+        sellayout = BoxLayout(size_hint_y=1, spacing='5dp')
+        content.add_widget(sellayout)
+        sellayout.add_widget(self.list_region)
+        sellayout.add_widget(self.list_city)
+
+        try: idr = region.index(self.final_region)
+        except: idr = 0
+        list_adapter_region.get_view(idr).trigger_action(duration=0)
+        self.list_region.scroll_to(idr if idr < 5 else idr - 5)
+        self.list_adapter_city.bind(on_selection_change=self.city_changed)
+        ### content - end
+
+#        content.add_widget(Widget())
+        content.add_widget(SettingSpacer())
+
+        # 2 buttons are created for accept or cancel the current value
+        btnlayout = BoxLayout(size_hint_y=None, height='50dp', spacing='5dp')
+        btn = Button(text='Ok')
+        btn.bind(on_release=self._validate)
+        btnlayout.add_widget(btn)
+        btn = Button(text='Cancel')
+        btn.bind(on_release=self._dismiss)
+        btnlayout.add_widget(btn)
+        content.add_widget(btnlayout)
+
+        # all done, open the popup !
+        popup.open()
+
+
+"""
+    customize Settings
+"""
+"""
+class CustomSettings(Settings):
+
+    def __init__(self, **kwargs):
+        super(CustomSettings, self).__init__(**kwargs)
+
+        # register new item type
+        self.register_type('timezone', TzSettingDialog)
+"""

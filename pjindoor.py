@@ -2087,6 +2087,7 @@ class IndoorApp(App):
         Logger.debug('%s:' % whoami())
 
 	settings.register_type('buttons', SettingButtons)
+	settings.register_type('timezone', TzSettingDialog)
 #	settings.register_type('scrolloptions', SettingScrollOptions)
 
 	config.set('devices', 'ringtone', RING_TONE)

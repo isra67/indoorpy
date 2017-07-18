@@ -300,20 +300,20 @@ settings_about = json.dumps([
 timezone_settings = json.dumps([
     {'type': 'title',
      'title': 'Timezone settings'},
-    {'type': 'string',
-     'title': 'Timezone',
-     'desc': 'Enter valid timezone string',
-     'section': 'timezones',
-     'key': 'timezone'}
-])
-
-"""
-    {'type': 'scrolloptions',
+    {'type': 'timezone',
      'title': 'Timezone',
      'desc': 'Choose time zone',
      'section': 'timezones',
      'key': 'timezone',
      'options': []}
+])
+
+"""
+    {'type': 'string',
+     'title': 'Timezone',
+     'desc': 'Enter valid timezone string',
+     'section': 'timezones',
+     'key': 'timezone'}
 """
 
 # ###############################################################

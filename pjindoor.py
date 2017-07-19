@@ -621,7 +621,7 @@ class BasicDisplay:
 	val = 0xf if int(m[1]) == 1 else 0
 	if int(m[0]) > 1: val = val << 4
 	self.locks = (self.locks & mask) | val
-	Logger.info('%s: (%d) lock=%.2x (%s m=%.2x v=%.2x)'\
+	Logger.debug('%s: (%d) lock=%.2x (%s m=%.2x v=%.2x)'\
 	    % (whoami(), self.screenIndex, self.locks, value, mask, val))
 	sendNodeInfo('[***]LOCK: %d %.2x' % (self.screenIndex, self.locks))
 
@@ -1111,7 +1111,8 @@ class Indoor(FloatLayout):
 	    if accounttype == 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
-		sendNodeInfo('[***]SIP:peer-to-peer')
+#		sendNodeInfo('[***]SIP:peer-to-peer')
+		sendNodeInfo('[***]SIPREG: peer-to-peer')
 	    else:
 		s = str(config.get('sip', 'sip_server_addr')).strip()
 		u = str(config.get('sip', 'sip_username')).strip()

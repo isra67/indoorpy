@@ -54,7 +54,7 @@ def initNodeConnection(addr='localhost', port=8123):
 	server_address = (addr, port)
 	appSocket.connect(server_address)
 	connErr = False
-	Clock.schedule_once(lambda dt: sendNodeInfo('[***]STRUCT:%r' % app_status), 10)
+	Clock.schedule_once(lambda dt: sendNodeInfo('STRUCT:%r' % app_status), 10)
     except socket.error, e:
 	connErr = True
 	Logger.error('%s ERROR: %r' % (whoami(), e))
@@ -68,6 +68,7 @@ def sendNodeInfo(msg=''):
     global server_port, address, connErr
 
     if ('[***]' in msg): statusInfo(msg[5:])
+    else: msg = '[***]%s' % msg
 
     if connErr: return
 #    print('%s: %s' % (whoami(), msg))

@@ -67,8 +67,10 @@ def sendNodeInfo(msg=''):
     "Send msg to node server"
     global server_port, address, connErr
 
-    if ('[***]' in msg): statusInfo(msg[5:])
-    else: msg = '[***]%s' % msg
+    if '[***]' in msg:
+	statusInfo(msg[5:])
+    else:
+	if 'STRUCT:' in msg: msg = '[***]%s' % msg
 
     if connErr: return
 #    print('%s: %s' % (whoami(), msg))

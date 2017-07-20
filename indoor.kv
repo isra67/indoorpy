@@ -208,6 +208,14 @@
     text_size: self.size
 
 
+# QuickSettings label:
+
+<MySetLabel>:
+    font_size: '12px'
+    size_hint_x: None
+    width: '24px'
+
+
 # Settings popup:
 
 <SettingsPopupDlg>:
@@ -287,9 +295,11 @@
                 size_hint_x: .9
                 min: 20
                 max: 100
-                step: 10
+                step: 5
                 value: root.valv
                 on_value: root.valv = self.value
+            MySetLabel:
+                text: '%d' % root.valv
 
         BoxLayout:
             orientation: 'horizontal'
@@ -303,9 +313,11 @@
                 size_hint_x: .9
                 min: 20
                 max: 100
-                step: 10
+                step: 5
                 value: root.valm
                 on_value: root.valm = self.value
+            MySetLabel:
+                text: '%d' % root.valm
 
     BoxLayout:
         orientation: 'horizontal'
@@ -328,9 +340,11 @@
                 size_hint_x: .9
                 min: 15
                 max: 255
-                step: 15
+                step: 5
                 value: root.valb
                 on_value: root.valb = root.brightslider()
+            MySetLabel:
+                text: '%d' % root.valb
 
         BoxLayout:
             orientation: 'horizontal'
@@ -347,6 +361,8 @@
                 step: 1
                 value: root.vals
                 on_value: root.vals = self.value
+            MySetLabel:
+                text: '%d' % root.vals
 
     BoxLayout:
         orientation: 'horizontal'
@@ -434,3 +450,11 @@
         Rectangle:
             pos: self.pos
             size: self.size
+
+
+# timezone - listitembutton
+
+<ListItemButton>:
+    selected_color: 0, .9, 1, 1
+    deselected_color: 0, 0, 0, 1
+    color: 1, 1, 1, 1

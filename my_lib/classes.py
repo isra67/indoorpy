@@ -50,6 +50,13 @@ class MyListViewLabel(Label):
 
 # ##############################################################################
 
+class MySetLabel(Label):
+    "show value near slider"
+    pass
+
+
+# ##############################################################################
+
 class VideoLabel(Label):
     "text behind the video"
     pass
@@ -65,7 +72,6 @@ class ImageButton(Button):
 # ##############################################################################
 
 class DoorButton(Button):
-#class DoorButton(ButtonBehavior, BoxLayout):
     "four images door lock/unlock button at the bottom of the page"
     pass
 

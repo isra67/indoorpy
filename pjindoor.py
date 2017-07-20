@@ -1997,20 +1997,21 @@ class Indoor(FloatLayout):
 
 	# speaker:
 	if len(s) < 4: vol = 100		# script problem!
-	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100.0)) #or 100
+	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100)) #or 100
 
 	# available volume steps:
 	if vol > 99: vol = 100
 	elif vol < 20: vol = 20
-	self.avolume = vol
+	self.avolume = vol - vol % 5
 
 	# mic:
 	if len(s) < 8: self.micvolume = 100		# script problem!
-	else: self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100.0)) #or 100
+	else: self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100)) #or 100
 
 	# available volume steps:
 	if self.micvolume > 99: self.micvolume = 100
 	elif self.micvolume < 20: self.micvolume = 20
+	self.micvolume = self.micvolume - self.micvolume % 5
 
 	return vol
 

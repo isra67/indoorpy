@@ -20,6 +20,8 @@ from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 
+from kivy.clock import Clock
+
 from constants import *
 from itools import *
 
@@ -91,6 +93,12 @@ class MyInputBox(Popup):
 	self.cb = kwargs.get('cb') or None
 	self.size_hint = (.6, .5)
 	self.content = self.p
+
+#	Clock.schedule_once(self.refocus_text_input, .75)
+
+
+    def refocus_text_input(self, arg1):
+	self.p.tin1.focus = True
 
 
     def buttonOk(self, b):

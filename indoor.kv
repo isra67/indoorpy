@@ -88,6 +88,7 @@
         center_x: self.parent.center_x
         center_y: self.parent.center_y
         size_hint: 1, None
+        nocache: True
     Label:
         id: lbltext
         font_size: '32dp'
@@ -119,12 +120,14 @@
             source: 'imgs/phone-call.png'
             size_hint: 1, 1
             center_y: root.center_y
+            nocache: True
 
         AsyncImage:
             id: imgpath2
             source: 'imgs/call-dnd.png'
             size_hint: 1, 1
             center_y: root.center_y
+            nocache: True
 
 # door (4 images) button:
 
@@ -149,24 +152,28 @@
             source: 'imgs/lock.png'
             size_hint: 1, 1
             center_y: root.center_y
+            nocache: True
 
         AsyncImage:
             id: lockimg2
             source: 'imgs/nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
+            nocache: True
 
         AsyncImage:
             id: lockimg3
             source: 'imgs/nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
+            nocache: True
 
         AsyncImage:
             id: lockimg4
             source: 'imgs/nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
+            nocache: True
 
 
 #CLOCK:
@@ -237,6 +244,7 @@
                 source: 'imgs/music.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Spinner:
                 id: musicspinner
                 size_hint: .5, None
@@ -253,6 +261,7 @@
                 source: 'imgs/clock.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Spinner:
                 id: clockspinner
                 size_hint: .8, None
@@ -273,6 +282,7 @@
                 source: 'imgs/speaker.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Slider:
                 size_hint_x: .9
                 min: 20
@@ -288,6 +298,7 @@
                 source: 'imgs/microphone.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Slider:
                 size_hint_x: .9
                 min: 20
@@ -311,6 +322,7 @@
                 source: 'imgs/brightness.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Slider:
                 id: brightslider
                 size_hint_x: .9
@@ -327,6 +339,7 @@
                 source: 'imgs/monitor.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Slider:
                 size_hint_x: .9
                 min: 0
@@ -347,10 +360,12 @@
                 source: 'imgs/nothing.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             AsyncImage:
                 source: 'imgs/nothing.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
 
         BoxLayout:
             orientation: 'horizontal'
@@ -359,6 +374,7 @@
                 source: 'imgs/call-dnd.png'
                 size_hint_x: None
                 width: '48px'
+                nocache: True
             Switch:
                 active: root.vald
                 on_active: root.vald = self.active
@@ -406,6 +422,7 @@
     AsyncImage:
         id: imgslider
         source: root.imgpath
+        nocache: True
 
 
 # BoxLayout + black background:

@@ -1600,6 +1600,9 @@ class Indoor(FloatLayout):
 	app.close_settings()
 	self.preparing = False
 	self.popupSettings.p.btok.disabled = False
+	self.popupSettings.p.btno.disabled = False
+	self.popupSettings.p.tin1.disabled = False
+	Clock.schedule_once(lambda dt: self.popupSettings.refocus_text_input(0))
 
 
     # ###############################################################
@@ -1610,11 +1613,13 @@ class Indoor(FloatLayout):
 	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=False)
 	self.popupSettings.open()
 	self.popupSettings.p.btok.disabled = True
+	self.popupSettings.p.btno.disabled = True
+	self.popupSettings.p.tin1.disabled = True
 
 	# prepare settings:
 	if not self.preparing:
 	    self.preparing = True
-	    Clock.schedule_once(lambda dt: threading.Thread(target=self.settings_worker).start(), .4)
+	    threading.Thread(target=self.settings_worker).start()
 
 
     # ###############################################################
@@ -2034,7 +2039,7 @@ class IndoorApp(App):
         except: self.rotation = 0
 	ROTATION = self.rotation
 
-        Config.set('kivy', 'keyboard_mode','systemandmulti')##        Config.set('kivy', 'keyboard_mode','')
+#        Config.set('kivy', 'keyboard_mode','systemandmulti')##        Config.set('kivy', 'keyboard_mode','')
         Logger.debug('Configuration: keyboard_mode=%r, keyboard_layout=%r, rotation=%r'\
 	    % (Config.get('kivy', 'keyboard_mode'), Config.get('kivy', 'keyboard_layout'),\
 		Config.get('graphics','rotation')))

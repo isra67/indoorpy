@@ -17,6 +17,7 @@ from time import sleep
 
 from constants import *
 from itools import *
+from nodeclient import *
 
 
 ###############################################################
@@ -47,6 +48,7 @@ def check_usb_audio():
     dev = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
     if dev is None:
 	Logger.error('%s: USB AUDIO is not connected' % whoami())
+	sendNodeInfo('[***]AUDIO: USB AUDIO ERROR')
 	device_id = 0
     else:
 	if device_id > 0 and device_id != dev.address:
@@ -54,12 +56,14 @@ def check_usb_audio():
 	    device_id = 0
 	else:
 #	    Logger.debug('%s: USB AUDIO is connected: %d' % (whoami(), dev.address))
+	    if device_id != dev.address: sendNodeInfo('[***]AUDIO: USB AUDIO OK')
 	    device_id = dev.address
 
     return (0 if device_id > 0 else 1)
 
 
 # ##############################################################################
+"""
 def reset_usb_audio_worker(dt=0):
     "reset usb audio board"
     "!!!!! USE share/audioini.py !!!!!"
@@ -78,7 +82,7 @@ def reset_usb_audio_worker(dt=0):
     sleep(RST_TIME)
     GPIO.output(RST_PIN, VALUE_INI)
     sleep(RST_TIME)
-
+"""
 
 # ##############################################################################
 
@@ -87,6 +91,7 @@ def reset_usb_audio():
     global device_id
 
     Logger.debug('%s: RESET USB AUDIO BOARD' % whoami())
+    sendNodeInfo('[***]AUDIO: USB AUDIO RESET')
 
     device_id = 0
 

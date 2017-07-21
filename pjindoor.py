@@ -718,6 +718,8 @@ class Indoor(FloatLayout):
         init_sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
+	Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
+
 	self.loseNextTouch = False
 
 	self.displays = []
@@ -1594,15 +1596,17 @@ class Indoor(FloatLayout):
     def settings_worker(self, dt=7.5):
 	"prepare settings"
 	Logger.info('%s:' % whoami())
+
 	app = App.get_running_app()
-	app.destroy_settings()
+#	app.destroy_settings()
 	app.open_settings()
 	app.close_settings()
+
 	self.preparing = False
-	self.popupSettings.p.btok.disabled = False
-	self.popupSettings.p.btno.disabled = False
-	self.popupSettings.p.tin1.disabled = False
-	Clock.schedule_once(lambda dt: self.popupSettings.refocus_text_input(0))
+#	self.popupSettings.p.btok.disabled = False
+#	self.popupSettings.p.btno.disabled = False
+#	self.popupSettings.p.tin1.disabled = False
+#	Clock.schedule_once(lambda dt: self.popupSettings.refocus_text_input(0))
 
 
     # ###############################################################
@@ -1612,14 +1616,15 @@ class Indoor(FloatLayout):
 
 	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=False)
 	self.popupSettings.open()
-	self.popupSettings.p.btok.disabled = True
-	self.popupSettings.p.btno.disabled = True
-	self.popupSettings.p.tin1.disabled = True
+#	self.popupSettings.p.btok.disabled = True
+#	self.popupSettings.p.btno.disabled = True
+#	self.popupSettings.p.tin1.disabled = True
+	Clock.schedule_once(lambda dt: self.popupSettings.refocus_text_input(0), .95)
 
 	# prepare settings:
-	if not self.preparing:
-	    self.preparing = True
-	    threading.Thread(target=self.settings_worker).start()
+#	if not self.preparing:
+#	    self.preparing = True
+#	    threading.Thread(target=self.settings_worker).start()
 
 
     # ###############################################################
@@ -1640,7 +1645,7 @@ class Indoor(FloatLayout):
 	Logger.info('%s: idx=%d' % (whoami(), idx))
 
 	self.displays[idx].hidePlayer()
-	send_command("ps aux | grep omxplayer"+str(idx)+" | grep -v grep | awk '{print $2}' | xargs kill -9")
+	send_command("ps aux | grep omxplayer%d | grep -v grep | awk '{print $2}' | xargs kill -9" % idx)
 	send_command('%s%d' % (CMD_KILL, procs[idx].pid))
 
 
@@ -2175,9 +2180,11 @@ class IndoorApp(App):
     # ###############################################################
     def display_settings(self, settings):
 	"display settings"
-	global mainLayout
+	global mainLayout, config
 
         Logger.debug('%s:' % whoami())
+
+	config = get_config()
 
 	mainLayout.ids.settings.clear_widgets()
 
@@ -2221,13 +2228,14 @@ class IndoorApp(App):
 		self.restartAppFlag = True
 	elif 'timezones' == section:
 	    if token == ('timezones', 'timezone'):
-		tzlist = getTimeZoneList()
-		if value in tzlist:
-		    send_command('./settimezone.sh ' + value)
-		else:
-		    config.set(section, key, self.config.get(section, key))
-		    config.write()
-		    MyAlertBox(titl='WARNING', txt='Bad timezone string!\n\nTimezone will not change', cb=None, ad=False).open()
+		send_command('./settimezone.sh ' + value)
+#		tzlist = getTimeZoneList()
+#		if value in tzlist:
+#		    send_command('./settimezone.sh ' + value)
+#		else:
+#		    config.set(section, key, self.config.get(section, key))
+#		    config.write()
+#		    MyAlertBox(titl='WARNING', txt='Bad timezone string!\n\nTimezone will not change', cb=None, ad=False).open()
 	elif 'service' == section:
 	    if token == ('service', 'app_log'):
 		saveKivyCfg('kivy', 'log_level', 'critical' if value == 'none' else value)

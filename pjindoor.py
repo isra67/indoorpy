@@ -308,12 +308,16 @@ def make_call(uri):
 
 def log_cb(level, str, len):
     "pjSip logging callback"
+    global docall_button_global
+
     Logger.info('pjSip cb: (%d) %s' % (level, str))
 
     if 'registration failed' in str:
 	sendNodeInfo('[***]SIPREG: ERROR')
+	docall_button_global.disabled = True
     elif 'registration success' in str:
 	sendNodeInfo('[***]SIPREG: OK')
+	docall_button_global.disabled = False
 
 
 # ##############################################################################
@@ -808,7 +812,6 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 12.)
-#        Clock.schedule_interval(self.checkNetStatus, 24.)
 
         Clock.schedule_once(self.checkNetStatus, 5.)
 	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 15)

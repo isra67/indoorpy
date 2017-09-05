@@ -289,6 +289,8 @@ def make_call(uri):
 
     Logger.info('%s: %s' % (whoami(), uri))
 
+    if not mainLayout.outgoing_mode: return None
+
     try:
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
     except pj.Error, e:
@@ -680,6 +682,7 @@ class Indoor(FloatLayout):
     lib = None			# pjsip library
     outgoingCall = False
     dnd_mode = False
+    outgoing_mode = True
     avolume = 100
     micvolume = 100
     brightness = 255
@@ -749,7 +752,7 @@ class Indoor(FloatLayout):
         try:
 	    value = config.get('command', 'watches').strip()
 	    if value == 'analog' or value == 'digital': WATCHES = value
-	    else: WATCHES = 'None'
+	    else: WATCHES = 'none'
         except:
             Logger.warning('Indoor init: ERROR 4 = read config file!')
 
@@ -770,6 +773,11 @@ class Indoor(FloatLayout):
 	    self.dnd_mode = 'True' == config.get('command', 'dnd_mode').strip()
         except:
             Logger.warning('Indoor init: ERROR 6 = read config file!')
+
+        try:
+	    self.outgoing_mode = '1' == config.get('gui', 'outgoing_calls').strip()
+        except:
+            Logger.warning('Indoor init: ERROR 6.1 = read config file!')
 
         try:
 	    br = config.getint('command', 'brightness')
@@ -1209,7 +1217,10 @@ class Indoor(FloatLayout):
 	"test ETH status"
         global docall_button_global, config
 
-	try: s = get_info(SYSTEMINFO_SCRIPT).split()
+	try:
+	    s = get_info(SYSTEMINFO_SCRIPT).split()
+	    if len(s) > 9: sendNodeInfo('[***]MACADDR: %s' % s[9])
+	    sendNodeInfo('[***]IPADDR: %s' % s[3])
 	except: s = []
 
 	docall_button_global.btntext = '' if self.lib else 'No Licence'
@@ -1224,6 +1235,9 @@ class Indoor(FloatLayout):
 		config.set('system', 'netmask', s[4])
 		config.set('system', 'dns', s[8])
 		config.write()
+
+		if len(s) > 9: sendNodeInfo('[***]MACADDR: %s' % s[9])
+		sendNodeInfo('[***]IPADDR: %s' % s[3])
 	    except:
 		Logger.error('%s: config %r' % (whoami(), config))
 		docall_button_global.btntext = 'ERROR'
@@ -1280,7 +1294,7 @@ class Indoor(FloatLayout):
 
 	if current_call is None and self.scrmngr.current == CAMERA_SCR:
 	    self.scrmngr.current = DIGITAL_SCR
-	    if WATCHES == 'None': send_command(BACK_LIGHT_SCRIPT + ' 1')
+	    if WATCHES == 'none': send_command(BACK_LIGHT_SCRIPT + ' 1')
 	    else:
 		if len(self.ids.clockslayout.children):
 		    Logger.error('%s: widgets_cnt=%d' % (whoami(), len(self.ids.clockslayout.children)))
@@ -1378,7 +1392,7 @@ class Indoor(FloatLayout):
 
 	if check_usb_audio() > 0: self.reinitbackgroundtasks()
 
-	if len(procs) == 0: return
+#	if len(procs) == 0 or not self.outgoing_mode: return
 
         if current_call:
 	    Logger.info('%s call state: %s' % (whoami(), str(current_call.dump_status())))
@@ -1506,7 +1520,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def show_selected_value(self, spinner, text):
 	"clock|tine item change"
-	global SCREEN_SAVER, WATCHES, RING_TONE
+#	global SCREEN_SAVER, RING_TONE
 
 	Logger.info('%s: %s' % (whoami(), text))
 
@@ -1617,7 +1631,7 @@ class Indoor(FloatLayout):
 	"get password"
 	Logger.debug('%s:' % whoami())
 
-	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwdx=True, ad=False)
+	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwd=True, ad=False)
 	self.popupSettings.open()
 #	self.popupSettings.p.btok.disabled = True
 #	self.popupSettings.p.btno.disabled = True
@@ -1850,11 +1864,15 @@ class Indoor(FloatLayout):
 	    self.btnAreaH.remove_widget(self.btnSettings)
 	    self.btnScrSaver.parent = None
 	    self.btnSettings.parent = None
+
+	    docall_button_global.disabled = False
 	else:
 	    cnt = 5 if self.scrOrientation in [0,180] else 3
 	    if self.btnScrSaver.parent is None:
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
+
+	    docall_button_global.disabled = self.outgoing_mode == False
 
 
     # ###############################################################
@@ -2197,7 +2215,7 @@ class IndoorApp(App):
     # ###############################################################
     def on_config_change(self, cfg, section, key, value):
 	"config item changed"
-	global config, SCREEN_SAVER, WATCHES, ROTATION, mainLayout
+	global config, SCREEN_SAVER, ROTATION, mainLayout
 
         Logger.info('%s: sec=%s key=%s val=%s' % (whoami(), section, key, value))
 	token = (section, key)

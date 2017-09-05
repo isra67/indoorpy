@@ -57,7 +57,7 @@ Builder.load_string("""
             font_size: self.height/2
         Label:
             id: lblRemc
-            text: 'Remote control: wait...'
+            text: 'Remote access: wait...'
             font_size: self.height/2
     BoxLayout:
         orientation: root.lbOrientation

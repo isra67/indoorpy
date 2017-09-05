@@ -49,7 +49,12 @@ settings_gui = json.dumps([
      'desc': 'Choose for the display orientation',
      'section': 'gui',
      'key': 'screen_orientation',
-     'options': ['0', '90', '180', '270']}
+     'options': ['0', '90', '180', '270']},
+    {'type': 'bool',
+     'title': 'Outgoing calls',
+     'desc': 'Enable/disable outgoing calls',
+     'section': 'gui',
+     'key': 'outgoing_calls'}
 ])
 
 # ###############################################################
@@ -231,7 +236,7 @@ settings_system = json.dumps([
      'options': ['static', 'dhcp']},
     {'type': 'string',
      'title': 'IP address',
-     'desc': 'Enter Raspberry Pi IP address',
+     'desc': 'Enter Indoor monitor IP address',
      'section': 'system',
      'key': 'ipaddress'},
     {'type': 'string',
@@ -271,7 +276,7 @@ settings_about = json.dumps([
      'key': 'app_ver'},
     {'type': 'string',
      'title': 'Serial number',
-     'desc': 'Raspberry Pi serial number',
+     'desc': 'Indoor monitor serial number',
      'section': 'about',
      'disabled': True,
      'key': 'serial'},

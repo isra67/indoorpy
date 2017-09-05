@@ -23,6 +23,7 @@ GATEWAY=`netstat -rn | grep eth0 | awk '{if($1=="0.0.0.0") print $2}'`
 #GATEWAY=`echo $NS_TEMP | awk '{if($1=="0.0.0.0") print $2}'`
 #NETWORK=`echo $NS_TEMP | awk '{if($1!="0.0.0.0") print $1}'`
 DNS=`cat /etc/resolv.conf | grep nameserver | awk 'NR==1 {print $2}'`
+MACADDR=`ifconfig eth0 | grep "HWaddr" | awk '{print $5}' | sed -e 's/:/-/g'`
 
 INET_TMP=`cat /etc/dhcpcd.conf | grep "interface eth0"`
 if [ -z $INET_TMP ]; then
@@ -50,4 +51,4 @@ if [ -z $DNS ]; then
     DNS=0.0.0.0
 fi
 
-echo $DAT $SERIAL $INET $IP_ADDR $NETMASK $BROADCAST $GATEWAY $NETWORK $DNS
+echo $DAT $SERIAL $INET $IP_ADDR $NETMASK $BROADCAST $GATEWAY $NETWORK $DNS $MACADDR

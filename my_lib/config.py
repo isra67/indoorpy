@@ -33,7 +33,8 @@ dict_dev = {'ringtone': 'oldphone.wav',
             'volume': 100,
             'micvolume': 100 }
 dict_gui = {'screen_mode': 1,
-	    'screen_orientation': 0 }
+	    'screen_orientation': 0,
+	    'outgoing_calls': True }
 dict_common = {'server_ip_address_1': '192.168.1.250',
             'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
             'picture_1': 'fill',

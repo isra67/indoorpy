@@ -34,7 +34,7 @@ dict_dev = {'ringtone': 'oldphone.wav',
             'micvolume': 100 }
 dict_gui = {'screen_mode': 1,
 	    'screen_orientation': 0,
-	    'outgoing_calls': True }
+	    'outgoing_calls': 1 }
 dict_common = {'server_ip_address_1': '192.168.1.250',
             'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
             'picture_1': 'fill',
@@ -53,9 +53,9 @@ dict_common = {'server_ip_address_1': '192.168.1.250',
             'sip_call4': '' }
 dict_timezone = {'timezone': 'Europe/Brussels'}
 dict_service = {'masterpwd': '1234',
-            'app_log': 'none',
+            'app_log': 'error',
             'tunnel_flag': False,
-            'sip_log': 'none' }
+            'sip_log': 'error' }
 dict_about = {'app_name': 'Indoor 2.0',
             'app_ver': '2.0.0.0',
             'licencekey': '0000-000000-0000-000000-0000',

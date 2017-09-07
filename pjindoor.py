@@ -713,7 +713,7 @@ class Indoor(FloatLayout):
 
     def __init__(self, **kwargs):
 	"app init"
-	global APP_NAME, SCREEN_SAVER, ROTATION, WATCHES, RING_TONE
+	global APP_NAME, APP_VERSION_CODE, SCREEN_SAVER, ROTATION, WATCHES, RING_TONE
         global main_state, mainLayout, scrmngr, config, scr_mode
 
         super(Indoor, self).__init__(**kwargs)
@@ -748,6 +748,13 @@ class Indoor(FloatLayout):
             Logger.warning('Indoor init: ERROR 3 = read config file!')
 
 	watches.APP_LABEL = APP_NAME
+
+        try:
+	    if config.get('about', 'app_ver') != APP_VERSION_CODE:
+		config.set('about', 'app_ver', APP_VERSION_CODE)
+		config.write()
+        except:
+            Logger.warning('Indoor init: ERROR 3.1 = read config file!')
 
         try:
 	    value = config.get('command', 'watches').strip()

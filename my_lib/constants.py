@@ -21,6 +21,7 @@ CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 KIVY_CONFIG_FILE = '/root/.kivy/config.ini'
 
 APP_NAME = '-Indoor-2.0-'
+APP_VERSION_CODE = '2.0.0.1'
 
 SCREEN_SAVER = 0
 WATCHES = 'analog'

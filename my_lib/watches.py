@@ -16,6 +16,8 @@ from kivy.uix.label import Label
 #from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
+from kivy.logger import Logger
+
 from math import cos, sin, pi
 
 import datetime
@@ -115,9 +117,16 @@ class Ticks(Widget):
         self.ln.text_size = self.size
         self.add_widget(self.ln)
 
+	self.temps = 184
+	self.postemp = [self.center_x - self.temps, self.center_y - self.temps]
+	self.sizetemp = [self.temps * 2, self.temps * 2]
+
+#	Logger.debug('watch: w:%d h:%d x:%d y:%d cx:%d cy:%d' % (self.width, self.height, self.x, self.y, self.center_x, self.center_y))
+
         with self.canvas:
             Color(.1, .1, .6, .15)
-            Ellipse(pos={self.y + 19,self.width / 4}, size={self.width / 2, self.height - 38})
+##	    Ellipse(pos={self.y + 19,self.width / 4}, size={self.width / 2, self.height - 38})
+	    Ellipse(pos=self.postemp, size=self.sizetemp)
 
             Color(0.6, 0.6, 0.9)
             Line(points = [self.center_x, self.center_y, self.center_x+0.7*self.r*sin(pi/30*time.second),

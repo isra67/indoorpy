@@ -84,7 +84,7 @@ def setloginfo(sipflag=False, msg=''):
 #    if not '/tmp/deb.txt' in msg: send_command('echo "%s" >> /tmp/deb.txt' % msg)
 
     if sipflag:
-	sip_log.append(msg)
+	sip_log.append('%s %s' % (getdatetimestr(), msg))
 	if len(sip_log) > MAX_SIP_CNT: sip_log.pop(0)
 	filename = SIP_LOG_TMP_FILE
 	log = sip_log

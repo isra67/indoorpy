@@ -40,20 +40,20 @@ SETIPADDRESS_SCRIPT = './setipaddress.sh'
 HIDINIT_SCRIPT = './hid_init.sh'
 
 # ### images: ###
-MAKE_CALL_IMG = 'imgs/phone-call.png'
-ANSWER_CALL_IMG = 'imgs/call-answer.png'
-HANGUP_CALL_IMG = 'imgs/call-disconnect.png'
+MAKE_CALL_IMG = 'imgs/ww_phone-call.png'
+ANSWER_CALL_IMG = 'imgs/w_phone-call.png' # 'imgs/call-answer.png'
+HANGUP_CALL_IMG = 'imgs/w_call-disconnect.png'
 ERROR_CALL_IMG = 'imgs/call-reject.png'
-DND_CALL_IMG = 'imgs/call-dnd.png'
+DND_CALL_IMG = 'imgs/w_call-dnd.png'
 
-VOLUME_IMG = 'imgs/speaker.png'
-MICROPHONE_IMG = 'imgs/microphone.png'
+VOLUME_IMG = 'imgs/w_speaker.png'
+MICROPHONE_IMG = 'imgs/w_microphone.png'
 
-SCREEN_SAVER_IMG = 'imgs/monitor.png'
-SETTINGS_IMG = 'imgs/settings.png'
-LOCK_IMG = 'imgs/lock.png'
-UNLOCK_IMG = 'imgs/unlock.png'
-INACTIVE_LOCK_IMG = 'imgs/nolock.png'
+SCREEN_SAVER_IMG = 'imgs/w_monitor.png'
+SETTINGS_IMG = 'imgs/w_settings.png'
+LOCK_IMG = 'imgs/w_lock.png'
+UNLOCK_IMG = 'imgs/w_unlock.png'
+INACTIVE_LOCK_IMG = 'imgs/w_nolock.png'
 
 NO_IMG = 'imgs/nothing.png'
 
@@ -70,8 +70,9 @@ COLOR_HANGUP_CALL = 0,0,.9,1
 COLOR_ERROR_CALL = .9,0,0,1
 COLOR_NOMORE_CALL = COLOR_BUTTON_BASIC
 
-ACTIVE_DISPLAY_BACKGROUND = [.0,.0,.9]
-INACTIVE_DISPLAY_BACKGROUND = [.0,.0,.0]
+ACTIVE_DISPLAY_BACKGROUND = [1.,1.,1.] #[.0,.0,.9]
+INACTIVE_DISPLAY_BACKGROUND = [.3,.3,.3] #[.0,.0,.0]
+N0_DISPLAY_BACKGROUND = [.0,.0,.0]
 
 # ### audio player: ###
 APLAYER = 'aplay'

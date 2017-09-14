@@ -64,6 +64,30 @@
 
 <VideoLabel>:
     text: 'Wait...'
+    font_size: '40dp'
+    color: .3,.3,.3,.8
+    bgcolor: 0,0,0
+    lineWidth: 2
+    lineOffset: 3
+    canvas.before:
+        Color:
+            rgb: self.bgcolor
+        Line: # left
+            points: self.center_x - self.width/2 + self.lineOffset, self.center_y - self.height/2 + self.lineOffset, self.center_x - self.width/2 + self.lineOffset, self.center_y + self.height/2 - self.lineOffset
+            width: self.lineWidth
+        Line: # top
+            points: self.center_x - self.width/2 + self.lineOffset, self.center_y + self.height/2 - self.lineOffset, self.center_x + self.width/2 - self.lineOffset, self.center_y + self.height/2 - self.lineOffset
+            width: self.lineWidth
+        Line: # right
+            points: self.center_x + self.width/2 - self.lineOffset, self.center_y + self.height/2 - self.lineOffset, self.center_x + self.width/2 - self.lineOffset, self.center_y - self.height/2 + self.lineOffset
+            width: self.lineWidth
+        Line: # bottom
+            points: self.center_x - self.width/2 + self.lineOffset, self.center_y - self.height/2 + self.lineOffset, self.center_x + self.width/2 - self.lineOffset, self.center_y - self.height/2 + self.lineOffset
+            width: self.lineWidth
+
+
+<VideoLabelO>:
+    text: 'Wait...'
     font_size: '48dp' #self.height/4
     color: 0.3,0.3,0.9,0.9
     bgcolor: 0,0,0
@@ -117,14 +141,14 @@
 
         AsyncImage:
             id: imgpath
-            source: 'imgs/phone-call.png'
+            source: 'imgs/ww_phone-call.png'
             size_hint: 1, 1
             center_y: root.center_y
             nocache: True
 
         AsyncImage:
             id: imgpath2
-            source: 'imgs/call-dnd.png'
+            source: 'imgs/w_call-dnd.png'
             size_hint: 1, 1
             center_y: root.center_y
             nocache: True
@@ -149,28 +173,28 @@
 
         AsyncImage:
             id: lockimg1
-            source: 'imgs/lock.png'
+            source: 'imgs/w_lock.png'
             size_hint: 1, 1
             center_y: root.center_y
             nocache: True
 
         AsyncImage:
             id: lockimg2
-            source: 'imgs/nolock.png'
+            source: 'imgs/w_nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
             nocache: True
 
         AsyncImage:
             id: lockimg3
-            source: 'imgs/nolock.png'
+            source: 'imgs/w_nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
             nocache: True
 
         AsyncImage:
             id: lockimg4
-            source: 'imgs/nolock.png'
+            source: 'imgs/w_nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
             nocache: True
@@ -181,7 +205,8 @@
 <DigiClockWidget>:
     DigiClock:
         font_size: '112dp' #self.height/4
-        color: 0.3,0.6,0.9,0.9
+        color: .6,.6,.6,.9
+#        color: 0.3,0.6,0.9,0.9
 
 
 <MyClockWidget>:
@@ -249,7 +274,7 @@
             musicspinner: musicspinner
 
             AsyncImage:
-                source: 'imgs/music.png'
+                source: 'imgs/w_music.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
@@ -266,7 +291,7 @@
             clockspinner: clockspinner
 
             AsyncImage:
-                source: 'imgs/clock.png'
+                source: 'imgs/w_clock.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
@@ -287,7 +312,7 @@
             orientation: 'horizontal'
 
             AsyncImage:
-                source: 'imgs/speaker.png'
+                source: 'imgs/w_speaker.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
@@ -305,7 +330,7 @@
             orientation: 'horizontal'
 
             AsyncImage:
-                source: 'imgs/microphone.png'
+                source: 'imgs/w_microphone.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
@@ -331,7 +356,7 @@
             brightslider: brightslider
 
             AsyncImage:
-                source: 'imgs/brightness.png'
+                source: 'imgs/w_brightness.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
@@ -350,14 +375,14 @@
             orientation: 'horizontal'
 
             AsyncImage:
-                source: 'imgs/monitor.png'
+                source: 'imgs/w_monitor.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
             Slider:
                 size_hint_x: .9
                 min: 0
-                max: 120
+                max: 45
                 step: 1
                 value: root.vals
                 on_value: root.vals = self.value
@@ -387,7 +412,7 @@
             orientation: 'horizontal'
 
             AsyncImage:
-                source: 'imgs/call-dnd.png'
+                source: 'imgs/w_call-dnd.png'
                 size_hint_x: None
                 width: '48px'
                 nocache: True
@@ -420,7 +445,7 @@
 <SliderArea>:
     orientation: 'vertical'
     spacing: '8px'
-    imgpath: 'imgs/settings1.png'
+    imgpath: 'imgs/w_settings.png'
     val: 100
     on_val: None
     audioslider: audioslider

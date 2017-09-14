@@ -22,7 +22,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.button import Button
-from kivy.uix.image import Image
+#from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.listview import ListView, ListItemLabel
 from kivy.uix.popup import Popup
@@ -46,6 +46,10 @@ from threading import Thread
 import pjsua as pj
 
 from my_lib import *
+
+from kivy.cache import Cache
+Cache._categories['kv.image']['limit'] = 0
+Cache._categories['kv.texture']['limit'] = 0
 
 
 ###############################################################
@@ -189,8 +193,7 @@ class MyCallCallback(pj.CallCallback):
 	    self.callTimerEvent = Clock.schedule_once(self.callTimerWD, self.CALL_TIMEOUT)
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
-#	    if not mainLayout.outgoingCall:
-#		docall_button_global.imgpath = ANSWER_CALL_IMG
+	    docall_button_global.imgpath = HANGUP_CALL_IMG if mainLayout.outgoingCall else ANSWER_CALL_IMG
 	    mainLayout.setButtons(True)
 	    mainLayout.finishScreenTiming()
 
@@ -212,7 +215,8 @@ class MyCallCallback(pj.CallCallback):
 	    sendNodeInfo('[***]SIP: FREE')
 
         elif main_state == pj.CallState.CONFIRMED:
-	    docall_button_global.imgpath = HANGUP_CALL_IMG
+	    if docall_button_global.imgpath != HANGUP_CALL_IMG:
+		docall_button_global.imgpath = HANGUP_CALL_IMG
 	    try: docall_button_global.parent.remove_widget(mainLayout.btnReject)
 	    except: pass
 	    Logger.info('pjSip call status: %s' % self.call.dump_status())
@@ -225,7 +229,7 @@ class MyCallCallback(pj.CallCallback):
 		return
 ##	    playTone(DIAL_WAV)
 	    current_call = self.call
-	    docall_button_global.imgpath = ANSWER_CALL_IMG #MAKE_CALL_IMG #
+	    docall_button_global.imgpath = HANGUP_CALL_IMG  #ANSWER_CALL_IMG
 
 	setcallstat(outflag=(ci.role==0), status=main_state, prev_status=prev_state, call=ci.remote_uri)
 	if main_state == 6: main_state = 0
@@ -349,8 +353,8 @@ class BasicDisplay:
 	delta = 2
 	self.playerPosition[0] += delta
 	self.playerPosition[1] += delta
-	self.playerPosition[2] -= delta
-	self.playerPosition[3] -= delta
+	self.playerPosition[2] -= 2*delta
+	self.playerPosition[3] -= 2*delta
 
 	if aspectratio in ['16:9','4:3']:
 	    ### keep aspect ratio:
@@ -498,7 +502,7 @@ class BasicDisplay:
 		if self.aspectratio == '16:9':
 		    pdelta = int((pwidth - (int(pheight / 9) * 16)) / 2)
 		elif self.aspectratio == '4:3':
-		    pdelta = int((pwidth - (int(pheight / 3) * 4)) /2)
+		    pdelta = int((pwidth - (int(pheight / 3) * 4)) / 2)
 		else: pdelta = 0
 		if pdelta < 0: pdelta = 0
 
@@ -650,7 +654,7 @@ class BasicDisplay:
 	"hide video player area"
 	Logger.debug('%s:' % whoami())
 
-	self.color = INACTIVE_DISPLAY_BACKGROUND
+	self.color = [0,0,0] #NO_DISPLAY_BACKGROUND  # INACTIVE_DISPLAY_BACKGROUND
 	self.actScreen.bgcolor = self.color
 
 
@@ -1025,34 +1029,34 @@ class Indoor(FloatLayout):
 	self.addInfoArea()
 	self.addButtonArea()
 
-	if self.scrOrientation == 0:		# landscape
+	if self.scrOrientation == 0:		# landscape 0
 	    if scr_mode == 1:
-		wins = ['0,0,800,432']
+		wins = ['2,2,799,432']
 	    elif scr_mode in [2,3]:
-		wins = ['0,0,400,432', '400,0,800,432']
+		wins = ['2,2,399,432', '402,2,799,432']
 	    else:
-		wins = ['0,0,400,216', '400,0,800,216', '0,216,400,432', '400,216,800,432']
-	elif self.scrOrientation == 180:	# landscape
+		wins = ['2,2,399,216', '402,2,799,216', '2,219,399,432', '402,219,799,432']
+	elif self.scrOrientation == 180:	# landscape 180
 	    if scr_mode == 1:
-		wins = ['0,47,800,480']
+		wins = ['3,50,799,479']
 	    elif scr_mode in [2,3]:
-		wins = ['400,47,800,480', '0,47,400,480']
+		wins = ['403,50,799,479', '3,50,399,479']
 	    else:
-		wins = ['400,263,800,480', '0,263,400,480', '400,47,800,263', '0,47,400,263']
-	elif self.scrOrientation == 90:		# portrait
+		wins = ['403,266,799,479', '3,266,399,479', '403,50,799,262', '3,50,399,262']
+	elif self.scrOrientation == 90:		# portrait 90
 	    if scr_mode == 1:
-		wins = ['0,0,706,480']
+		wins = ['3,3,705,479']
 	    elif scr_mode in [2,3]:
-		wins = ['0,0,353,480', '353,0,706,480']
+		wins = ['3,3,352,479', '356,3,705,479']
 	    else:
-		wins = ['0,0,177,480', '177,0,353,480', '353,0,530,480', '530,0,706,480']
+		wins = ['3,3,176,479', '180,3,352,479', '356,3,529,479', '533,3,705,479']
 	else:					# portrait 270
 	    if scr_mode == 1:
-		wins = ['94,0,800,480']
+		wins = ['98,3,799,479']
 	    elif scr_mode in [2,3]:
-		wins = ['446,0,800,480', '94,0,447,480']
+		wins = ['450,3,799,479', '98,3,446,479']
 	    else:
-		wins = ['624,0,800,480', '446,0,624,480', '271,0,447,480', '94,0,271,480']
+		wins = ['627,3,799,479', '450,3,623,479', '275,3,446,479', '98,3,270,479']
 
 	for i in range(0,len(wins)):
 	    win = wins[i]
@@ -1384,10 +1388,23 @@ class Indoor(FloatLayout):
 
 	Logger.info('%s:' % whoami())
 
-        if current_call.is_valid(): current_call.hangup()
+        if current_call and current_call.is_valid(): current_call.hangup()
 	current_call = None
 	self.outgoingCall = False
 	self.setButtons(False)
+
+
+    # ###############################################################
+    def enable_btn_docall(self, param):
+	"enable a call button"
+        global docall_button_global, current_call
+
+	Logger.debug('%s:' % whoami())
+
+	if self.outgoingCall or (current_call and current_call.is_valid()):
+	    docall_button_global.disabled = False
+	else:
+	    docall_button_global.disabled = self.outgoing_mode == False
 
 
     # ###############################################################
@@ -1395,7 +1412,12 @@ class Indoor(FloatLayout):
 	"make outgoing call"
         global current_call, active_display_index, docall_button_global, ring_event
 
-	Logger.info('%s: call=%s state=%d outgoing=%r' % (whoami(), str(current_call), main_state, self.outgoingCall))
+	Logger.info('%s: call=%r state=%d outgoing=%r' % (whoami(), current_call, main_state, self.outgoingCall))
+
+	if docall_button_global.disabled: return
+
+	docall_button_global.disabled = True
+	Clock.schedule_once(self.enable_btn_docall, 1)
 
 	if check_usb_audio() > 0: self.reinitbackgroundtasks()
 
@@ -1420,6 +1442,9 @@ class Indoor(FloatLayout):
 		self.setButtons(False)
 		docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 	else:
+	    if self.showVideoEvent: Clock.unschedule(self.showVideoEvent)
+	    self.showVideoEvent = None
+
 	    target = self.displays[active_display_index].sipcall
 
 	    if len(target) == 0: return
@@ -1544,6 +1569,8 @@ class Indoor(FloatLayout):
 	global SCREEN_SAVER, WATCHES, RING_TONE
 	"close quick settings dialog"
 
+	if not self.popupSettings: return
+
 	content = self.popupSettings.content
 	a = int(content.valv)
 	m = int(content.valm)
@@ -1622,15 +1649,10 @@ class Indoor(FloatLayout):
 	Logger.info('%s:' % whoami())
 
 	app = App.get_running_app()
-#	app.destroy_settings()
 	app.open_settings()
 	app.close_settings()
 
 	self.preparing = False
-#	self.popupSettings.p.btok.disabled = False
-#	self.popupSettings.p.btno.disabled = False
-#	self.popupSettings.p.tin1.disabled = False
-#	Clock.schedule_once(lambda dt: self.popupSettings.refocus_text_input(0))
 
 
     # ###############################################################
@@ -1640,15 +1662,7 @@ class Indoor(FloatLayout):
 
 	self.popupSettings = MyInputBox(titl='Enter password', txt='', cb=self.testPwdSettings, pwd=True, ad=False)
 	self.popupSettings.open()
-#	self.popupSettings.p.btok.disabled = True
-#	self.popupSettings.p.btno.disabled = True
-#	self.popupSettings.p.tin1.disabled = True
 	Clock.schedule_once(lambda dt: self.popupSettings.refocus_text_input(0), .95)
-
-	# prepare settings:
-#	if not self.preparing:
-#	    self.preparing = True
-#	    threading.Thread(target=self.settings_worker).start()
 
 
     # ###############################################################
@@ -1682,7 +1696,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    def checkTripleTap(self,touch):
+    def checkDoubleTap(self,touch):
 	"check if triple tap is in valid area, if yes -> finish app"
 	Logger.info('%s:' % whoami())
 
@@ -1707,12 +1721,8 @@ class Indoor(FloatLayout):
 
 #	Logger.info('%s:' % whoami())
 	if touch:
-#	if not touch is None:
 	    Logger.debug('%s: touch=%d,%d double=%d triple=%d loseNext=%r'\
 		% (whoami(), touch.x, touch.y, touch.is_double_tap, touch.is_triple_tap, self.loseNextTouch))
-#	    if len(self.touches):
-#		del self.touches[touch.uid]
-##		self.touches.remove(touch.uid) #pop(0)
 	    self.touchdistance = -1.
 
 	if self.loseNextTouch:
@@ -1727,7 +1737,7 @@ class Indoor(FloatLayout):
 	    return True
 
 	if not touch is None and touch.is_double_tap:
-	    self.checkTripleTap(touch)
+	    self.checkDoubleTap(touch)
 	    return True
 
 	if current_call is None: self.startScreenTiming()
@@ -1765,7 +1775,7 @@ class Indoor(FloatLayout):
 
 	Logger.debug('%s: cnt=%d %r' % (whoami(), len(self.touches)+1, touch.uid))
 
-	if not current_call and scr_mode > 1:
+	if self.scrmngr.current == CAMERA_SCR and not current_call and scr_mode > 1 and self.popupSettings == None:
 	    self.touches[touch.uid] = [touch,None]
 	    self.touchdistance = -1.
 
@@ -1779,7 +1789,7 @@ class Indoor(FloatLayout):
 
 	Logger.trace('%s: %r' % (whoami(), touch.uid))
 
-	if not current_call and len(self.touches) > 1:
+	if self.scrmngr.current == CAMERA_SCR and not current_call and len(self.touches) > 1 and self.popupSettings == None:
 	    self.touches[touch.uid][1] = touch
 	    self.testTouches()
 
@@ -1829,6 +1839,8 @@ class Indoor(FloatLayout):
     # ###############################################################
     def showPlayers(self):
 	"d-bus command to show video"
+	global active_display_index
+
 	Logger.debug('%s:' % whoami())
 
 	for d in self.displays:
@@ -1837,13 +1849,27 @@ class Indoor(FloatLayout):
 	    else:
 		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 		d.isPlaying = True
+	    d.setActive(False)
 
-#	self.displays[active_display_index].resizePlayer()
 	self.addInfoText()
 	self.displays[active_display_index].setActive()
 
 	if self.showVideoEvent: Clock.unschedule(self.showVideoEvent)
 	self.showVideoEvent = None
+
+
+    # ###############################################################
+    def hideAndResizePlayers(self):
+	"d-bus command to hide and resize video"
+	Logger.debug('%s:' % whoami())
+
+	# hide video:
+	for d in self.displays:
+	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
+	    d.isPlaying = False
+
+	# resize video:
+	for d in self.displays: d.resizePlayer()
 
 
     # ###############################################################
@@ -1854,9 +1880,7 @@ class Indoor(FloatLayout):
 	if self.showVideoEvent: Clock.unschedule(self.showVideoEvent)
 	self.showVideoEvent = None
 
-	for d in self.displays:
-	    d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(0)])
-	    d.isPlaying = False
+	Clock.schedule_once(lambda dt: self.hideAndResizePlayers(),.1)
 
 
     # ###############################################################
@@ -1872,14 +1896,14 @@ class Indoor(FloatLayout):
 	    self.btnScrSaver.parent = None
 	    self.btnSettings.parent = None
 
-	    docall_button_global.disabled = False
+#	    docall_button_global.disabled = False
 	else:
 	    cnt = 5 if self.scrOrientation in [0,180] else 3
 	    if self.btnScrSaver.parent is None:
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
 
-	    docall_button_global.disabled = self.outgoing_mode == False
+#	    docall_button_global.disabled = self.outgoing_mode == False
 
 
     # ###############################################################

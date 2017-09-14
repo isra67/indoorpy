@@ -16,21 +16,21 @@ import json
 # ###############################################################
 
 # basic app settings
-settings_app = json.dumps([
-    {'type': 'title',
-     'title': 'Basic application parameters'},
-    {'type': 'numeric',
-     'title': 'Screen saver',
-     'desc': 'Select time to swap do screen saver mode (0-120 min)',
-     'section': 'command',
-     'key': 'screen_saver'},
-    {'type': 'options',
-     'title': 'Watches',
-     'desc': 'Choose if you want to analog or digital watches',
-     'section': 'command',
-     'key': 'watches',
-     'options': ['analog','digital','none']}
-])
+#settings_app = json.dumps([
+#    {'type': 'title',
+#     'title': 'Basic application parameters'},
+#    {'type': 'numeric',
+#     'title': 'Screen saver',
+#     'desc': 'Select time to swap do screen saver mode (0-45 min)',
+#     'section': 'command',
+#     'key': 'screen_saver'},
+#    {'type': 'options',
+#     'title': 'Watches',
+#     'desc': 'Choose if you want to analog or digital watches',
+#     'section': 'command',
+#     'key': 'watches',
+#     'options': ['analog','digital','none']}
+#])
 
 # ###############################################################
 

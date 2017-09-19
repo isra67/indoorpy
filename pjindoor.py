@@ -713,7 +713,7 @@ class Indoor(FloatLayout):
     touches = {}		# resize video player (to bigger)
     touchdistance = -1.		# touch distance
     showVideoEvent = None	# timer to return size back
-    netstatus = 0		# old value of NetLink.netstatus
+    netstatus = -1		# old value of NetLink.netstatus
 
     def __init__(self, **kwargs):
 	"app init"
@@ -903,7 +903,7 @@ class Indoor(FloatLayout):
 
 	docall_button_global = self.btnDoCall
 	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
-	docall_button_global.btntext = ""
+	docall_button_global.btntext = ''
 
 	### define button for lockers:
 	btnLayout1 = self.btnDoor1.children[0]
@@ -1201,6 +1201,8 @@ class Indoor(FloatLayout):
 	if netlink.netstatus == 0:
 	    sendNodeInfo('[***]NETLINK: %d' % netlink.netstatus)
 	    docall_button_global.btntext = "ETH ERROR"
+	else:
+	    if docall_button_global.btntext == "ETH ERROR": docall_button_global.btntext = ''
 
 	if netlink.netstatus == 0 or self.netstatus != netlink.netstatus:
 	    self.netstatus = netlink.netstatus
@@ -1234,8 +1236,11 @@ class Indoor(FloatLayout):
 	    sendNodeInfo('[***]IPADDR: %s' % s[3])
 	except: s = []
 
+	if netlink.netstatus > 0: netlink.netstatus = getINet()
+
 	docall_button_global.btntext = '' if self.lib else 'No Licence'
 	docall_button_global.btntext = docall_button_global.btntext if len(s) >= 8 else 'Network ERROR'
+	docall_button_global.btntext = docall_button_global.btntext if netlink.netstatus > 0 else 'ETH ERROR'
 	if '127.0.0.1' == config.get('system', 'ipaddress') and len(s) > 8:
 	    Logger.error('%s: network ipaddress %r' % (whoami(), s))
 
@@ -1251,7 +1256,7 @@ class Indoor(FloatLayout):
 		sendNodeInfo('[***]IPADDR: %s' % s[3])
 	    except:
 		Logger.error('%s: config %r' % (whoami(), config))
-		docall_button_global.btntext = 'ERROR'
+#		docall_button_global.btntext = 'ERROR'
 
 #        Clock.schedule_once(self.checkNetStatus, 24.)
 

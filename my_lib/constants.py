@@ -41,9 +41,10 @@ HIDINIT_SCRIPT = './hid_init.sh'
 
 # ### images: ###
 MAKE_CALL_IMG = 'imgs/ww_phone-call.png'
-ANSWER_CALL_IMG = 'imgs/w_phone-call.png' # 'imgs/call-answer.png'
+ANSWER_CALL_IMG = 'imgs/w_call-answer.gif' # 'imgs/w_phone-call.png'
+HANGUP_OUTGOING_CALL_IMG = 'imgs/w_call-cancel.gif'
 HANGUP_CALL_IMG = 'imgs/w_call-disconnect.png'
-ERROR_CALL_IMG = 'imgs/call-reject.png'
+ERROR_CALL_IMG = 'imgs/nothing.png' # 'imgs/w_call-reject.png'
 DND_CALL_IMG = 'imgs/w_call-dnd.png'
 
 VOLUME_IMG = 'imgs/w_speaker.png'

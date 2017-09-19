@@ -193,7 +193,7 @@ class MyCallCallback(pj.CallCallback):
 	    self.callTimerEvent = Clock.schedule_once(self.callTimerWD, self.CALL_TIMEOUT)
 
         if main_state == pj.CallState.INCOMING or main_state == pj.CallState.EARLY:
-	    docall_button_global.imgpath = HANGUP_CALL_IMG if mainLayout.outgoingCall else ANSWER_CALL_IMG
+	    docall_button_global.imgpath = HANGUP_OUTGOING_CALL_IMG if mainLayout.outgoingCall else ANSWER_CALL_IMG
 	    mainLayout.setButtons(True)
 	    mainLayout.finishScreenTiming()
 
@@ -229,7 +229,7 @@ class MyCallCallback(pj.CallCallback):
 		return
 ##	    playTone(DIAL_WAV)
 	    current_call = self.call
-	    docall_button_global.imgpath = HANGUP_CALL_IMG  #ANSWER_CALL_IMG
+#	    docall_button_global.imgpath = ANSWER_CALL_IMG
 
 	setcallstat(outflag=(ci.role==0), status=main_state, prev_status=prev_state, call=ci.remote_uri)
 	if main_state == 6: main_state = 0
@@ -1787,11 +1787,15 @@ class Indoor(FloatLayout):
 	"touch move event"
 	global current_call
 
-	Logger.trace('%s: %r' % (whoami(), touch.uid))
+#	Logger.debug('%s: %r' % (whoami(), touch.uid))
 
-	if self.scrmngr.current == CAMERA_SCR and not current_call and len(self.touches) > 1 and self.popupSettings == None:
-	    self.touches[touch.uid][1] = touch
-	    self.testTouches()
+	try:
+	    if self.scrmngr.current == CAMERA_SCR and not current_call and len(self.touches):
+		if len(self.touches[touch.uid]) > 1 and self.popupSettings == None:
+		    self.touches[touch.uid][1] = touch
+		    self.testTouches()
+	except:
+	    self.touches = {}
 
 	return super(Indoor, self).on_touch_move(touch)
 
@@ -1904,6 +1908,8 @@ class Indoor(FloatLayout):
 		self.btnAreaH.add_widget(self.btnSettings)
 
 #	    docall_button_global.disabled = self.outgoing_mode == False
+
+	Clock.schedule_once(self.enable_btn_docall)
 
 
     # ###############################################################
@@ -2306,6 +2312,10 @@ class IndoorApp(App):
 		if 'button_factory' == value:
 		    MyYesNoBox(titl='WARNING', txt='Application is going to rewrite actual configuration!\n\nContinue?',
 			cb=self.factoryReset, ad=True).open()
+	    elif token == ('service', 'app_upd'):
+		if 'button_app_upd' == value:
+		    MyAlertBox(titl='WARNING', txt='Application is going to install new version!\n\nPress OK',
+			cb=self.appUpdate, ad=False).open()
 	    elif token == ('service', 'app_rst'):
 		if 'button_app_rst' == value:
 		    MyAlertBox(titl='WARNING', txt='Application is going to restart!\n\nPress OK', cb=self.popupClosed, ad=False).open()
@@ -2350,6 +2360,22 @@ class IndoorApp(App):
 
 	kill_subprocesses()
 	App.get_running_app().stop()
+
+
+    # ###############################################################
+    def appUpdate(self):
+	"update the application"
+	global scrmngr
+
+        Logger.debug('%s:' % whoami())
+
+	scrmngr.current = WAIT_SCR
+
+	if not '0000000085a5ba7f' in self.config.get('about','serial'): # not for development RPi
+	    send_command('./appdiff.sh')
+	else:
+	    MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
+		cb=self.popupClosed, ad=False).open()
 
 
     # ###############################################################

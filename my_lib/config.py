@@ -55,6 +55,7 @@ dict_timezone = {'timezone': 'Europe/Brussels'}
 dict_service = {'masterpwd': '1234',
             'app_log': 'error',
             'tunnel_flag': False,
+            'autoupdate': 0,
             'sip_log': 'error' }
 dict_about = {'app_name': 'Indoor 2.0',
             'app_ver': '2.0.0.0',

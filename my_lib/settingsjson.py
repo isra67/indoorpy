@@ -313,14 +313,6 @@ timezone_settings = json.dumps([
      'options': []}
 ])
 
-"""
-    {'type': 'string',
-     'title': 'Timezone',
-     'desc': 'Enter valid timezone string',
-     'section': 'timezones',
-     'key': 'timezone'}
-"""
-
 # ###############################################################
 
 # service function
@@ -337,40 +329,50 @@ settings_services = json.dumps([
      "section": "service",
      "key": "buttonpress",
      "buttons": [{"title":"Status","id":"button_status"}]},
-    {'type': 'options',
-     'title': 'App logging level',
-     'desc': 'Choose level for application logging messages',
-     'section': 'service',
-     'disabled': True,
-     'key': 'app_log',
-     'options': ['debug', 'info', 'error']},
-    {'type': 'options',
-     'title': 'SIP logging level',
-     'desc': 'Choose level for SIP logging messages',
-     'section': 'service',
-     'key': 'sip_log',
-     'disabled': True,
-     'options': ['debug', 'info', 'error']},
-    {"type": "bool",
-     "title": "Remote access",
-     "desc": "Enable/disable remote connection",
-     "section": "service",
-     "key": "tunnel_flag"},
+#    {'type': 'options',
+#     'title': 'App logging level',
+#     'desc': 'Choose level for application logging messages',
+#     'section': 'service',
+#     'disabled': True,
+#     'key': 'app_log',
+#     'options': ['debug', 'info', 'error']},
+#    {'type': 'options',
+#     'title': 'SIP logging level',
+#     'desc': 'Choose level for SIP logging messages',
+#     'section': 'service',
+#     'key': 'sip_log',
+#     'disabled': True,
+#     'options': ['debug', 'info', 'error']},
+#    {"type": "bool",
+#     "title": "Remote access",
+#     "desc": "Enable/disable remote connection",
+#     "section": "service",
+#     "key": "tunnel_flag"},
     {"type": "buttons",
      "title": "Log history","desc": "Show popup window with last 100 log messages",
      "section": "service",
      "key": "buttonlogs",
      "buttons": [{"title":"Log Msg","id":"button_loghist"}]},
     {"type": "buttons",
+     "title": "Restart","desc": "Restart the application",
+     "section": "service",
+     "key": "app_rst",
+     "buttons": [{"title":"Restart App","id":"button_app_rst"}]},
+    {"type": "buttons",
      "title": "Factory reset","desc": "Set configuration to default",
      "section": "service",
      "key": "buttonfactory",
      "buttons": [{"title":"Rst Cfg","id":"button_factory"}]},
     {"type": "buttons",
-     "title": "Restart","desc": "Restart the application",
+     "title": "Update","desc": "Update the application",
      "section": "service",
-     "key": "app_rst",
-     "buttons": [{"title":"Restart App","id":"button_app_rst"}]} #,{"title":"Del","id":"button_delete"},{"title":"Rename","id":"button_rename"}]}
+     "key": "app_upd",
+     "buttons": [{"title":"Update App","id":"button_app_upd"}]}, #,{"title":"Del","id":"button_delete"},{"title":"Rename","id":"button_rename"}]}
+    {'type': 'bool',
+     'title': 'AutoUpdate',
+     'desc': 'Install updates automatically',
+     'section': 'service',
+     'key': 'autoupdate'}
 ])
 
 # ###############################################################

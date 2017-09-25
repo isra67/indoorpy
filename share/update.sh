@@ -20,18 +20,23 @@ cp -f indoor.ini backups
 cp -f sounds/ring_* backups
 
 ## synchronize
+#if [ -z "$1" ]; then
+##    git fetch https://github.com/isra67/indoorpy.git master
+#    git fetch https://github.com/isra67/indoorpy.git
+#else
+##    git fetch https://isra67:$1@github.com/isra67/indoorpy.git master
+#    git fetch https://isra67:$1@github.com/isra67/indoorpy.git
+#fi
+#git reset --hard ##gh/master
+#git clean -dn
 if [ -z "$1" ]; then
-    git fetch https://github.com/isra67/indoorpy.git master
+#    git pull --rebase https://github.com/isra67/indoorpy.git master
+    git pull --rebase https://github.com/isra67/indoorpy.git
 else
-    git fetch https://isra67:$1@github.com/isra67/indoorpy.git master
+#    git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git master
+    git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git
 fi
-git reset --hard ##gh/master
 git clean -dn
-if [ -z "$1" ]; then
-    git pull --rebase https://github.com/isra67/indoorpy.git master
-else
-    git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git master
-fi
 
 ## remove unnecessary files
 rm -f my_lib/*.py

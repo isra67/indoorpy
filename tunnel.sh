@@ -26,7 +26,7 @@ tunnel_task() {
 
 tunnel_stop() {
 	pkill -9 -f "ssh -N"
-	pkill -9 tunnel.sh
+	pkill -9 "/root/indoorpy/tunnel.sh"
 }
 
 
@@ -35,7 +35,7 @@ case "$1" in
 	tunnel_task >& /dev/null &
 	;;
   stop)
-	tunnel_stop
+	tunnel_stop >& /dev/null &
 	;;
   *)
 	echo "Usage: tunnel.sh [start|stop] [PORT]" >&2

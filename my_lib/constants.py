@@ -21,7 +21,7 @@ CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 KIVY_CONFIG_FILE = '/root/.kivy/config.ini'
 
 APP_NAME = '-Indoor-2.0-'
-APP_VERSION_CODE = '2.0.0.1'
+APP_VERSION_CODE = '2.0.0.2'
 
 SCREEN_SAVER = 0
 WATCHES = 'analog'
@@ -91,6 +91,7 @@ ring_event = None
 LOG_LEVEL = 3 #5				# basic SIP log level
 current_call = None
 acc = None
+sipRegStatus = False
 
 # ### variables & constatnts: ###
 main_state = 0

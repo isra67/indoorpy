@@ -314,16 +314,18 @@ def make_call(uri):
 
 def log_cb(level, str, len):
     "pjSip logging callback"
-    global docall_button_global
+    global docall_button_global, sipRegStatus
 
     Logger.info('pjSip cb: (%d) %s' % (level, str))
 
     if 'registration failed' in str:
 	sendNodeInfo('[***]SIPREG: ERROR')
 	docall_button_global.disabled = True
+	sipRegStatus = False
     elif 'registration success' in str:
 	sendNodeInfo('[***]SIPREG: OK')
 	docall_button_global.disabled = False
+	sipRegStatus = True
 
 
 # ##############################################################################
@@ -1086,7 +1088,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def init_myphone(self):
 	"sip phone init"
-        global acc, config
+        global acc, config, sipRegStatus
 
         # Create library instance
         lib = pj.Lib()
@@ -1137,6 +1139,7 @@ class Indoor(FloatLayout):
 		self.sipServerAddr = ''
 #		sendNodeInfo('[***]SIP:peer-to-peer')
 		sendNodeInfo('[***]SIPREG: peer-to-peer')
+		sipRegStatus = True
 	    else:
 		s = str(config.get('sip', 'sip_server_addr')).strip()
 		u = str(config.get('sip', 'sip_username')).strip()
@@ -1168,6 +1171,7 @@ class Indoor(FloatLayout):
 	    docall_button_global.btntext = "No Licence"
 	    docall_button_global.disabled = True
 	    docall_button_global.imgpath = NO_IMG
+	    sipRegStatus = False
 
 
     # ###############################################################
@@ -1402,14 +1406,16 @@ class Indoor(FloatLayout):
     # ###############################################################
     def enable_btn_docall(self, param):
 	"enable a call button"
-        global docall_button_global, current_call
+        global docall_button_global, current_call, sipRegStatus
 
-	Logger.debug('%s:' % whoami())
+	olds = docall_button_global.disabled
 
 	if self.outgoingCall or (current_call and current_call.is_valid()):
 	    docall_button_global.disabled = False
 	else:
-	    docall_button_global.disabled = self.outgoing_mode == False
+	    docall_button_global.disabled = not self.outgoing_mode or not sipRegStatus
+
+	if olds != docall_button_global.disabled: Logger.debug('%s:' % whoami())
 
 
     # ###############################################################
@@ -1914,7 +1920,8 @@ class Indoor(FloatLayout):
 
 #	    docall_button_global.disabled = self.outgoing_mode == False
 
-	Clock.schedule_once(self.enable_btn_docall)
+	if docall_button_global.disabled:
+	    Clock.schedule_once(self.enable_btn_docall)
 
 
     # ###############################################################

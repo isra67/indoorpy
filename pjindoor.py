@@ -1137,23 +1137,26 @@ class Indoor(FloatLayout):
 	    if accounttype == 'peer-to-peer':
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
-#		sendNodeInfo('[***]SIP:peer-to-peer')
 		sendNodeInfo('[***]SIPREG: peer-to-peer')
 		sipRegStatus = True
 	    else:
-		s = str(config.get('sip', 'sip_server_addr')).strip()
-		u = str(config.get('sip', 'sip_username')).strip()
-		a = str(config.get('sip', 'sip_authentication_name')).strip()
-		p = str(config.get('sip', 'sip_p4ssw0rd')).strip()
-		self.sipServerAddr = s
-		if a == '': a = u
+		sendNodeInfo('[***]SIPREG: wait...')
+		dn = str(config.get('sip', 'sip_server_addr')).strip()
+		un = str(config.get('sip', 'sip_username')).strip()
+		an = str(config.get('sip', 'sip_authentication_name')).strip()
+		pa = str(config.get('sip', 'sip_p4ssw0rd')).strip()
+		self.sipServerAddr = dn
+		if an == '': an = un
 
-		acc_cfg = pj.AccountConfig(domain=s, display=u, username=a, password=p)
+#		acc_cfg = pj.AccountConfig(domain=dn, display=un, username=an, password=pa)
+		acc_cfg = pj.AccountConfig(domain=dn, username=un, password=pa)
+		if an != un: acc_cfg.auth_cred = [pj.AuthCred("*", an, pa)]
+
 #		acc_cfg = pj.AccountConfig()
-#		acc_cfg.id = "sip:" + u + "@" + s
-#		acc_cfg.reg_uri = "sip:" + s + ":" + self.sipPort
-#		acc_cfg.proxy = [ "sip:" + s + ";lr" ]
-#		acc_cfg.auth_cred = [pj.AuthCred("*", a, p)]
+#		acc_cfg.id = "sip:" + un + "@" + dn
+#		acc_cfg.reg_uri = "sip:" + dn + ":" + self.sipPort
+#		acc_cfg.proxy = [ "sip:" + dn + ";lr" ]
+#		acc_cfg.auth_cred = [pj.AuthCred("*", an, pa)]
 
 		acc = lib.create_account(acc_cfg)
 		cb = MyAccountCallback(acc)
@@ -1162,9 +1165,11 @@ class Indoor(FloatLayout):
 	    Logger.info('%s: Listening on %s port %d Account type=%s SIP server=%s'\
 		% (whoami(), transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
 
+	    sendNodeInfo('[***]SIP: FREE')
+
         except pj.Error, e:
-            Logger.critical("%s pjSip Exception: %s" % (whoami(), str(e)))
-	    sendNodeInfo('[***]SIP:ERROR')
+            Logger.critical("%s pjSip Exception: %r" % (whoami(), e))
+	    sendNodeInfo('[***]SIP: ERROR')
 
             lib.destroy()
             self.lib = lib = None

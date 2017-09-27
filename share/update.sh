@@ -50,6 +50,3 @@ cp backups/indoor.ini /root/indoorpy
 
 ## restore sound files
 cp backups/ring_* /root/indoorpy/sounds
-
-## save from cache
-#sync

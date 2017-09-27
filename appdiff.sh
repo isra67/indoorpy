@@ -8,19 +8,9 @@
 # #################################################################################
 
 
-## PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
-
-
-#BRANCH="master"
-
-
 ## working dir
 cd /root/indoorpy
 
-#GITDIFF=`git diff --name-only --ignore-space-change gh/$BRANCH`
-#len=${#GITDIFF}
-
-#if [ $len -lt 3 ]
 
 VER_REMOTE=`git ls-remote https://github.com/isra67/indoorjs.git | grep master | cut -f 1`
 GITDIFF=`git cherry -v | grep $VER_REMOTE`

@@ -7,7 +7,8 @@
 #
 # #################################################################################
 
-## working dir
+
+## set working dir
 cd /root/indoorpy
 
 ## clean backups
@@ -41,6 +42,7 @@ else
     git pull --rebase https://isra67:$1@github.com/isra67/indoorpy.git
 fi
 git clean -dn
+
 
 ## remove unnecessary files
 rm -f my_lib/*.py

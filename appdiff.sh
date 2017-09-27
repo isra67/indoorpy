@@ -12,7 +12,7 @@
 cd /root/indoorpy
 
 
-VER_REMOTE=`git ls-remote https://github.com/isra67/indoorjs.git | grep master | cut -f 1`
+VER_REMOTE=`git ls-remote https://github.com/isra67/indoorpy.git | grep master | cut -f 1`
 GITDIFF=`git cherry -v | grep $VER_REMOTE`
 
 if [ "$GITDIFF" != "" ]

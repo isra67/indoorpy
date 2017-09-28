@@ -13,7 +13,7 @@ cd /root/indoorpy
 
 
 VER_LOCAL=`git log -1 | grep commit | awk '{print $2}'`
-VER_REMOTE=`git ls-remote https://github.com/isra67/indoorpy.git | grep master | cut -f 1`
+VER_REMOTE=`git ls-remote https://github.com/isra67/indoorpy.git | grep HEAD | cut -f 1`
 #GITDIFF=`git cherry -v | grep $VER_REMOTE`
 
 #if [ "$GITDIFF" != "" ]

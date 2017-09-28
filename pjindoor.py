@@ -2365,7 +2365,8 @@ class IndoorApp(App):
 			MyAlertBox(titl='Registration', txt='Your licence key will come to your email address\ntill 3 working days\n\nPress OK',\
 			    cb=None, ad=False).open()
 	elif 'gui' == section:
-	    self.restartAppFlag = True
+	    if token != ('gui', 'outgoing_calls'): self.restartAppFlag = True
+	    else: self.outgoing_mode = '1' == config.get('gui', 'outgoing_calls').strip()
 	    if token == ('gui', 'screen_orientation'):
 		saveKivyCfg('graphics', 'rotation', value)
 
@@ -2380,19 +2381,38 @@ class IndoorApp(App):
 
 
     # ###############################################################
+    def appUpdateWorker(self):
+	"update the application - task"
+        Logger.debug('%s:' % whoami())
+
+	if not '0000000085a5ba7f' in self.config.get('about','serial'): # not for development RPi
+#	    send_command('../app/appdiff.sh')
+#	    send_command('./appdiff.sh')
+	    i2 = get_info('../app/appdiff.sh')
+	    i1 = get_info('./appdiff.sh')
+	else:
+	    MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
+		cb=self.popupClosed, ad=False).open()
+
+
+    # ###############################################################
     def appUpdate(self):
-	"update the application"
+	"update the application - command"
 	global scrmngr
 
         Logger.debug('%s:' % whoami())
 
 	scrmngr.current = WAIT_SCR
 
-	if not '0000000085a5ba7f' in self.config.get('about','serial'): # not for development RPi
-	    send_command('./appdiff.sh')
+	i1 = get_info('./checkupdate.sh')
+	i2 = get_info('../app/checkupdate.sh')
+
+	if 'equal' == i1 and 'equal' == i2:
+	    MyAlertBox(titl='Info', txt='Your version is up to date\nNo new version was installed\n\nPress OK',\
+		cb=None, ad=False).open()
+	    scrmngr.current = SETTINGS_SCR
 	else:
-	    MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
-		cb=self.popupClosed, ad=False).open()
+	    self.appUpdateWorker()
 
 
     # ###############################################################

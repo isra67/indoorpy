@@ -28,6 +28,8 @@ address = None
 server_port = None
 connErr = True
 
+structEvent = None
+
 app_status = {'VIDEO':{},'LOCK':{}}	# struct to save app status
 
 
@@ -65,7 +67,7 @@ def initNodeConnection(addr='localhost', port=8123):
 
 def sendNodeInfo(msg=''):
     "Send msg to node server"
-    global server_port, address, connErr
+    global server_port, address, connErr, app_status
 
     if '[***]' in msg:
 	statusInfo(msg[5:])
@@ -77,11 +79,24 @@ def sendNodeInfo(msg=''):
 
     try:
 	appSocket.sendall(msg.encode())
-#	appSocket.send(msg.encode())
+##	appSocket.send(msg.encode())
     except socket.error:
 #	print('%s: ERROR' % (whoami()))
 	connErr = True
 	Clock.schedule_once(lambda dt: initNodeConnection(address, server_port), RECONNECT_TIMER)
+
+
+# ##############################################################################
+
+def statusStructInfo():
+    "send the status struct info"
+    global app_status, structEvent
+
+    try: 
+	if structEvent: Clock.unschedule(structEvent)
+    except : pass
+
+    structEvent = Clock.schedule_once(lambda dt: sendNodeInfo('STRUCT:%r' % app_status), 3)
 
 
 # ##############################################################################
@@ -103,6 +118,8 @@ def statusInfo(info):
 		else: app_status[a[0]] = a[1]
 	    else:
 		app_status[a[0]] = a[1]
+
+	statusStructInfo()
     except: pass
 
     Logger.trace('%s: %r' % (whoami(), app_status))

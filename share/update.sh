@@ -12,13 +12,16 @@
 cd /root/indoorpy
 
 ## clean backups
-rm -f backups/*.*
+#rm -f backups/*.*
+rm -f ../tmp/ring_*
 
 ## backup INI file
-cp -f indoor.ini backups
+#cp -f indoor.ini backups
+cp -f indoor.ini ../tmp
 
 ## backup sound files
-cp -f sounds/ring_* backups
+#cp -f sounds/ring_* backups
+cp -f sounds/ring_* ../tmp
 
 ## stash all changes
 git reset --hard
@@ -48,7 +51,9 @@ git clean -dn
 rm -f my_lib/*.py
 
 ## restore INI file
-cp backups/indoor.ini /root/indoorpy
+#cp backups/indoor.ini /root/indoorpy
+cp ../tmp/indoor.ini /root/indoorpy
 
 ## restore sound files
-cp backups/ring_* /root/indoorpy/sounds
+#cp backups/ring_* /root/indoorpy/sounds
+cp ../tmp/ring_* /root/indoorpy/sounds

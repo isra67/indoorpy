@@ -56,6 +56,7 @@ dict_service = {'masterpwd': '1234',
             'app_log': 'error',
             'tunnel_flag': False,
             'autoupdate': 1,
+            'update_repo': 'production',
             'sip_log': 'error' }
 dict_about = {'app_name': 'Indoor 2.0',
             'app_ver': '2.0.0.0',

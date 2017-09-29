@@ -108,6 +108,9 @@ def get_info(cmd):
 # ##############################################################################
 
 def getINet():
+    "check the Internet connection"
+    return True		### stop checking
+
     info = '0'
 
     try: info = get_info('./checkinet.sh')

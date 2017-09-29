@@ -133,7 +133,7 @@ class Root(BoxLayout):
 	self.getSDcard()
 	self.getUptime()
 	self.getNetwork()
-	self.getINet()
+#	self.getINet()
 	self.getAudio()
 	self.getTunnel()
 	self.getNodeServer()

@@ -833,6 +833,7 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 12.)
+        Clock.schedule_interval(self.auto_update_loop, 3600)
 
         Clock.schedule_once(self.checkNetStatus, 5.)
 	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 15)
@@ -1235,6 +1236,16 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
+    def auto_update_loop(self,dt):
+	"auto update ar 3:00AM"
+
+	h = datetime.datetime.now().hour
+	if h == 3:
+	    Logger.info('%s:' % whoami())
+	    App.get_running_app().appUpdateWorker()
+
+
+    # ###############################################################
     def checkNetStatus(self, dt=20):
 	"test ETH status"
         global docall_button_global, config
@@ -1245,11 +1256,13 @@ class Indoor(FloatLayout):
 	    sendNodeInfo('[***]IPADDR: %s' % s[3])
 	except: s = []
 
-	if netlink.netstatus > 0: netlink.netstatus = getINet()
+	if netlink.netstatus > 0: netlink.netstatus = 1 if getINet() else -1
 
 	docall_button_global.btntext = '' if self.lib else 'No Licence'
 	docall_button_global.btntext = docall_button_global.btntext if len(s) >= 8 else 'Network ERROR'
 	docall_button_global.btntext = docall_button_global.btntext if netlink.netstatus > 0 else 'ETH ERROR'
+	if netlink.netstatus == -1: docall_button_global.btntext = 'Internet ERROR'
+
 	if '127.0.0.1' == config.get('system', 'ipaddress') and len(s) > 8:
 	    Logger.error('%s: network ipaddress %r' % (whoami(), s))
 
@@ -1266,8 +1279,6 @@ class Indoor(FloatLayout):
 	    except:
 		Logger.error('%s: config %r' % (whoami(), config))
 #		docall_button_global.btntext = 'ERROR'
-
-#        Clock.schedule_once(self.checkNetStatus, 24.)
 
 
     # ###############################################################
@@ -2390,9 +2401,9 @@ class IndoorApp(App):
 #	    send_command('./appdiff.sh')
 	    i2 = get_info('../app/appdiff.sh')
 	    i1 = get_info('./appdiff.sh')
-	else:
-	    MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
-		cb=self.popupClosed, ad=False).open()
+#	else:
+#	    MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
+#		cb=self.popupClosed, ad=False).open()
 
 
     # ###############################################################

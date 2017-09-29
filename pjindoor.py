@@ -1141,7 +1141,7 @@ class Indoor(FloatLayout):
 		sendNodeInfo('[***]SIPREG: peer-to-peer')
 		sipRegStatus = True
 	    else:
-		sendNodeInfo('[***]SIPREG: wait...')
+		sendNodeInfo('[***]SIPREG: unknown')
 		dn = str(config.get('sip', 'sip_server_addr')).strip()
 		un = str(config.get('sip', 'sip_username')).strip()
 		an = str(config.get('sip', 'sip_authentication_name')).strip()
@@ -1159,9 +1159,9 @@ class Indoor(FloatLayout):
 #		acc_cfg.proxy = [ "sip:" + dn + ";lr" ]
 #		acc_cfg.auth_cred = [pj.AuthCred("*", an, pa)]
 
-		acc = lib.create_account(acc_cfg)
-		cb = MyAccountCallback(acc)
-		acc.set_callback(cb)
+		acc = lib.create_account(acc_cfg, cb=MyAccountCallback())
+#		cb = MyAccountCallback(acc)
+#		acc.set_callback(cb)
 
 	    Logger.info('%s: Listening on %s port %d Account type=%s SIP server=%s'\
 		% (whoami(), transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
@@ -1172,8 +1172,18 @@ class Indoor(FloatLayout):
             Logger.critical("%s pjSip Exception: %r" % (whoami(), e))
 	    sendNodeInfo('[***]SIP: ERROR')
 
-            lib.destroy()
-            self.lib = lib = None
+	    # Shutdown the library
+	    transport = None
+	    try:
+		if acc: acc.delete()
+	    except pj.Error: pass
+	    acc = None
+	    try:
+		if lib: lib.destroy()
+	    except pj.Error: pass
+	    lib = None
+
+            self.lib = lib
 	    docall_button_global.btntext = "No Licence"
 	    docall_button_global.disabled = True
 	    docall_button_global.imgpath = NO_IMG
@@ -1429,7 +1439,7 @@ class Indoor(FloatLayout):
 	if self.outgoingCall or (current_call and current_call.is_valid()):
 	    docall_button_global.disabled = False
 	else:
-	    docall_button_global.disabled = not self.outgoing_mode or not sipRegStatus
+	    docall_button_global.disabled = not self.outgoing_mode # or not sipRegStatus
 
 	if olds != docall_button_global.disabled: Logger.debug('%s:' % whoami())
 

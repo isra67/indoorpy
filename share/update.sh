@@ -47,7 +47,7 @@ git clean -dn
 rm -f my_lib/*.py
 
 ## restore INI file
-cp ../tmp/indoor.ini /root/indoorpy
+cp -f ../tmp/indoor.ini /root/indoorpy
 
 ## restore sound files
-cp ../tmp/ring_* /root/indoorpy/sounds
+cp -f ../tmp/ring_* /root/indoorpy/sounds

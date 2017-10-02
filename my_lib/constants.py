@@ -21,7 +21,7 @@ CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 KIVY_CONFIG_FILE = '/root/.kivy/config.ini'
 
 APP_NAME = '-Indoor-2.0-'
-APP_VERSION_CODE = '2.0.0.2'
+APP_VERSION_CODE = '2.0.0.3'
 
 SCREEN_SAVER = 0
 WATCHES = 'analog'
@@ -46,6 +46,7 @@ HANGUP_OUTGOING_CALL_IMG = 'imgs/w_call-cancel.gif'
 HANGUP_CALL_IMG = 'imgs/w_call-disconnect.png'
 ERROR_CALL_IMG = 'imgs/nothing.png' # 'imgs/w_call-reject.png'
 DND_CALL_IMG = 'imgs/w_call-dnd.png'
+UNUSED_CALL_IMG = 'imgs/w_call_grey.png'
 
 VOLUME_IMG = 'imgs/w_speaker.png'
 MICROPHONE_IMG = 'imgs/w_microphone.png'
@@ -55,6 +56,7 @@ SETTINGS_IMG = 'imgs/w_settings.png'
 LOCK_IMG = 'imgs/w_lock.png'
 UNLOCK_IMG = 'imgs/w_unlock.png'
 INACTIVE_LOCK_IMG = 'imgs/w_nolock.png'
+UNUSED_LOCK_IMG = 'imgs/w_lock_grey.png'
 
 NO_IMG = 'imgs/nothing.png'
 

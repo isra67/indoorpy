@@ -432,10 +432,16 @@ class BasicDisplay:
 	"start communication thread to external devicer"
 	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
 
+	self.locks = 0x55
+	sendNodeInfo('[***]LOCK: %d %.2x' % (self.screenIndex, self.locks))
+
 	self.socket = None
-	self.bgrThread = Thread(target=self.tcpip_worker, kwargs={'addr': self.serverAddr})
-	self.bgrThread.daemon = True
-	self.bgrThread.start()
+	if len(self.serverAddr):
+	    self.bgrThread = Thread(target=self.tcpip_worker, kwargs={'addr': self.serverAddr})
+	    self.bgrThread.daemon = True
+	    self.bgrThread.start()
+	else:
+	    self.bgrThread = None
 
 
     # ###############################################################
@@ -468,7 +474,7 @@ class BasicDisplay:
     # ###############################################################
     def checkLoop(self, dt):
 	"check video player state"
-	global mainLayout, current_call, active_display_index
+	#global mainLayout, current_call, active_display_index
 
 	Logger.trace('%s: (%d)' % (whoami(), self.screenIndex))
 
@@ -478,7 +484,7 @@ class BasicDisplay:
 
 	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
 
-	if not self.bgrThread.isAlive(): self.startThread()
+	if self.bgrThread and not self.bgrThread.isAlive(): self.startThread()
 
 
     # ###############################################################
@@ -541,6 +547,7 @@ class BasicDisplay:
 		self.socket.send(SERVER_REQ)
 		break
 	    except IOError as e:
+		self.socket = None
 		Logger.warning('%s: (%d) %s CONNECT ERROR %s' % (whoami(), self.screenIndex, addr, str(e)))
 		#return
 		time.sleep(60)
@@ -560,10 +567,12 @@ class BasicDisplay:
 		    continue
 		else:
 		    # a "real" error occurred
+		    self.socket = None
 		    Logger.warning('%s: (%d) %s  ERROR: %s' % (whoami(), self.screenIndex, addr, str(e)))
 		    msg = ''
         	    break
-	    except: pass
+	    except:
+		self.socket = None
 
 	    if len(msg) > 0:
 		# got a message, do something
@@ -578,6 +587,8 @@ class BasicDisplay:
 		try:
 		    self.socket.close()
 		except: pass
+
+		self.socket = None
 
 		try:
 		    time.sleep(5)
@@ -663,7 +674,7 @@ class BasicDisplay:
     # ###############################################################
     def setActive(self, active=True):
 	"add or remove active flag"
-	global current_call, scr_mode
+	global current_call, scr_mode, mainLayout, docall_button_global
 
 	Logger.debug('%s: index=%d active=%d' % (whoami(), self.screenIndex, active))
 
@@ -672,6 +683,15 @@ class BasicDisplay:
 	self.color = ACTIVE_DISPLAY_BACKGROUND if active and (scr_mode != 1) else INACTIVE_DISPLAY_BACKGROUND
 
 	self.actScreen.bgcolor = self.color
+
+	if active:
+	    # change phone icon
+	    docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
+	    docall_button_global.imgpath = docall_button_global.imgpath if len(self.sipcall) else UNUSED_CALL_IMG
+#	    # enable/disable lock buttons
+#	    val = False if self.bgrThread and self.bgrThread.isAlive() else True
+#	    mainLayout.btnDoor1.disabled = val
+#	    mainLayout.btnDoor2.disabled = mainLayout.btnDoor1.disabled
 
 
     # ###############################################################
@@ -1083,6 +1103,8 @@ class Indoor(FloatLayout):
 
 	self.setButtons(False)
 
+	self.refreshLockIcons()
+
 	self.displays[0].setActive()
 
 
@@ -1382,13 +1404,16 @@ class Indoor(FloatLayout):
 	"set lock icons"
 	global active_display_index
 
-	Logger.trace('%s: id=%d locks=%.2x' % (whoami(), scrnIdx, locks))
+	Logger.debug('%s: id=%d locks=%.2x' % (whoami(), scrnIdx, locks))
 
-	img = LOCK_IMG if active_display_index == scrnIdx else INACTIVE_LOCK_IMG
 	idi = len(self.btnDoor1.children[0].children) - 1 - scrnIdx
+	img = LOCK_IMG if active_display_index == scrnIdx else INACTIVE_LOCK_IMG
 
-	lockimg1 = UNLOCK_IMG if (locks & 0x0f) else img
-	lockimg2 = UNLOCK_IMG if (locks & 0xf0) else img
+	if locks == 0x55:
+	    lockimg1 = lockimg2 = UNUSED_LOCK_IMG
+	else:
+	    lockimg1 = UNLOCK_IMG if (locks & 0x0f) else img
+	    lockimg2 = UNLOCK_IMG if (locks & 0xf0) else img
 
 	self.btnDoor1.children[0].children[idi].source = lockimg1
 	self.btnDoor2.children[0].children[idi].source = lockimg2
@@ -1404,16 +1429,8 @@ class Indoor(FloatLayout):
 	s = len(self.btnDoor1.children[0].children)
 
 	for idx, d in enumerate(self.displays):
-	    locks = d.locks
-
-	    img = LOCK_IMG if active_display_index == idx else INACTIVE_LOCK_IMG
-	    idi = len(self.btnDoor1.children[0].children) - 1 - idx
-
-	    lockimg1 = UNLOCK_IMG if (locks & 0x0f) else img
-	    lockimg2 = UNLOCK_IMG if (locks & 0xf0) else img
-
-	    self.btnDoor1.children[0].children[idi].source = lockimg1
-	    self.btnDoor2.children[0].children[idi].source = lockimg2
+	    idi = s - 1 - idx
+	    self.setLockIcons(idx, d.locks)
 
 
     # ###############################################################
@@ -1717,11 +1734,16 @@ class Indoor(FloatLayout):
     # ###############################################################
     def restart_player_window(self, idx):
 	"process is bad - restart"
+	global active_display_index
+
 	Logger.info('%s: idx=%d' % (whoami(), idx))
 
 	self.displays[idx].hidePlayer()
 	send_command("ps aux | grep omxplayer%d | grep -v grep | awk '{print $2}' | xargs kill -9" % idx)
 	send_command('%s%d' % (CMD_KILL, procs[idx].pid))
+
+	active_display_index = idx
+	self.displays[idx].setActive(True)
 
 
     # ###############################################################
@@ -1734,7 +1756,7 @@ class Indoor(FloatLayout):
 
     # ###############################################################
     def checkDoubleTap(self,touch):
-	"check if triple tap is in valid area, if yes -> finish app"
+	"check if double tap is in valid area, if yes -> finish app"
 	Logger.info('%s:' % whoami())
 
 	x = touch.x
@@ -1943,8 +1965,6 @@ class Indoor(FloatLayout):
 	    if self.btnScrSaver.parent is None:
 		self.btnAreaH.add_widget(self.btnScrSaver, cnt)
 		self.btnAreaH.add_widget(self.btnSettings)
-
-#	    docall_button_global.disabled = self.outgoing_mode == False
 
 	if docall_button_global.disabled:
 	    Clock.schedule_once(self.enable_btn_docall)

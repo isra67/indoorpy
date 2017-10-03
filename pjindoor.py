@@ -103,13 +103,18 @@ class MyAccountCallback(pj.AccountCallback):
     def __init__(self, account=None):
         pj.AccountCallback.__init__(self, account)
 
+    # ###############################################################
+    def on_reg_state(self):
+        Logger.info("pjSip on_reg_state: Registration complete, status=%d" % self.account.info().reg_status)
+        #   "(" + self.account.info().reg_reason + ")")
+        Logger.debug("pjSip on_reg_state: account info=%r" % self.account.info())
 
     # ###############################################################
     def on_incoming_call(self, call):
 	"Notification on incoming call"
         global current_call, mainLayout, docall_button_global, ROTATION, active_display_index
 
-	Logger.trace('%s: DND mode=%d' % (whoami(), mainLayout.dnd_mode))
+	Logger.trace('pjSip %s: DND mode=%d' % (whoami(), mainLayout.dnd_mode))
 
         if current_call or mainLayout.dnd_mode:
             call.answer(486, "Busy")
@@ -129,7 +134,7 @@ class MyAccountCallback(pj.AccountCallback):
 
 	    mainLayout.showPlayers()
 
-        Logger.info("%s: Incoming call from %s" % (whoami(), call.info().remote_uri))
+        Logger.info("pjSip %s: Incoming call from %s" % (whoami(), call.info().remote_uri))
         current_call = call
 
 	docall_button_global.parent.add_widget(mainLayout.btnReject, 2 if ROTATION in [0,180] else 0)
@@ -149,15 +154,14 @@ class MyCallCallback(pj.CallCallback):
     CALL_TIMEOUT = 60 * 3
     RING_TIME = 5.0
 
+    # ###############################################################
     def __init__(self, call=None):
         pj.CallCallback.__init__(self, call)
-
 
     # ###############################################################
     def on_state(self):
 	"Notification when call state has changed"
-        global current_call, ring_event
-        global main_state, mainLayout, docall_button_global
+        global current_call, ring_event, main_state, mainLayout, docall_button_global
 
 	ci = self.call.info()
 	role = 'CALLER' if ci.role == 0 else 'CALLEE'
@@ -234,7 +238,6 @@ class MyCallCallback(pj.CallCallback):
 	setcallstat(outflag=(ci.role==0), status=main_state, prev_status=prev_state, call=ci.remote_uri)
 	if main_state == 6: main_state = 0
 
-
     # ###############################################################
     def on_media_state(self):
 	"Notification when call's media state has changed"
@@ -256,7 +259,6 @@ class MyCallCallback(pj.CallCallback):
         else:
             Logger.debug("pjSip %s: Media is inactive" % whoami())
 	    mainLayout.mediaErrorFlag = False
-
 
     # ###############################################################
     def callTimerWD(self, dt):

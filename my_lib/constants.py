@@ -46,7 +46,7 @@ HANGUP_OUTGOING_CALL_IMG = 'imgs/w_call-cancel.gif'
 HANGUP_CALL_IMG = 'imgs/w_call-disconnect.png'
 ERROR_CALL_IMG = 'imgs/nothing.png' # 'imgs/w_call-reject.png'
 DND_CALL_IMG = 'imgs/w_call-dnd.png'
-UNUSED_CALL_IMG = 'imgs/w_call_grey.png'
+UNUSED_CALL_IMG = 'imgs/nothing.png' # 'imgs/w_call_grey.png'
 
 VOLUME_IMG = 'imgs/w_speaker.png'
 MICROPHONE_IMG = 'imgs/w_microphone.png'

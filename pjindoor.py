@@ -2429,13 +2429,22 @@ class IndoorApp(App):
         Logger.debug('%s:' % whoami())
 
 	if not '0000000085a5ba7f' in self.config.get('about','serial'): # not for development RPi
-#	    send_command('../app/appdiff.sh')
-#	    send_command('./appdiff.sh')
-	    i2 = get_info('../app/appdiff.sh')
-	    i1 = get_info('./appdiff.sh')
-#	else:
-#	    MyAlertBox(titl='WARNING', txt='Success.\n\nApplication is going to restart!\n\nPress OK',
-#		cb=self.popupClosed, ad=False).open()
+	    t1 = Thread(target=self.call_script, kwargs={'addr': '/root/app/appdiff.sh'})
+	    t2 = Thread(target=self.call_script, kwargs={'addr': '/root/indoorpy/appdiff.sh'})
+	    t1.daemon = True
+	    t1.start()
+	    t2.daemon = True
+	    t2.start()
+	    t1.join()
+	    t2.join()
+
+
+    # ###############################################################
+    def call_script(self, addr):
+	"update the application - command"
+        Logger.debug('%s: addr=%r' % (whoami(), addr))
+
+	subprocess.call(addr)
 
 
     # ###############################################################
@@ -2447,8 +2456,8 @@ class IndoorApp(App):
 
 	scrmngr.current = WAIT_SCR
 
-	i1 = get_info('./checkupdate.sh')
-	i2 = get_info('../app/checkupdate.sh')
+	i1 = get_info('/root/indoorpy/checkupdate.sh')
+	i2 = get_info('/root/app/checkupdate.sh')
 
 	if 'equal' == i1 and 'equal' == i2:
 	    MyAlertBox(titl='Info', txt='Your version is up to date\nNo new version was installed\n\nPress OK',\

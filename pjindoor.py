@@ -322,11 +322,11 @@ def log_cb(level, str, len):
 
     if 'registration failed' in str:
 	sendNodeInfo('[***]SIPREG: ERROR')
-	docall_button_global.disabled = True
+#	docall_button_global.disabled = True
 	sipRegStatus = False
     elif 'registration success' in str:
 	sendNodeInfo('[***]SIPREG: OK')
-	docall_button_global.disabled = False
+#	docall_button_global.disabled = False
 	sipRegStatus = True
 
 
@@ -690,10 +690,6 @@ class BasicDisplay:
 	    # change phone icon
 	    docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 	    docall_button_global.imgpath = docall_button_global.imgpath if len(self.sipcall) else UNUSED_CALL_IMG
-#	    # enable/disable lock buttons
-#	    val = False if self.bgrThread and self.bgrThread.isAlive() else True
-#	    mainLayout.btnDoor1.disabled = val
-#	    mainLayout.btnDoor2.disabled = mainLayout.btnDoor1.disabled
 
 
     # ###############################################################
@@ -1451,14 +1447,14 @@ class Indoor(FloatLayout):
     # ###############################################################
     def enable_btn_docall(self, param):
 	"enable a call button"
-        global docall_button_global, current_call, sipRegStatus
+        global docall_button_global, current_call
 
 	olds = docall_button_global.disabled
 
 	if self.outgoingCall or (current_call and current_call.is_valid()):
 	    docall_button_global.disabled = False
 	else:
-	    docall_button_global.disabled = not self.outgoing_mode # or not sipRegStatus
+	    docall_button_global.disabled = not self.outgoing_mode
 
 	if olds != docall_button_global.disabled: Logger.debug('%s:' % whoami())
 
@@ -1960,8 +1956,6 @@ class Indoor(FloatLayout):
 	    self.btnAreaH.remove_widget(self.btnSettings)
 	    self.btnScrSaver.parent = None
 	    self.btnSettings.parent = None
-
-#	    docall_button_global.disabled = False
 	else:
 	    cnt = 5 if self.scrOrientation in [0,180] else 3
 	    if self.btnScrSaver.parent is None:

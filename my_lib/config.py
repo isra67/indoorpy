@@ -20,7 +20,7 @@ from itools import *
 # ###############################################################
 
 dict_command = {'screen_saver': 1,
-            'dnd_mode': 0,
+            'dnd_mode': False,
             'brightness': 100,
             'watches': 'analog' }
 dict_sip = {'sip_mode': 'peer-to-peer',
@@ -34,7 +34,7 @@ dict_dev = {'ringtone': 'oldphone.wav',
             'micvolume': 100 }
 dict_gui = {'screen_mode': 1,
 	    'screen_orientation': 0,
-	    'outgoing_calls': 1 }
+	    'outgoing_calls': True }
 dict_common = {'server_ip_address_1': '192.168.1.250',
             'server_stream_1': 'http://192.168.1.250:80/video.mjpg',
             'picture_1': 'fill',
@@ -55,7 +55,7 @@ dict_timezone = {'timezone': 'Europe/Brussels'}
 dict_service = {'masterpwd': '1234',
             'app_log': 'error',
             'tunnel_flag': False,
-            'autoupdate': 1,
+            'autoupdate': True,
             'update_repo': 'production',
             'sip_log': 'error' }
 dict_about = {'app_name': 'Indoor 2.0',

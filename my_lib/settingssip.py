@@ -20,6 +20,7 @@ from kivy.logger import Logger
 def setMediaConfig():
     "pjSip media configuration"
     mc = pj.MediaConfig()
+
     mc.quality = 0 #6 #8
     mc.ec_tail_len = 0 #200
     mc.clock_rate = 48000 #44100 #16000

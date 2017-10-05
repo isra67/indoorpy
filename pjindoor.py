@@ -32,7 +32,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
 
 import atexit
-import ConfigParser
+#import ConfigParser
 import datetime
 import errno
 import fcntl
@@ -105,9 +105,15 @@ class MyAccountCallback(pj.AccountCallback):
 
     # ###############################################################
     def on_reg_state(self):
-        Logger.info("pjSip on_reg_state: Registration complete, status=%d" % self.account.info().reg_status)
+	global sipRegStatus
+
+	info = self.account.info()
+	sipRegStatus = self.account.info().reg_status == 200
+
+        Logger.info("pjSip on_reg_state: Registration complete, status=%d" % info.reg_status)
         #   "(" + self.account.info().reg_reason + ")")
-        Logger.debug("pjSip on_reg_state: account info=%r" % self.account.info())
+        Logger.debug("pjSip on_reg_state: account info=%r" % info)
+
 
     # ###############################################################
     def on_incoming_call(self, call):
@@ -205,6 +211,7 @@ class MyCallCallback(pj.CallCallback):
             current_call = None
 	    mainLayout.setButtons(False)
 	    docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
+	    docall_button_global.btntext = ''
 	    mainLayout.startScreenTiming()
 	    mainLayout.del_sliders()
 	    mainLayout.showPlayers()
@@ -291,11 +298,13 @@ class MyCallCallback(pj.CallCallback):
 # ###############################################################
 def make_call(uri):
     "Function to make outgoing call"
-    global acc
+    global acc, mainLayout
 
     Logger.info('%s: %s' % (whoami(), uri))
 
     if not mainLayout.outgoing_mode: return None
+
+    Logger.info('%s: %s' % (whoami(), uri))
 
     try:
 	if acc != None: return acc.make_call(uri, cb=MyCallCallback(pj.CallCallback))
@@ -316,7 +325,8 @@ def make_call(uri):
 
 def log_cb(level, str, len):
     "pjSip logging callback"
-    global docall_button_global, sipRegStatus
+    global sipRegStatus
+#    global docall_button_global, sipRegStatus
 
     Logger.info('pjSip cb: (%d) %s' % (level, str))
 
@@ -728,7 +738,7 @@ class Indoor(FloatLayout):
     workAreaHigh = 0
     buttonAreaHigh = 0
     infoAreaHigh = 0
-    sipPort = '5060'
+    sipPort = 5060
     preparing = False		# preparing Settings
     touches = {}		# resize video player (to bigger)
     touchdistance = -1.		# touch distance
@@ -801,18 +811,27 @@ class Indoor(FloatLayout):
             Logger.warning('Indoor init: ERROR 5 = read config file!')
 
         try:
-	    self.dnd_mode = 'True' == config.get('command', 'dnd_mode').strip()
+	    value = config.get('command', 'dnd_mode').strip()
+	    self.dnd_mode = 'True' == value or '1' == value
         except:
             Logger.warning('Indoor init: ERROR 6 = read config file!')
 
         try:
-	    self.outgoing_mode = '1' == config.get('gui', 'outgoing_calls').strip()
+	    value = config.get('service', 'autoupdate').strip()
+	    if 'True' == value or '1' == value:
+		Clock.schedule_interval(self.auto_update_loop, 3600)
+        except:
+            Logger.warning('Indoor init: ERROR 6.2 = read config file!')
+
+        try:
+	    value = config.get('gui', 'outgoing_calls').strip()
+	    self.outgoing_mode = 'True' == value or '1' == value
         except:
             Logger.warning('Indoor init: ERROR 6.1 = read config file!')
 
         try:
 	    br = config.getint('command', 'brightness')
-	    if br > 0 and br < 256: self.brightness = br #int(br * 2.55)
+	    if br > 0 and br < 256: self.brightness = br
         except:
             Logger.warning('Indoor init: ERROR 7 = read config file!')
 	    self.brightness = 255
@@ -851,7 +870,6 @@ class Indoor(FloatLayout):
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 12.)
-        Clock.schedule_interval(self.auto_update_loop, 3600)
 
         Clock.schedule_once(self.checkNetStatus, 5.)
 	Clock.schedule_once(lambda dt: send_command('./diag.sh init'), 15)
@@ -897,13 +915,13 @@ class Indoor(FloatLayout):
 
 	self.init_buttons()
 	self.init_screen()
-	self.init_sliders()
+#	self.init_sliders()
 
 
     # ###############################################################
     def init_buttons(self):
 	"define app buttons"
-	global docall_button_global, scr_mode
+	global docall_button_global, scr_mode, mainLayout
 
 	Logger.debug('%s:' % whoami())
 
@@ -1118,7 +1136,7 @@ class Indoor(FloatLayout):
 	accounttype = 'peer-to-peer'
 	try:
 	    accounttype = config.get('sip', 'sip_mode').strip()
-	    self.sipPort = config.get('sip', 'sip_port').strip()
+	    self.sipPort = int(config.get('sip', 'sip_port').strip())
 	except:
             Logger.warning('Indoor init_myphone: ERROR 10 = read config file!')
 
@@ -1129,18 +1147,20 @@ class Indoor(FloatLayout):
 	except:
             Logger.warning('Indoor init_myphone: ERROR 11 = read config file!')
 
-	Logger.info('%s: acctype=%s port=%s loglevel=%d' % (whoami(), accounttype, self.sipPort, logLevel))
+	Logger.info('%s: acctype=%s port=%d loglevel=%d' % (whoami(), accounttype, self.sipPort, logLevel))
+#	return
 
         try:
             # Init library with default config and some customized logging config
-            lib.init(log_cfg = pj.LogConfig(level=logLevel, console_level=logLevel, callback=log_cb),\
-		    media_cfg = setMediaConfig(), licence=1)
+            lib.init(log_cfg=pj.LogConfig(level=logLevel, console_level=logLevel, callback=log_cb),\
+		    media_cfg=setMediaConfig(), licence=1)
+#	    return
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 	    # Create UDP transport which listens to any available port
-	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(int(self.sipPort)))
+	    transport = lib.create_transport(pj.TransportType.UDP, pj.TransportConfig(self.sipPort))
 
             # Start the library
             lib.start()
@@ -1162,10 +1182,10 @@ class Indoor(FloatLayout):
 		sipRegStatus = True
 	    else:
 		sendNodeInfo('[***]SIPREG: unknown')
-		dn = str(config.get('sip', 'sip_server_addr')).strip()
-		un = str(config.get('sip', 'sip_username')).strip()
-		an = str(config.get('sip', 'sip_authentication_name')).strip()
-		pa = str(config.get('sip', 'sip_p4ssw0rd')).strip()
+		dn = str(config.get('sip', 'sip_server_addr'))#.strip()
+		un = str(config.get('sip', 'sip_username'))#.strip()
+		an = str(config.get('sip', 'sip_authentication_name'))#.strip()
+		pa = str(config.get('sip', 'sip_p4ssw0rd'))#.strip()
 		self.sipServerAddr = dn
 		if an == '': an = un
 
@@ -1180,6 +1200,7 @@ class Indoor(FloatLayout):
 #		acc_cfg.auth_cred = [pj.AuthCred("*", an, pa)]
 
 		acc = lib.create_account(acc_cfg, cb=MyAccountCallback())
+#		acc = lib.create_account(acc_cfg)
 #		cb = MyAccountCallback(acc)
 #		acc.set_callback(cb)
 
@@ -1618,7 +1639,7 @@ class Indoor(FloatLayout):
 
     # ###############################################################
     def closePopupSettings(self, small=True):
-	global SCREEN_SAVER, WATCHES, RING_TONE
+	global SCREEN_SAVER, WATCHES, RING_TONE, config
 	"close quick settings dialog"
 
 	if not self.popupSettings: return
@@ -1774,7 +1795,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def on_touch_up(self, touch):
 	"process touch up event"
-	global active_display_index, current_call
+	global active_display_index, current_call, docall_button_global
 
 #	Logger.info('%s:' % whoami())
 	if touch:
@@ -1819,6 +1840,8 @@ class Indoor(FloatLayout):
 
 	for idx, d in enumerate(self.displays):
 	    d.setActive(idx == active_display_index)
+
+	if '--> ' in docall_button_global.btntext: docall_button_global.btntext = ''
 
 	self.refreshLockIcons()
 
@@ -1947,7 +1970,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def setButtons(self, visible):
 	"add/remove buttons"
-	global docall_button_global, config
+	global docall_button_global
 
 	Logger.trace('%s: %r' % (whoami(), visible))
 
@@ -2012,6 +2035,8 @@ class Indoor(FloatLayout):
     # ###############################################################
     def onMicVal(self):
 	"set microphone value"
+	global config
+
 	Logger.debug('%s: %d %d' % (whoami(), self.micslider.audioslider.value, self.micslider.val))
 
 	self.micvolume = self.micslider.audioslider.value
@@ -2040,7 +2065,9 @@ class Indoor(FloatLayout):
     # ###############################################################
     def add_sliders(self):
 	"add sliders to the working area"
-	Logger.debug('%s:' % whoami())
+	Logger.debug('%s: rep=%d mic=%d' % (whoami(), self.avolume, self.micvolume))
+
+	self.init_sliders()
 
 	l = self.workArea if self.scrOrientation in [0,180] else self.cameras
 
@@ -2341,13 +2368,6 @@ class IndoorApp(App):
 	elif 'timezones' == section:
 	    if token == ('timezones', 'timezone'):
 		send_command('./settimezone.sh ' + value)
-#		tzlist = getTimeZoneList()
-#		if value in tzlist:
-#		    send_command('./settimezone.sh ' + value)
-#		else:
-#		    config.set(section, key, self.config.get(section, key))
-#		    config.write()
-#		    MyAlertBox(titl='WARNING', txt='Bad timezone string!\n\nTimezone will not change', cb=None, ad=False).open()
 	elif 'service' == section:
 	    if token == ('service', 'app_log'):
 		saveKivyCfg('kivy', 'log_level', 'critical' if value == 'none' else value)
@@ -2403,7 +2423,9 @@ class IndoorApp(App):
 			    cb=None, ad=False).open()
 	elif 'gui' == section:
 	    if token != ('gui', 'outgoing_calls'): self.restartAppFlag = True
-	    else: self.outgoing_mode = '1' == config.get('gui', 'outgoing_calls').strip()
+	    else:
+		val = config.get('gui', 'outgoing_calls').strip()
+		self.outgoing_mode = 'True' == val or '1' == val
 	    if token == ('gui', 'screen_orientation'):
 		saveKivyCfg('graphics', 'rotation', value)
 
@@ -2420,11 +2442,19 @@ class IndoorApp(App):
     # ###############################################################
     def appUpdateWorker(self):
 	"update the application - task"
-        Logger.debug('%s:' % whoami())
 
-	if not '0000000085a5ba7f' in self.config.get('about','serial'): # not for development RPi
-	    t1 = Thread(target=self.call_script, kwargs={'addr': '/root/app/appdiff.sh'})
-	    t2 = Thread(target=self.call_script, kwargs={'addr': '/root/indoorpy/appdiff.sh'})
+	repo = ''
+	try:
+	    repo = config.get('service','update_repo')
+	except:
+	    repo = 'production'
+	repo = 'isra67' if repo == 'development' else 'inoteska'
+
+        Logger.debug('%s: repo=%s' % (whoami(), repo))
+
+	if '0000000085a5ba7f' != self.config.get('about','serial').strip(): # not for development RPi
+	    t1 = Thread(target=self.call_script, kwargs={'addr': '/root/app/appdiff.sh ' + repo})
+	    t2 = Thread(target=self.call_script, kwargs={'addr': '/root/indoorpy/appdiff.sh ' + repo})
 	    t1.daemon = True
 	    t1.start()
 	    t2.daemon = True
@@ -2444,14 +2474,21 @@ class IndoorApp(App):
     # ###############################################################
     def appUpdate(self):
 	"update the application - command"
-	global scrmngr
+	global scrmngr, config
 
-        Logger.debug('%s:' % whoami())
+	repo = ''
+	try:
+	    repo = config.get('service','update_repo')
+	except:
+	    repo = 'production'
+	repo = 'isra67' if repo == 'development' else 'inoteska'
+
+        Logger.debug('%s: repo=%s' % (whoami(), repo))
 
 	scrmngr.current = WAIT_SCR
 
-	i1 = get_info('/root/indoorpy/checkupdate.sh')
-	i2 = get_info('/root/app/checkupdate.sh')
+	i1 = get_info('/root/indoorpy/checkupdate.sh ' + repo)
+	i2 = get_info('/root/app/checkupdate.sh ' + repo)
 
 	if 'equal' == i1 and 'equal' == i2:
 	    MyAlertBox(titl='Info', txt='Your version is up to date\nNo new version was installed\n\nPress OK',\
@@ -2487,7 +2524,9 @@ class IndoorApp(App):
 	"enable/disable tunnel"
 	global config
 
-	try: flag = int(config.get('service', 'tunnel_flag')) > 0
+	try:
+	    value = config.get('service', 'tunnel_flag').strip()
+	    flag = 'True' == value or '1' == value
 	except: flag = False
         Logger.warning('%s: flag=%r' % (whoami(), flag))
 

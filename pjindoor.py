@@ -110,7 +110,7 @@ class MyAccountCallback(pj.AccountCallback):
 	global sipRegStatus, sipRegEvent
 
 	info = self.account.info()
-	sipRegStatus = self.account.info().reg_status == 200
+	sipRegStatus = info.reg_status == 200
 
         Logger.info("pjSip on_reg_state: Registration complete, status=%d expires in %d sec"\
 	    % (info.reg_status, info.reg_expires))
@@ -122,7 +122,7 @@ class MyAccountCallback(pj.AccountCallback):
 	    sendNodeInfo('[***]SIP: FREE')
 	    sipRegStatus = True
 	else:
-	    sendNodeInfo('[***]SIPREG: ERROR')
+	    sendNodeInfo('[***]SIPREG: ERROR ( %d )' % info.reg_status)
 	    sipRegStatus = False
 
 	if sipRegEvent: Clock.unschedule(sipRegEvent)

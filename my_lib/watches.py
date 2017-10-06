@@ -112,27 +112,22 @@ class Ticks(Widget):
 #        self.ln.text_size = self.size
 #        self.add_widget(self.ln)
 
-	self.temps = 208 #184
+	self.temps = 208
 	self.postemp = [self.center_x - self.temps, self.center_y - self.temps]
 	self.sizetemp = [self.temps * 2, self.temps * 2]
 
 #	Logger.debug('watch: w:%d h:%d x:%d y:%d cx:%d cy:%d' % (self.width, self.height, self.x, self.y, self.center_x, self.center_y))
 
         with self.canvas:
-#            Color(.1, .1, .6, .15)
-            Color(.3, .3, .3, .2)
-##	    Ellipse(pos={self.y + 19,self.width / 4}, size={self.width / 2, self.height - 38})
+            Color(.2, .2, .2, .1)
 	    Ellipse(pos=self.postemp, size=self.sizetemp)
 
-#            Color(0.6, 0.6, 0.9)
             Color(.9, .9, .9)
             Line(points = [self.center_x, self.center_y, self.center_x+0.7*self.r*sin(pi/30*time.second),
                 self.center_y+0.7*self.r*cos(pi/30*time.second)], width=1, cap="round")
-#            Color(0.5, 0.5, 0.8)
             Color(.7, .7, .7)
             Line(points = [self.center_x, self.center_y, self.center_x+0.6*self.r*sin(pi/30*time.minute),
                 self.center_y+0.6*self.r*cos(pi/30*time.minute)], width=2, cap="round")
-#            Color(0.4, 0.4, 0.7)
             Color(.7, .7, .7)
             th = time.hour * 60 + time.minute
             Line(points = [self.center_x, self.center_y, self.center_x+0.5*self.r*sin(pi/360*th),

@@ -60,6 +60,7 @@ Cache._categories['kv.texture']['limit'] = 0
 
 config = get_config()
 
+sipRegEvent = None
 
 # ###############################################################
 #
@@ -105,14 +106,41 @@ class MyAccountCallback(pj.AccountCallback):
 
     # ###############################################################
     def on_reg_state(self):
-	global sipRegStatus
+	"SIP account registration callback"
+	global sipRegStatus, sipRegEvent
 
 	info = self.account.info()
 	sipRegStatus = self.account.info().reg_status == 200
 
-        Logger.info("pjSip on_reg_state: Registration complete, status=%d" % info.reg_status)
-        #   "(" + self.account.info().reg_reason + ")")
-        Logger.debug("pjSip on_reg_state: account info=%r" % info)
+        Logger.info("pjSip on_reg_state: Registration complete, status=%d expires in %d sec"\
+	    % (info.reg_status, info.reg_expires))
+        Logger.debug("pjSip on_reg_state: account reason=%s oltext=%s active=%d olstatus=%s"\
+	    % (info.reg_reason, info.online_text, info.reg_active, info.online_status))
+
+	if sipRegStatus:
+	    sendNodeInfo('[***]SIPREG: REGISTERED')
+	    sendNodeInfo('[***]SIP: FREE')
+	    sipRegStatus = True
+	else:
+	    sendNodeInfo('[***]SIPREG: ERROR')
+	    sipRegStatus = False
+
+	if sipRegEvent: Clock.unschedule(sipRegEvent)
+	sipRegEvent = Clock.schedule_once(self.registrationTimerWD, 15 if not sipRegStatus else info.reg_expires + 5)
+
+
+    # ###############################################################
+    def registrationTimerWD(self, dt):
+	"SIP registration watch dog"
+	global sipRegStatus, sipRegEvent, acc, mainLayout
+
+        Logger.warning("pjSip registration TO, status=%r" % (not sipRegStatus))
+
+	sendNodeInfo('[***]SIP: REG TimeOut')
+
+	sipRegStatus = False
+
+	Clock.schedule_once(lambda dt: mainLayout.init_myphone(), 1)
 
 
     # ###############################################################
@@ -178,6 +206,11 @@ class MyCallCallback(pj.CallCallback):
 #	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
 	Logger.debug('pjSip on_state: sip_call_id=%s outgoing call=%r current call=%s'\
 	    % (ci.sip_call_id, mainLayout.outgoingCall, str(current_call)))
+
+	if main_state == ci.state:# and self.sip_call_id_last == ci.sip_call_id:
+	    Logger.warning('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
+		% (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
+	    return
 
 	prev_state = main_state
         main_state = ci.state
@@ -323,21 +356,10 @@ def make_call(uri):
 
 # ###############################################################
 
-def log_cb(level, str, len):
-    "pjSip logging callback"
-    global sipRegStatus
-#    global docall_button_global, sipRegStatus
+#def log_cb(level, str, len):
+#    "pjSip logging callback"
+#    Logger.info('pjSip cb: (%d) %s' % (level, str))
 
-    Logger.info('pjSip cb: (%d) %s' % (level, str))
-
-    if 'registration failed' in str:
-	sendNodeInfo('[***]SIPREG: ERROR')
-#	docall_button_global.disabled = True
-	sipRegStatus = False
-    elif 'registration success' in str:
-	sendNodeInfo('[***]SIPREG: OK')
-#	docall_button_global.disabled = False
-	sipRegStatus = True
 
 
 # ##############################################################################
@@ -690,11 +712,13 @@ class BasicDisplay:
 
 	Logger.debug('%s: index=%d active=%d' % (whoami(), self.screenIndex, active))
 
-	if current_call: return
+#	if current_call: return
 
 	self.color = ACTIVE_DISPLAY_BACKGROUND if active and (scr_mode != 1) else INACTIVE_DISPLAY_BACKGROUND
 
 	self.actScreen.bgcolor = self.color
+
+	if current_call: return
 
 	if active:
 	    # change phone icon
@@ -1127,7 +1151,19 @@ class Indoor(FloatLayout):
     # ###############################################################
     def init_myphone(self):
 	"sip phone init"
-        global acc, config, sipRegStatus
+        global acc, config, sipRegStatus, sipRegEvent
+
+	if self.lib: # reinit pjSip library
+	    if sipRegEvent: Clock.unschedule(sipRegEvent)
+	    try:
+		if acc: acc.delete()
+	    except pj.Error: pass
+	    acc = None
+	    try:
+		if self.lib: self.lib.destroy()
+	    except pj.Error: pass
+	    self.lib = None
+	    sipRegEvent = None
 
         # Create library instance
         lib = pj.Lib()
@@ -1148,13 +1184,11 @@ class Indoor(FloatLayout):
             Logger.warning('Indoor init_myphone: ERROR 11 = read config file!')
 
 	Logger.info('%s: acctype=%s port=%d loglevel=%d' % (whoami(), accounttype, self.sipPort, logLevel))
-#	return
 
         try:
             # Init library with default config and some customized logging config
             lib.init(log_cfg=pj.LogConfig(level=logLevel, console_level=logLevel, callback=log_cb),\
 		    media_cfg=setMediaConfig(), licence=1)
-#	    return
 
 	    comSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	    comSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -1179,9 +1213,11 @@ class Indoor(FloatLayout):
         	acc = lib.create_account_for_transport(transport, cb=MyAccountCallback())
 		self.sipServerAddr = ''
 		sendNodeInfo('[***]SIPREG: peer-to-peer')
+		sendNodeInfo('[***]SIP: FREE')
+
 		sipRegStatus = True
 	    else:
-		sendNodeInfo('[***]SIPREG: unknown')
+		sendNodeInfo('[***]SIPREG: NONE')
 		dn = str(config.get('sip', 'sip_server_addr'))#.strip()
 		un = str(config.get('sip', 'sip_username'))#.strip()
 		an = str(config.get('sip', 'sip_authentication_name'))#.strip()
@@ -1189,8 +1225,8 @@ class Indoor(FloatLayout):
 		self.sipServerAddr = dn
 		if an == '': an = un
 
-#		acc_cfg = pj.AccountConfig(domain=dn, display=un, username=an, password=pa)
-		acc_cfg = pj.AccountConfig(domain=dn, username=un, password=pa)
+#		acc_cfg = pj.AccountConfig(domain=dn, username=un, password=pa)
+		acc_cfg = pj.AccountConfig(domain=dn, display=un, username=un, password=pa)
 		if an != un: acc_cfg.auth_cred = [pj.AuthCred("*", an, pa)]
 
 #		acc_cfg = pj.AccountConfig()
@@ -1206,8 +1242,6 @@ class Indoor(FloatLayout):
 
 	    Logger.info('%s: Listening on %s port %d Account type=%s SIP server=%s'\
 		% (whoami(), transport.info().host, transport.info().port, accounttype, self.sipServerAddr))
-
-	    sendNodeInfo('[***]SIP: FREE')
 
         except pj.Error, e:
             Logger.critical("%s pjSip Exception: %r" % (whoami(), e))
@@ -1335,23 +1369,14 @@ class Indoor(FloatLayout):
     # ###############################################################
     def reinitbackgroundtasks(self):
 	"SIP reinitialization"
-	Logger.info('%s:' % whoami())
+	Logger.warning('%s:' % whoami())
 
-	kill_subprocesses()
-	App.get_running_app().stop()
+#	kill_subprocesses()
+#	App.get_running_app().stop()
 
-#	if not self.lib is None:
-#	    Logger.warning('%s: reinit pjSip' % whoami())
+	send_command('./rstaudio.sh')
 
-	    # bug fix: bad PJSIP start - port in use with another process
-	    #send_command("netstat -tulpn | grep :" + self.sipPort + " | awk '{print $6}' | sed -e 's/\\//\\n/g' | awk 'NR==1 {print $1}' | xargs kill -9")
-
-#	    self.lib.destroy()
-#	    self.lib = None
-
-#	send_command('./rstaudio.sh')
-
-#	Clock.schedule_once(self.reinitworker, 1)
+	Clock.schedule_once(lambda dt: self.init_myphone(), 3)
 
 
     # ###############################################################
@@ -2067,14 +2092,15 @@ class Indoor(FloatLayout):
 	"add sliders to the working area"
 	Logger.debug('%s: rep=%d mic=%d' % (whoami(), self.avolume, self.micvolume))
 
-	self.init_sliders()
-
 	l = self.workArea if self.scrOrientation in [0,180] else self.cameras
+
+	if self.micslider and self.micslider.parent: l.remove_widget(self.micslider)
+	if self.volslider and self.volslider.parent: l.remove_widget(self.volslider)
+
+	self.init_sliders()
 
 	self.micslider.val = self.micvolume
 	self.volslider.val = self.avolume
-
-	if not self.micslider.parent is None: return
 
 	l.add_widget(self.micslider, 1 if self.scrOrientation in [0,180] else 0)
 	l.add_widget(self.volslider)

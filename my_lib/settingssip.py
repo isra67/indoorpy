@@ -30,10 +30,10 @@ def setMediaConfig():
 
 
 # ###############################################################
-#
-#def log_cb(level, str, len):
-#    "pjSip logging callback"
-#    Logger.info('pjSip cb: (%d) %s' % (level, str))
+
+def log_cb(level, str, len):
+    "pjSip logging callback"
+    Logger.info('pjSip cb: (%d) %s' % (level, str))
 
 
 # ###############################################################

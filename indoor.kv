@@ -206,7 +206,6 @@
     DigiClock:
         font_size: '112dp' #self.height/4
         color: .6,.6,.6,.9
-#        color: 0.3,0.6,0.9,0.9
 
 [ClockNumber@Label]:
     text: str(ctx.i)
@@ -223,8 +222,8 @@
     FloatLayout:
         id: face
         size_hint: None, None
-        pos_hint: {"center_x":0.5, "center_y":0.5}
-        size: 0.9*min(root.size), 0.9*min(root.size)
+        pos_hint: {"center_x":.5, "center_y":.5}
+        size: .9*min(root.size), .9*min(root.size)
 
         ClockNumber:
             i: 3
@@ -237,7 +236,7 @@
 
     Ticks:
         id: ticks
-        r: min(root.size)*0.9/2
+        r: min(root.size)*.92/2
 
 
 # ListView label:

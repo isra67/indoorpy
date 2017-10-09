@@ -126,7 +126,7 @@ class MyAccountCallback(pj.AccountCallback):
 	    sipRegStatus = False
 
 	if sipRegEvent: Clock.unschedule(sipRegEvent)
-	sipRegEvent = Clock.schedule_once(self.registrationTimerWD, 15 if not sipRegStatus else info.reg_expires + 5)
+	sipRegEvent = Clock.schedule_once(self.registrationTimerWD, 15 if not sipRegStatus else info.reg_expires + 10)
 
 
     # ###############################################################
@@ -2482,11 +2482,13 @@ class IndoorApp(App):
 	    t1 = Thread(target=self.call_script, kwargs={'addr': '/root/app/appdiff.sh ' + repo})
 	    t2 = Thread(target=self.call_script, kwargs={'addr': '/root/indoorpy/appdiff.sh ' + repo})
 	    t1.daemon = True
-	    t1.start()
 	    t2.daemon = True
-	    t2.start()
+	    t1.start()
 	    t1.join()
+	    t2.start()
 	    t2.join()
+	else:
+	    Logger.info('%s: repo=%s STOPPED IN THIS DEVICE!' % (whoami(), repo))
 
 
     # ###############################################################

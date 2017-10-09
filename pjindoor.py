@@ -2468,6 +2468,7 @@ class IndoorApp(App):
     # ###############################################################
     def appUpdateWorker(self):
 	"update the application - task"
+	global config
 
 	repo = ''
 	try:
@@ -2478,7 +2479,7 @@ class IndoorApp(App):
 
         Logger.debug('%s: repo=%s' % (whoami(), repo))
 
-	if '0000000085a5ba7f' != self.config.get('about','serial').strip(): # not for development RPi
+	if not '085a5ba7f' in self.config.get('about','serial'): # not for development RPi
 	    t1 = Thread(target=self.call_script, kwargs={'addr': '/root/app/appdiff.sh ' + repo})
 	    t2 = Thread(target=self.call_script, kwargs={'addr': '/root/indoorpy/appdiff.sh ' + repo})
 	    t1.daemon = True
@@ -2487,6 +2488,9 @@ class IndoorApp(App):
 	    t1.join()
 	    t2.start()
 	    t2.join()
+
+	    kill_subprocesses()
+	    App.get_running_app().stop()
 	else:
 	    Logger.info('%s: repo=%s STOPPED IN THIS DEVICE!' % (whoami(), repo))
 
@@ -2494,9 +2498,10 @@ class IndoorApp(App):
     # ###############################################################
     def call_script(self, addr):
 	"update the application - command"
-        Logger.debug('%s: addr=%r' % (whoami(), addr))
+        Logger.debug('%s: addr=%s' % (whoami(), addr))
 
-	subprocess.call(addr)
+#	subprocess.call(addr)
+	send_command(addr)
 
 
     # ###############################################################

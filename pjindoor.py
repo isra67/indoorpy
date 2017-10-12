@@ -11,7 +11,7 @@ kivy.require('1.9.0')
 
 from kivy.app import App
 from kivy.adapters.listadapter import ListAdapter
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from kivy.config import Config, ConfigParser
 from kivy.core.window import Window
 from kivy.lang import Builder
@@ -684,6 +684,7 @@ class BasicDisplay:
 	sendNodeInfo('[***]LOCK: %d %.2x' % (self.screenIndex, self.locks))
 
 	mainLayout.setLockIcons(self.screenIndex, self.locks)
+	Clock.schedule_once(mainLayout.image_update_loop, .5)
 
 
     # ###############################################################
@@ -784,7 +785,8 @@ class Indoor(FloatLayout):
 	sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
-	Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
+	#Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
+	threading.Thread(target=self.settings_worker).start()
 
 	self.loseNextTouch = False
 
@@ -1325,6 +1327,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
+    @mainthread
     def image_update_loop(self,dt):
 	"image update"
 	Logger.debug('%s:' % whoami())
@@ -1482,6 +1485,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
+    @mainthread
     def refreshLockIcons(self):
 	"change lock icon activity"
 	global active_display_index
@@ -1766,6 +1770,8 @@ class Indoor(FloatLayout):
 	"prepare settings"
 	Logger.info('%s:' % whoami())
 
+	timer.sleep(4)
+
 	app = App.get_running_app()
 	app.open_settings()
 	app.close_settings()
@@ -1986,6 +1992,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
+    @mainthread
     def hideAndResizePlayers(self):
 	"d-bus command to hide and resize video"
 	Logger.debug('%s:' % whoami())
@@ -2011,6 +2018,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
+    @mainthread
     def setButtons(self, visible):
 	"add/remove buttons"
 	global docall_button_global

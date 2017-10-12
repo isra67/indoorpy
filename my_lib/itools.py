@@ -17,6 +17,7 @@ import sys
 import time
 
 from omxcontrol import *
+from threading import Thread
 
 from kivy.logger import Logger
 
@@ -30,6 +31,7 @@ from constants import *
 # ###############################################################
 
 omxl = {}
+ret_dbus = {}
 
 
 # ###############################################################
@@ -54,8 +56,18 @@ def getdatetimestr():
 
 def send_dbus(dst,args):
     "send DBUS command to omxplayer"
-##    return send_dbus_old(dst,args)
-#    Logger.info('%s: dst=%s args=%s' % (whoami(), dst, str(args)))
+    ret_dbus[dst] = False
+    t = Thread(target=send_dbus_worker, kwargs={'dst': dst, 'args': args})
+    t.daemon = True
+    t.start()
+    t.join()
+    return ret_dbus[dst]
+
+
+# ##############################################################################
+
+def send_dbus_worker(dst,args):
+    "worker thread: send DBUS command to omxplayer"
 
     try:
 	if omxl[dst] is None: omxl[dst] = OmxControl(user='root',name=dst)
@@ -63,7 +75,7 @@ def send_dbus(dst,args):
 	try:
 	    omxl[dst] = OmxControl(user='root',name=dst)
 	except:
-	    Logger.warning('%s: dst=%s args=%s ERROR' % (whoami(), dst, str(args)))
+	    Logger.warning('%s: dst=%s args=%r ERROR' % (whoami(), dst, args))
 	    return True
 
     omx = omxl[dst]
@@ -77,11 +89,28 @@ def send_dbus(dst,args):
 	    else: omx.setAlpha(args[1])
 	else:
 	    omx.videoPos(args[1:])
-    except OmxControlError as ex:
-	Logger.warning('%s: dst=%s args=%s ERR=%s' % (whoami(), dst, str(args), ex.message))
-	return False
 
-    return True
+	ret_dbus[dst] = True
+	return True
+    except OmxControlError as ex:
+	Logger.warning('%s: dst=%s args=%r ERR=%s' % (whoami(), dst, args, ex.message))
+	Logger.info('%s: dst=%s properties=%r' % (whoami(), omx.properties()))
+
+	# try to repeat command
+	try:
+	    time.sleep(.66)
+	    if args[0] is 'setalpha':
+		if '0' == args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
+		elif '255' == args[1]: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
+		else: omx.setAlpha(args[1])
+	    else:
+		omx.videoPos(args[1:])
+
+	    ret_dbus[dst] = True
+	    return True
+	except: pass
+
+    return False
 
 
 # ##############################################################################

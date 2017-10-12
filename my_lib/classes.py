@@ -18,7 +18,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.uix.image import Image
+from kivy.uix.image import Image, AsyncImage
 from kivy.uix.label import Label
 from kivy.uix.listview import ListView, ListItemLabel
 from kivy.uix.popup import Popup
@@ -59,6 +59,13 @@ class MySetLabel(Label):
 
 class VideoLabel(Label):
     "text behind the video"
+    pass
+
+
+# ##############################################################################
+
+class MyAsyncImage(AsyncImage):
+    "image class"
     pass
 
 

@@ -75,7 +75,7 @@ def kill_subprocesses():
 
     sendNodeInfo('[***]STOP')
 
-#    stop_sw_watchdog()
+    stop_sw_watchdog()
 
     Logger.info('%s: destroy lib at exit' % whoami())
     try:
@@ -689,7 +689,7 @@ class BasicDisplay:
     def dbus_command(self, params=[]):
 	"d-bus command"
 	global mainLayout
-	Logger.trace('%s: (%d) %s' % (whoami(), self.screenIndex, str(params)))
+	Logger.trace('%s: (%d) %r' % (whoami(), self.screenIndex, params))
 
 	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
 	    sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
@@ -763,7 +763,6 @@ class Indoor(FloatLayout):
     buttonAreaHigh = 0
     infoAreaHigh = 0
     sipPort = 5060
-    preparing = False		# preparing Settings
     touches = {}		# resize video player (to bigger)
     touchdistance = -1.		# touch distance
     showVideoEvent = None	# timer to return size back
@@ -781,6 +780,7 @@ class Indoor(FloatLayout):
 	initloggers()
 
         init_sw_watchdog()
+	sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
 	Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
@@ -1277,8 +1277,8 @@ class Indoor(FloatLayout):
 		self.info_state = 1
         elif self.info_state == 1:
             self.info_state = 2
-	    if self.lib != None and self.scrmngr.current == CAMERA_SCR:
-		self.setButtons(False)
+#	    if self.lib != None and self.scrmngr.current == CAMERA_SCR:
+#		self.setButtons(False)
         elif self.info_state == 2:
             self.info_state = 3
 	    sendNodeInfo('[***]INDOORVER: %s' % config.get('about','app_ver'))
@@ -1292,6 +1292,7 @@ class Indoor(FloatLayout):
 	    docall_button_global.imgpath = NO_IMG
 
 	if check_usb_audio() > 0: self.reinitbackgroundtasks()
+	else: self.mediaErrorFlag = False
 
 	if netlink.netstatus == 0:
 	    sendNodeInfo('[***]NETLINK: %d' % netlink.netstatus)
@@ -1319,10 +1320,24 @@ class Indoor(FloatLayout):
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
 
+#	Clock.schedule_once(self.image_update_loop, .5)
+
+
+    # ###############################################################
+    def image_update_loop(self,dt):
+	"image update"
+	Logger.debug('%s:' % whoami())
+
+	area = self if self.popupSettings == None else self.popupSettings
+	for child in area.walk():
+	    if child is area: continue
+	    if '.MyAsyncImage' in str(child):
+		child.reload()
+
 
     # ###############################################################
     def auto_update_loop(self,dt):
-	"auto update ar 3:00AM"
+	"auto update at 3:00AM"
 
 	h = datetime.datetime.now().hour
 	if h == 3:
@@ -1374,9 +1389,9 @@ class Indoor(FloatLayout):
 #	kill_subprocesses()
 #	App.get_running_app().stop()
 
-	send_command('./rstaudio.sh')
-
-	Clock.schedule_once(lambda dt: self.init_myphone(), 3)
+	reset_usb_audio()
+	Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
+	Clock.schedule_once(lambda dt: self.init_myphone(), 3.)
 
 
     # ###############################################################
@@ -1442,6 +1457,8 @@ class Indoor(FloatLayout):
 
 	if current_call is None: self.showPlayers()
 
+	Clock.schedule_once(self.image_update_loop)
+
 
     # ###############################################################
     def setLockIcons(self, scrnIdx, locks):
@@ -1475,6 +1492,8 @@ class Indoor(FloatLayout):
 	for idx, d in enumerate(self.displays):
 	    idi = s - 1 - idx
 	    self.setLockIcons(idx, d.locks)
+
+	Clock.schedule_once(self.image_update_loop)
 
 
     # ###############################################################
@@ -1750,8 +1769,6 @@ class Indoor(FloatLayout):
 	app.open_settings()
 	app.close_settings()
 
-	self.preparing = False
-
 
     # ###############################################################
     def openAppSettings(self):
@@ -1997,7 +2014,7 @@ class Indoor(FloatLayout):
 	"add/remove buttons"
 	global docall_button_global
 
-	Logger.trace('%s: %r' % (whoami(), visible))
+	Logger.debug('%s: %r' % (whoami(), visible))
 
 	if visible:
 	    self.btnAreaH.remove_widget(self.btnScrSaver)
@@ -2012,6 +2029,8 @@ class Indoor(FloatLayout):
 
 	if docall_button_global.disabled:
 	    Clock.schedule_once(self.enable_btn_docall)
+
+	Clock.schedule_once(self.image_update_loop)
 
 
     # ###############################################################

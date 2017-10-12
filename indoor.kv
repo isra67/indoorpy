@@ -86,17 +86,11 @@
             width: self.lineWidth
 
 
-<VideoLabelO>:
-    text: 'Wait...'
-    font_size: '48dp' #self.height/4
-    color: 0.3,0.3,0.9,0.9
-    bgcolor: 0,0,0
-    canvas.before:
-        Color:
-            rgb: self.bgcolor
-        Rectangle:
-            size: self.size
-            pos: self.pos
+# image
+
+<MyAsyncImage>:
+    anim_delay: 0 ### -1
+    nocache: True
 
 
 # image button:
@@ -107,12 +101,11 @@
     font_size: '20px'
     lbltext: lbltext
 
-    AsyncImage:
+    MyAsyncImage:
         source: self.parent.imgpath
         center_x: self.parent.center_x
         center_y: self.parent.center_y
         size_hint: 1, None
-        nocache: True
     Label:
         id: lbltext
         font_size: '32dp'
@@ -139,19 +132,18 @@
         size_hint: root.size_hint
         center_y: root.center_y
 
-        AsyncImage:
+        MyAsyncImage:
             id: imgpath
             source: 'imgs/ww_phone-call.png'
             size_hint: 1, 1
             center_y: root.center_y
-            nocache: True
 
-        AsyncImage:
+        MyAsyncImage:
             id: imgpath2
             source: 'imgs/w_call-dnd.png'
             size_hint: 1, 1
             center_y: root.center_y
-            nocache: True
+
 
 # door (4 images) button:
 
@@ -171,33 +163,29 @@
         size_hint: root.size_hint
         center_y: root.center_y
 
-        AsyncImage:
+        MyAsyncImage:
             id: lockimg1
             source: 'imgs/w_lock.png'
             size_hint: 1, 1
             center_y: root.center_y
-            nocache: True
 
-        AsyncImage:
+        MyAsyncImage:
             id: lockimg2
             source: 'imgs/w_nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
-            nocache: True
 
-        AsyncImage:
+        MyAsyncImage:
             id: lockimg3
             source: 'imgs/w_nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
-            nocache: True
 
-        AsyncImage:
+        MyAsyncImage:
             id: lockimg4
             source: 'imgs/w_nolock.png'
             size_hint: 1, 1
             center_y: root.center_y
-            nocache: True
 
 
 #CLOCK:
@@ -287,11 +275,10 @@
             id: subbox2
             musicspinner: musicspinner
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_music.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Spinner:
                 id: musicspinner
                 size_hint: .5, None
@@ -304,11 +291,10 @@
             id: subbox3
             clockspinner: clockspinner
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_clock.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Spinner:
                 id: clockspinner
                 size_hint: .8, None
@@ -325,11 +311,10 @@
         BoxLayout:
             orientation: 'horizontal'
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_speaker.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Slider:
                 size_hint_x: .9
                 min: 20
@@ -343,11 +328,10 @@
         BoxLayout:
             orientation: 'horizontal'
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_microphone.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Slider:
                 size_hint_x: .9
                 min: 20
@@ -369,11 +353,10 @@
             orientation: 'horizontal'
             brightslider: brightslider
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_brightness.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Slider:
                 id: brightslider
                 size_hint_x: .9
@@ -388,11 +371,10 @@
         BoxLayout:
             orientation: 'horizontal'
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_monitor.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Slider:
                 size_hint_x: .9
                 min: 0
@@ -411,25 +393,22 @@
         BoxLayout:
             orientation: 'horizontal'
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/nothing.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/nothing.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
 
         BoxLayout:
             orientation: 'horizontal'
 
-            AsyncImage:
+            MyAsyncImage:
                 source: 'imgs/w_call-dnd.png'
                 size_hint_x: None
                 width: '48px'
-                nocache: True
             Switch:
                 active: root.vald
                 on_active: root.vald = self.active
@@ -444,7 +423,7 @@
             id: detailbutton
             text: 'Detail'
             on_press: root.openDetailSettings()
-        Image:
+        MyAsyncImage:
             source: 'imgs/nothing.png'
             size_hint: None, None
             size: '8px', '8px'
@@ -474,10 +453,9 @@
         value: root.val
         on_value: root.on_val()
 
-    AsyncImage:
+    MyAsyncImage:
         id: imgslider
         source: root.imgpath
-        nocache: True
 
 
 # BoxLayout + black background:

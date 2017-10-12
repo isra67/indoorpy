@@ -2,7 +2,7 @@
 
 PROCESS_NAME=python
 TEST_FILE=/tmp/indoor_wd.dat
-TIME_INTERVAL=15
+TIME_INTERVAL=14
 
 old_val=1
 new_val=0
@@ -22,7 +22,7 @@ wdg_task() {
 		 old_val=$new_val
 		else
 		 #echo test ERR
-#		  > $TEST_FILE
+		  > $TEST_FILE
 		 old_val=1
 #		 /usr/bin/pkill $PROCESS_NAME -9
 		 echo "AUDIO ERROR $SUCCESS" > /tmp/test.xxx

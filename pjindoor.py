@@ -312,6 +312,7 @@ class MyCallCallback(pj.CallCallback):
 	mainLayout.setButtons(False)
 	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
 	mainLayout.startScreenTiming()
+	mainLayout.del_sliders()
 	mainLayout.showPlayers()
 	mainLayout.outgoingCall = False
 

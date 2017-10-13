@@ -64,7 +64,8 @@ class VideoLabel(Label):
 
 # ##############################################################################
 
-class MyAsyncImage(AsyncImage):
+class MyAsyncImage(Image):
+#class MyAsyncImage(AsyncImage):
     "image class"
     pass
 

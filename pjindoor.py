@@ -32,7 +32,6 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
 
 import atexit
-#import ConfigParser
 import datetime
 import errno
 import fcntl
@@ -41,15 +40,16 @@ import signal
 import socket
 import StringIO
 import subprocess
+import time
 from threading import Thread
 
 import pjsua as pj
 
 from my_lib import *
 
-from kivy.cache import Cache
-Cache._categories['kv.image']['limit'] = 0
-Cache._categories['kv.texture']['limit'] = 0
+#from kivy.cache import Cache
+#Cache._categories['kv.image']['limit'] = 10 # 0
+#Cache._categories['kv.texture']['limit'] = 10 # 0
 
 
 ###############################################################
@@ -672,6 +672,8 @@ class BasicDisplay:
     # ###############################################################
     def setLock(self, value):
 	"set lock status"
+	global mainLayout
+
 	if not 'S' in value: return
 
 	m = value.strip('"').split('S')
@@ -684,13 +686,14 @@ class BasicDisplay:
 	sendNodeInfo('[***]LOCK: %d %.2x' % (self.screenIndex, self.locks))
 
 	mainLayout.setLockIcons(self.screenIndex, self.locks)
-	Clock.schedule_once(mainLayout.image_update_loop, .5)
+#	Clock.schedule_once(mainLayout.image_update_loop, .5)
 
 
     # ###############################################################
     def dbus_command(self, params=[]):
 	"d-bus command"
 	global mainLayout
+
 	Logger.trace('%s: (%d) %r' % (whoami(), self.screenIndex, params))
 
 	if not send_dbus(DBUS_PLAYERNAME + str(self.screenIndex), params):
@@ -767,6 +770,7 @@ class Indoor(FloatLayout):
     sipPort = 5060
     touches = {}		# resize video player (to bigger)
     touchdistance = -1.		# touch distance
+    refreshIconEvent = None	# timer to refresh icons
     showVideoEvent = None	# timer to return size back
     netstatus = -1		# old value of NetLink.netstatus
 
@@ -785,8 +789,8 @@ class Indoor(FloatLayout):
 	sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
-	#Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
-	threading.Thread(target=self.settings_worker).start()
+	Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
+#	threading.Thread(target=self.settings_worker).start()
 
 	self.loseNextTouch = False
 
@@ -1311,7 +1315,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def infinite_loop(self, dt):
 	"main neverendig loop"
-        global current_call, active_display_index, procs
+        global current_call, active_display_index, procs, mainLayout
 
 	if len(procs) == 0: return
 
@@ -1323,6 +1327,7 @@ class Indoor(FloatLayout):
 		if current_call is None or idx == active_display_index:
 		    procs[idx] = self.displays[idx].initPlayer()
 
+	mainLayout = self
 #	Clock.schedule_once(self.image_update_loop, .5)
 
 
@@ -1332,10 +1337,13 @@ class Indoor(FloatLayout):
 	"image update"
 	Logger.debug('%s:' % whoami())
 
+	self.refreshIconEvent = None
+
 	area = self if self.popupSettings == None else self.popupSettings
 	for child in area.walk():
 	    if child is area: continue
 	    if '.MyAsyncImage' in str(child):
+#		Logger.trace('%s: %s' % (whoami(), child.source))
 		child.reload()
 
 
@@ -1461,7 +1469,8 @@ class Indoor(FloatLayout):
 
 	if current_call is None: self.showPlayers()
 
-	Clock.schedule_once(self.image_update_loop)
+	if self.refreshIconEvent: Clock.unschedule(self.refreshIconEvent)
+	self.refreshIconEvent = Clock.schedule_once(self.image_update_loop,ICON_RELOAD)
 
 
     # ###############################################################
@@ -1483,6 +1492,9 @@ class Indoor(FloatLayout):
 	self.btnDoor1.children[0].children[idi].source = lockimg1
 	self.btnDoor2.children[0].children[idi].source = lockimg2
 
+	if self.refreshIconEvent: Clock.unschedule(self.refreshIconEvent)
+	self.refreshIconEvent = Clock.schedule_once(self.image_update_loop,ICON_RELOAD)
+
 
     # ###############################################################
     @mainthread
@@ -1498,7 +1510,8 @@ class Indoor(FloatLayout):
 	    idi = s - 1 - idx
 	    self.setLockIcons(idx, d.locks)
 
-	Clock.schedule_once(self.image_update_loop)
+#	if self.refreshIconEvent: Clock.unschedule(self.refreshIconEvent)
+#	self.refreshIconEvent = Clock.schedule_once(self.image_update_loop,ICON_RELOAD)
 
 
     # ###############################################################
@@ -1585,6 +1598,9 @@ class Indoor(FloatLayout):
 		self.setButtons(True)
 		docall_button_global.btntext = ''
 	    del lck
+
+	if self.refreshIconEvent: Clock.unschedule(self.refreshIconEvent)
+	self.refreshIconEvent = Clock.schedule_once(self.image_update_loop,ICON_RELOAD)
 
 
     # ###############################################################
@@ -1770,7 +1786,7 @@ class Indoor(FloatLayout):
 	"prepare settings"
 	Logger.info('%s:' % whoami())
 
-	timer.sleep(4)
+	time.sleep(4)
 
 	app = App.get_running_app()
 	app.open_settings()
@@ -1976,16 +1992,18 @@ class Indoor(FloatLayout):
 
 	Logger.debug('%s:' % whoami())
 
-	for d in self.displays:
+	for idx, d in enumerate(self.displays):
+#	for d in self.displays:
 	    if d.isPlaying:
 		d.resizePlayer()
 	    else:
 		d.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(255)])
 		d.isPlaying = True
-	    d.setActive(False)
+	    d.setActive(idx == active_display_index)
+#	    d.setActive(False)
 
 	self.addInfoText()
-	self.displays[active_display_index].setActive()
+#	self.displays[active_display_index].setActive()
 
 	if self.showVideoEvent: Clock.unschedule(self.showVideoEvent)
 	self.showVideoEvent = None
@@ -2037,9 +2055,10 @@ class Indoor(FloatLayout):
 		self.btnAreaH.add_widget(self.btnSettings)
 
 	if docall_button_global.disabled:
-	    Clock.schedule_once(self.enable_btn_docall)
+	    Clock.schedule_once(self.enable_btn_docall,.1)
 
-	Clock.schedule_once(self.image_update_loop)
+	if self.refreshIconEvent: Clock.unschedule(self.refreshIconEvent)
+	self.refreshIconEvent = Clock.schedule_once(self.image_update_loop,ICON_RELOAD)
 
 
     # ###############################################################

@@ -96,6 +96,8 @@ acc = None
 sipRegStatus = False
 
 # ### variables & constatnts: ###
+ICON_RELOAD = .25
+
 main_state = 0
 docall_button_global = None
 

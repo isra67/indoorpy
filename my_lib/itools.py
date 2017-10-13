@@ -98,7 +98,7 @@ def send_dbus_worker(dst,args):
 
 	# try to repeat command
 	try:
-	    time.sleep(.66)
+	    time.sleep(1.)
 	    if args[0] is 'setalpha':
 		if '0' == args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
 		elif '255' == args[1]: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)

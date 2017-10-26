@@ -71,24 +71,23 @@ sipRegEvent = None
 @atexit.register
 def kill_subprocesses():
     "tidy up at exit or break"
-    global mainLayout
+    global procs, config
+
+    repo = ''
+    try: repo = config.get('service','update_repo')
+    except: repo = 'production'
+    if repo == 'development': stop_sw_watchdog()
 
     sendNodeInfo('[***]STOP')
 
-    stop_sw_watchdog()
-
     Logger.info('%s: destroy lib at exit' % whoami())
-    try:
-	pj.Lib.destroy()
-    except:
-	pass
+    try: pj.Lib.destroy()
+    except: pass
 
     Logger.info('%s: kill subprocesses at exit' % whoami())
     for proc in procs:
-	try:
-            proc.kill()
-	except:
-	    pass
+	try: proc.kill()
+	except: pass
 
     send_command('pkill -9 omxplayer')
 
@@ -316,6 +315,8 @@ class MyCallCallback(pj.CallCallback):
 	mainLayout.showPlayers()
 	mainLayout.outgoingCall = False
 
+	sendNodeInfo('[***]SIP: FREE')
+
 	if not ring_event is None:
 	    Clock.unschedule(ring_event)
 	    ring_event = None
@@ -373,7 +374,7 @@ class BasicDisplay:
 
     def __init__(self,winpos,servaddr,sipcall,streamaddr,relaycmd,rotation=0,aspectratio='fill'):
 	"display area init"
-	global scr_mode, mainLayout
+	global scr_mode, mainLayout, procs
 
 	self.screenIndex = len(procs)
 	self.winPosition = winpos.split(',')
@@ -436,7 +437,11 @@ class BasicDisplay:
 
 	self.playerPosition = [str(i) for i in self.playerPosition]
 
-	procs.append(self.initPlayer())
+	prcs = self.initPlayer()
+	procs.append(prcs)
+	tt = Thread(target=self.play_worker)
+	tt.daemon = True
+	tt.start()
 
 	self.startThread()
 
@@ -463,6 +468,35 @@ class BasicDisplay:
 
 
     # ###############################################################
+#    """
+    def play_worker(self):
+	"Player thread"
+	global procs
+
+	_prcs = procs[self.screenIndex]
+
+	Logger.debug('%s: (%d) %r' % (whoami(), self.screenIndex, _prcs))
+
+	while True:
+	    """
+	    myLine = _prcs.stdout.readline()
+	    if myLine:
+		Logger.info('%s: (%d) %s' % (whoami(), self.screenIndex, myLine))
+#	    else:
+#		self.dbus_command(['status'])
+#		break
+	    """
+	    try:
+		(res,err) = _prcs.communicate()
+		Logger.info('%s: (%d) %s (%s)' % (whoami(), self.screenIndex, str(res), str(err)))
+	    except:
+		Logger.error('%s: (%d) FIN!' % (whoami(), self.screenIndex))
+		self.dbus_command(['status'])
+		break
+#	    time.sleep(.1)
+#    """
+
+    # ###############################################################
     def startThread(self):
 	"start communication thread to external devicer"
 	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
@@ -485,24 +519,27 @@ class BasicDisplay:
 	global mainLayout, current_call, active_display_index
 
 	Logger.debug('%s: (%d)' % (whoami(), self.screenIndex))
+
+	dbn = DBUS_PLAYERNAME + str(self.screenIndex)
 	try:
-	    if len(itools.omxl) and DBUS_PLAYERNAME + str(self.screenIndex) in itools.omxl:
-		del itools.omxl[DBUS_PLAYERNAME + str(self.screenIndex)]
+	    if len(itools.omxl) and dbn in itools.omxl:
+		itools.omxl[dbn] = None
+#		del itools.omxl[dbn]
 	except:
 	    pass
 
 	sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
 
 	interval = 19. + .2 * self.screenIndex
-	if self.checkEvent > 0: Clock.unschedule(self.checkEvent)
+	if self.checkEvent: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
 	self.isPlaying = (mainLayout.scrmngr.current == CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
 	    (current_call and active_display_index == self.screenIndex)
 
-	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys', '--display','0',\
-	    '--alpha','0', '--layer', '1',\
-	    '--dbus_name', DBUS_PLAYERNAME + str(self.screenIndex), '--orientation', str(self.rotation),\
-	    '--aspect-mode', self.aspectratio, '--win', ','.join(self.playerPosition), self.streamUrl],\
+	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys',\
+	    '--alpha','0', '--layer','1', '--display','0', '-I',\
+	    '--dbus_name',dbn, '--orientation',str(self.rotation),\
+	    '--aspect-mode',self.aspectratio, '--win',','.join(self.playerPosition), self.streamUrl],\
 	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
 
@@ -518,6 +555,7 @@ class BasicDisplay:
 	val = 255 if self.isPlaying else 0
 
 	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
+#	if self.isPlaying: self.dbus_command(['status'])
 
 	if self.bgrThread and not self.bgrThread.isAlive(): self.startThread()
 
@@ -773,6 +811,7 @@ class Indoor(FloatLayout):
     refreshIconEvent = None	# timer to refresh icons
     showVideoEvent = None	# timer to return size back
     netstatus = -1		# old value of NetLink.netstatus
+    reinitCntr = 0		# reinitialization counter
 
     def __init__(self, **kwargs):
 	"app init"
@@ -789,8 +828,7 @@ class Indoor(FloatLayout):
 	sw_watchdog()
         Clock.schedule_interval(sw_watchdog, SW_WD_TIME)
 
-	Clock.schedule_once(lambda dt: self.settings_worker(), 2.)
-#	threading.Thread(target=self.settings_worker).start()
+	Clock.schedule_once(lambda dt: self.settings_worker(), 7.5)
 
 	self.loseNextTouch = False
 
@@ -894,6 +932,7 @@ class Indoor(FloatLayout):
 	self.init_widgets()
 
 	self.init_myphone()
+#        Clock.schedule_once(lambda _: self.init_myphone(), 1.)
 
 	initcallstat()
 
@@ -946,13 +985,13 @@ class Indoor(FloatLayout):
 
 	self.init_buttons()
 	self.init_screen()
-#	self.init_sliders()
+##	self.init_sliders()
 
 
     # ###############################################################
     def init_buttons(self):
 	"define app buttons"
-	global docall_button_global, scr_mode, mainLayout
+	global docall_button_global, scr_mode
 
 	Logger.debug('%s:' % whoami())
 
@@ -972,7 +1011,7 @@ class Indoor(FloatLayout):
 	self.btnReject.bind(on_release=self.my_reject_callback)
 
 	docall_button_global = self.btnDoCall
-	docall_button_global.imgpath = DND_CALL_IMG if mainLayout.dnd_mode else MAKE_CALL_IMG
+	docall_button_global.imgpath = DND_CALL_IMG if self.dnd_mode else MAKE_CALL_IMG
 	docall_button_global.btntext = ''
 
 	### define button for lockers:
@@ -1398,12 +1437,15 @@ class Indoor(FloatLayout):
 	"SIP reinitialization"
 	Logger.warning('%s:' % whoami())
 
-#	kill_subprocesses()
-#	App.get_running_app().stop()
+	if self.reinitCntr > 1:
+	    kill_subprocesses()
+	    App.get_running_app().stop()
+	else:
+	    reset_usb_audio()
+	    Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
+	    Clock.schedule_once(lambda dt: self.init_myphone(), 3.)
 
-	reset_usb_audio()
-	Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
-	Clock.schedule_once(lambda dt: self.init_myphone(), 3.)
+	self.reinitCntr += 1
 
 
     # ###############################################################
@@ -1612,7 +1654,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def setRelayRQ(self, relay):
 	"send relay request"
-        global active_display_index
+        global active_display_index, procs
 
         Logger.trace('SetRelay: %s' % relay)
 
@@ -1786,7 +1828,7 @@ class Indoor(FloatLayout):
 	"prepare settings"
 	Logger.info('%s:' % whoami())
 
-	time.sleep(4)
+#	time.sleep(4)
 
 	app = App.get_running_app()
 	app.open_settings()
@@ -1818,7 +1860,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def restart_player_window(self, idx):
 	"process is bad - restart"
-	global active_display_index
+	global active_display_index, procs
 
 	Logger.info('%s: idx=%d' % (whoami(), idx))
 
@@ -1860,7 +1902,7 @@ class Indoor(FloatLayout):
     # ###############################################################
     def on_touch_up(self, touch):
 	"process touch up event"
-	global active_display_index, current_call, docall_button_global
+	global active_display_index, current_call, docall_button_global, procs
 
 #	Logger.info('%s:' % whoami())
 	if touch:
@@ -1904,7 +1946,8 @@ class Indoor(FloatLayout):
 		idx += 1
 
 	for idx, d in enumerate(self.displays):
-	    d.setActive(idx == active_display_index)
+	    if idx != active_display_index: d.setActive(False)
+	self.displays[active_display_index].setActive(True)
 
 	if '--> ' in docall_button_global.btntext: docall_button_global.btntext = ''
 
@@ -2534,10 +2577,10 @@ class IndoorApp(App):
 	    t1.start()
 	    t1.join()
 	    t2.start()
-	    t2.join()
+#	    t2.join()
 
-	    kill_subprocesses()
-	    App.get_running_app().stop()
+#	    kill_subprocesses()
+#	    App.get_running_app().stop()
 	else:
 	    Logger.info('%s: repo=%s STOPPED IN THIS DEVICE!' % (whoami(), repo))
 

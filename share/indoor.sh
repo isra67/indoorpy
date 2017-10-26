@@ -61,10 +61,10 @@ pustaj() {
 
 
 ## RPi 2 - set CPU performance:
-for cpucore in /sys/devices/system/cpu/cpu?;
-do
-[[ -f "$cpucore" ]] || echo "performance" | tee /sys/devices/system/cpu/cpu${cpucore:(-1)}/cpufreq/scaling_governor >/dev/null;
-done
+#for cpucore in /sys/devices/system/cpu/cpu?;
+#do
+# [[ -f "$cpucore" ]] || echo "performance" | tee /sys/devices/system/cpu/cpu${cpucore:(-1)}/cpufreq/scaling_governor >/dev/null;
+#done
 
 
 ## start WD:

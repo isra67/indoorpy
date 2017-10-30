@@ -47,9 +47,9 @@ import pjsua as pj
 
 from my_lib import *
 
-#from kivy.cache import Cache
-#Cache._categories['kv.image']['limit'] = 10 # 0
-#Cache._categories['kv.texture']['limit'] = 10 # 0
+from kivy.cache import Cache
+Cache._categories['kv.image']['limit'] = 50 # 0
+Cache._categories['kv.texture']['limit'] = 50 # 0
 
 
 ###############################################################
@@ -139,7 +139,7 @@ class MyAccountCallback(pj.AccountCallback):
 
 	sipRegStatus = False
 
-	Clock.schedule_once(lambda dt: mainLayout.init_myphone(), 1)
+	Clock.schedule_once(lambda dt: mainLayout.init_myphone(), 1.)
 
 
     # ###############################################################
@@ -931,8 +931,8 @@ class Indoor(FloatLayout):
 
 	self.init_widgets()
 
-	self.init_myphone()
-#        Clock.schedule_once(lambda _: self.init_myphone(), 1.)
+#	self.init_myphone()
+        Clock.schedule_once(lambda _: self.init_myphone(), PHONEINIT_TIME)
 
 	initcallstat()
 
@@ -1442,8 +1442,8 @@ class Indoor(FloatLayout):
 	    App.get_running_app().stop()
 	else:
 	    reset_usb_audio()
-	    Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
-	    Clock.schedule_once(lambda dt: self.init_myphone(), 3.)
+	    Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), HIDINIT_TIME)
+	    Clock.schedule_once(lambda dt: self.init_myphone(), PHONEINIT_TIME)
 
 	self.reinitCntr += 1
 
@@ -1827,8 +1827,6 @@ class Indoor(FloatLayout):
     def settings_worker(self, dt=7.5):
 	"prepare settings"
 	Logger.info('%s:' % whoami())
-
-#	time.sleep(4)
 
 	app = App.get_running_app()
 	app.open_settings()
@@ -2294,7 +2292,7 @@ class IndoorApp(App):
 	send_command('pkill -9 omxplayer')
 
 	reset_usb_audio()
-	Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), 2.)
+	Clock.schedule_once(lambda _: send_command(HIDINIT_SCRIPT), HIDINIT_TIME) # safe restart time
 
         try: self.rotation = config.getint('gui', 'screen_orientation')
         except: self.rotation = 0
@@ -2618,7 +2616,8 @@ class IndoorApp(App):
 		cb=None, ad=False).open()
 	    scrmngr.current = SETTINGS_SCR
 	else:
-	    self.appUpdateWorker()
+#	    self.appUpdateWorker()
+	    Clock.schedule_once(lambda _: self.appUpdateWorker(), .2)
 
 
     # ###############################################################

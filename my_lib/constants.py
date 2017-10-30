@@ -21,7 +21,7 @@ CONFIG_FILE = 'indoor.ini'  # 'indoorconfig.ini'
 KIVY_CONFIG_FILE = '/root/.kivy/config.ini'
 
 APP_NAME = '-Indoor-2.0-'
-APP_VERSION_CODE = '2.0.0.3'
+APP_VERSION_CODE = '2.0.0.4'
 
 SCREEN_SAVER = 0
 WATCHES = 'analog'
@@ -95,9 +95,12 @@ current_call = None
 acc = None
 sipRegStatus = False
 
-# ### variables & constatnts: ###
-ICON_RELOAD = .25
+# ### time: ###
+ICON_RELOAD = .2
+HIDINIT_TIME = 4.
+PHONEINIT_TIME = 3.
 
+# ### variables & constatnts: ###
 main_state = 0
 docall_button_global = None
 

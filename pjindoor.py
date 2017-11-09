@@ -2254,6 +2254,22 @@ class Indoor(FloatLayout):
 	"retrieve current volume level"
         Logger.debug('%s:' % whoami())
 
+        try:
+	    tmpv = config.getint('devices', 'volume')
+	    if tmpv < 20 or tmpv > 100: tmpv = 100
+        except:
+            Logger.warning('%s: ERROR = read config file!' % whoami())
+	    tmpv = 100
+	self.avolume = tmpv - tmpv % 5
+
+        try:
+	    tmpv = config.getint('devices', 'micvolume')
+	    if tmpv < 20 or tmpv > 100: tmpv = 100
+        except:
+            Logger.warning('%s: ERROR = read config file!' % whoami())
+	    tmpv = 100
+	self.micvolume = tmpv - tmpv % 5
+
 	try:
 	    s = get_info(VOLUMEINFO_SCRIPT).split()
 	except:
@@ -2261,23 +2277,28 @@ class Indoor(FloatLayout):
 
 	# speaker:
 	if len(s) < 4: vol = 100		# script problem!
-	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100)) #or 100
+	else: vol = int(round(float(s[1]) / (int(s[3]) - int(s[2])) * 100))
 
 	# available volume steps:
 	if vol > 99: vol = 100
 	elif vol < 20: vol = 20
-	self.avolume = vol - vol % 5
+#	self.avolume = vol - vol % 5
+	vol = vol - vol % 5
+	if self.avolume != vol:
+	    send_command('%s %d' % (SETVOLUME_SCRIPT, self.avolume))
 
 	# mic:
-	if len(s) < 8: self.micvolume = 100		# script problem!
-	else: self.micvolume = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100)) #or 100
+	if len(s) < 8: vol = 100		# script problem!
+	else: vol = int(round(float(s[5]) / (int(s[7]) - int(s[6])) * 100))
 
 	# available volume steps:
-	if self.micvolume > 99: self.micvolume = 100
-	elif self.micvolume < 20: self.micvolume = 20
-	self.micvolume = self.micvolume - self.micvolume % 5
+	if vol > 99: vol = 100
+	elif vol < 20: vol = 20
+	vol = vol - vol % 5
+	if self.micvolume != vol:
+	    send_command('%s %d' % (SETMICVOLUME_SCRIPT, self.micvolume))
 
-	return vol
+	return self.avolume
 
 
 # ###############################################################

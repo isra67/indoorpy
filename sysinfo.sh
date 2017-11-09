@@ -26,7 +26,7 @@ DNS=`cat /etc/resolv.conf | grep nameserver | awk 'NR==1 {print $2}'`
 MACADDR=`ifconfig eth0 | grep "HWaddr" | awk '{print $5}' | sed -e 's/:/-/g'`
 
 INET_TMP=`cat /etc/dhcpcd.conf | grep "interface eth0"`
-if [ -z $INET_TMP ]; then
+if [ -z "$INET_TMP" ]; then
   INET='dhcp'
 else
   INET='static'

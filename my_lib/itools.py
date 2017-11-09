@@ -81,14 +81,14 @@ def send_dbus_worker(dst,args):
     omx = omxl[dst]
 
     try:
-	if args[0] == 'status':
-	    Logger.info('%s: dst=%s status=%r' % (whoami(), dst, omx.status()))
-	elif args[0] is 'setalpha':
+	if args[0] is 'setalpha':
 #	    v = '1' if '0' is args[1] else '254'
 #	    omx.setAlpha(v)
 	    if '0' == args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
 	    elif '255' == args[1]: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
 	    else: omx.setAlpha(args[1])
+	elif args[0] == 'status':
+	    Logger.info('%s: dst=%s status=%r' % (whoami(), dst, omx.status()))
 	else:
 	    omx.videoPos(args[1:])
 
@@ -100,11 +100,13 @@ def send_dbus_worker(dst,args):
 
 	# try to repeat command
 	try:
-	    time.sleep(1.5)
+	    time.sleep(1.69)
 	    if args[0] is 'setalpha':
 		if '0' == args[1]: omx.action(OmxControl.ACTION_HIDE_VIDEO)
 		elif '255' == args[1]: omx.action(OmxControl.ACTION_UNHIDE_VIDEO)
 		else: omx.setAlpha(args[1])
+	    elif args[0] == 'status':
+		Logger.info('%s: dst=%s status=%r' % (whoami(), dst, omx.status()))
 	    else:
 		omx.videoPos(args[1:])
 

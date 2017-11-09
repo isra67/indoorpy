@@ -96,7 +96,7 @@ acc = None
 sipRegStatus = False
 
 # ### time: ###
-ICON_RELOAD = .2
+ICON_RELOAD = .3
 HIDINIT_TIME = 4.
 PHONEINIT_TIME = 3.
 

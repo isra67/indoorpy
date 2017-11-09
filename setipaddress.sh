@@ -32,3 +32,5 @@ fi
 
 ifconfig $IFACE 0.0.0.0
 systemctl restart $SERVICE.service
+
+sync

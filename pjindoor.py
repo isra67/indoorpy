@@ -439,9 +439,9 @@ class BasicDisplay:
 
 	prcs = self.initPlayer()
 	procs.append(prcs)
-	tt = Thread(target=self.play_worker)
-	tt.daemon = True
-	tt.start()
+#	tt = Thread(target=self.play_worker)
+#	tt.daemon = True
+#	tt.start()
 
 	self.startThread()
 
@@ -468,7 +468,7 @@ class BasicDisplay:
 
 
     # ###############################################################
-#    """
+    """
     def play_worker(self):
 	"Player thread"
 	global procs
@@ -478,14 +478,14 @@ class BasicDisplay:
 	Logger.debug('%s: (%d) %r' % (whoami(), self.screenIndex, _prcs))
 
 	while True:
-	    """
+	    "" "
 	    myLine = _prcs.stdout.readline()
 	    if myLine:
 		Logger.info('%s: (%d) %s' % (whoami(), self.screenIndex, myLine))
 #	    else:
 #		self.dbus_command(['status'])
 #		break
-	    """
+	    "" "
 	    try:
 		(res,err) = _prcs.communicate()
 		Logger.info('%s: (%d) %s (%s)' % (whoami(), self.screenIndex, str(res), str(err)))
@@ -494,7 +494,7 @@ class BasicDisplay:
 		self.dbus_command(['status'])
 		break
 #	    time.sleep(.1)
-#    """
+    """
 
     # ###############################################################
     def startThread(self):
@@ -530,14 +530,14 @@ class BasicDisplay:
 
 	sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
 
-	interval = 19. + .2 * self.screenIndex
+	interval = 69.# + .2 * self.screenIndex
 	if self.checkEvent: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
 	self.isPlaying = (mainLayout.scrmngr.current == CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
 	    (current_call and active_display_index == self.screenIndex)
 
 	return subprocess.Popen(['omxplayer', '--live', '--no-osd', '--no-keys',\
-	    '--alpha','0', '--layer','1', '--display','0', '-I',\
+	    '--alpha','0', '--layer','1', '--display','0',\
 	    '--dbus_name',dbn, '--orientation',str(self.rotation),\
 	    '--aspect-mode',self.aspectratio, '--win',','.join(self.playerPosition), self.streamUrl],\
 	    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
@@ -546,16 +546,22 @@ class BasicDisplay:
     # ###############################################################
     def checkLoop(self, dt):
 	"check video player state"
-	#global mainLayout, current_call, active_display_index
+	global mainLayout #, current_call, active_display_index
 
-	Logger.trace('%s: (%d)' % (whoami(), self.screenIndex))
-
-	sendNodeInfo('[***]VIDEO: %d OK' % self.screenIndex)
+	dbn = DBUS_PLAYERNAME + str(self.screenIndex)
+	status = get_info('%s %s status' % (DBUSCONTROL_SCRIPT, dbn)).split('\n')
+	try: p = int(status[1].split(' ')[1])  # check if position > 0
+	except: p = 0
+	if p < 0:
+	    sendNodeInfo('[***]VIDEO: %d ERROR' % (self.screenIndex))
+	    Logger.warning('%s: (%d): %r' % (whoami(), self.screenIndex, status))
+	    mainLayout.restart_player_window(self.screenIndex)
+	else:
+	    sendNodeInfo('[***]VIDEO: %d OK' % self.screenIndex)
 
 	val = 255 if self.isPlaying else 0
 
 	self.dbus_command(TRANSPARENCY_VIDEO_CMD + [str(val)])
-#	if self.isPlaying: self.dbus_command(['status'])
 
 	if self.bgrThread and not self.bgrThread.isAlive(): self.startThread()
 
@@ -1371,7 +1377,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    @mainthread
+#    @mainthread
     def image_update_loop(self,dt):
 	"image update"
 	Logger.debug('%s:' % whoami())
@@ -1539,7 +1545,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    @mainthread
+#    @mainthread
     def refreshLockIcons(self):
 	"change lock icon activity"
 	global active_display_index
@@ -2051,7 +2057,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    @mainthread
+#    @mainthread
     def hideAndResizePlayers(self):
 	"d-bus command to hide and resize video"
 	Logger.debug('%s:' % whoami())
@@ -2077,7 +2083,7 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-    @mainthread
+#    @mainthread
     def setButtons(self, visible):
 	"add/remove buttons"
 	global docall_button_global

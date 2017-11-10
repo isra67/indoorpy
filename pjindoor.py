@@ -157,7 +157,6 @@ class MyAccountCallback(pj.AccountCallback):
 	    if mainLayout.popupSettings:
 		mainLayout.popupSettings.dismiss()
 		mainLayout.popupSettings = None
-#		mainLayout.showPlayers()
 		Window.release_all_keyboards()
 
 	    if mainLayout.showVideoEvent:
@@ -201,8 +200,8 @@ class MyCallCallback(pj.CallCallback):
 
 	setloginfo(True, 'Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
 	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
-#	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
-#	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
+	Logger.info('pjSip on_state: Call width=%s is %s (%d) last code=%d (%s) as role=%s'\
+	    % (ci.remote_uri, ci.state_text, ci.state, ci.last_code, ci.last_reason, role))
 	Logger.debug('pjSip on_state: sip_call_id=%s outgoing call=%r current call=%s'\
 	    % (ci.sip_call_id, mainLayout.outgoingCall, str(current_call)))
 
@@ -439,6 +438,7 @@ class BasicDisplay:
 
 	prcs = self.initPlayer()
 	procs.append(prcs)
+	sendNodeInfo('[***]VIDEO: %d %s' % (self.screenIndex, 'OK' if prcs else 'ERROR'))
 #	tt = Thread(target=self.play_worker)
 #	tt.daemon = True
 #	tt.start()
@@ -528,9 +528,9 @@ class BasicDisplay:
 	except:
 	    pass
 
-	sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
+#	sendNodeInfo('[***]VIDEO: %d ERROR' % self.screenIndex)
 
-	interval = 69.# + .2 * self.screenIndex
+	interval = 60.# + .2 * self.screenIndex
 	if self.checkEvent: Clock.unschedule(self.checkEvent)
         self.checkEvent = Clock.schedule_interval(self.checkLoop, interval)
 	self.isPlaying = (mainLayout.scrmngr.current == CAMERA_SCR and not mainLayout.popupSettings and not current_call) or\
@@ -935,14 +935,14 @@ class Indoor(FloatLayout):
 
 	self.get_volume_value()
 
-	self.init_widgets()
-
-#	self.init_myphone()
-        Clock.schedule_once(lambda _: self.init_myphone(), PHONEINIT_TIME)
-
 	initcallstat()
 
 	sendNodeInfo('[***]START')
+
+#	self.init_myphone()
+#	self.init_widgets()
+        Clock.schedule_once(lambda dt: self.init_myphone(), 3.1)
+        Clock.schedule_once(lambda dt: self.init_widgets(), 3.9)
 
         self.infinite_event = Clock.schedule_interval(self.infinite_loop, 6.9)
         Clock.schedule_interval(self.info_state_loop, 12.)
@@ -1377,7 +1377,6 @@ class Indoor(FloatLayout):
 
 
     # ###############################################################
-#    @mainthread
     def image_update_loop(self,dt):
 	"image update"
 	Logger.debug('%s:' % whoami())
@@ -2316,10 +2315,12 @@ class IndoorApp(App):
 
 	self.config = config
 
-	send_command('pkill -9 omxplayer')
-
 	reset_usb_audio()
-	Clock.schedule_once(lambda _: send_command(HIDINIT_SCRIPT), HIDINIT_TIME) # safe restart time
+	time.sleep(HIDINIT_TIME)
+	send_command(HIDINIT_SCRIPT)
+#	Clock.schedule_once(lambda dt: send_command(HIDINIT_SCRIPT), HIDINIT_TIME) # safe restart time
+
+	send_command('pkill -9 omxplayer')
 
         try: self.rotation = config.getint('gui', 'screen_orientation')
         except: self.rotation = 0
@@ -2644,7 +2645,7 @@ class IndoorApp(App):
 	    scrmngr.current = SETTINGS_SCR
 	else:
 #	    self.appUpdateWorker()
-	    Clock.schedule_once(lambda _: self.appUpdateWorker(), .2)
+	    Clock.schedule_once(lambda dt: self.appUpdateWorker(), .2)
 
 
     # ###############################################################
@@ -2757,5 +2758,5 @@ class IndoorApp(App):
 # ###############################################################
 
 if __name__ == '__main__':
-    Clock.schedule_once(lambda dt: send_command('./killapp.sh runme.py'), 30)
+    Clock.schedule_once(lambda dt: send_command('./killapp.sh runme.py'), 20)
     IndoorApp().run()

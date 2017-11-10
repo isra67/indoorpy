@@ -15,4 +15,4 @@ fi
 
 echo $VAL > /sys/class/backlight/rpi_backlight/brightness
 
-sync
+sync &

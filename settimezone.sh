@@ -18,4 +18,4 @@ ln -s /usr/share/zoneinfo/$TZ /etc/localtime
 rm /etc/timezone
 echo $TZ | tee /etc/timezone
 
-sync
+sync &

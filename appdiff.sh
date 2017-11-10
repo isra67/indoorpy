@@ -38,6 +38,8 @@ else
 #    fi
     ./share/update.sh $REPO
 
+    sync
+
     PID=`ps aux | grep -i 'python pjindoor' | grep -iv 'grep ' | sed 's/\s\+/ /g' | cut -d' ' -f 2`
     kill $PID
 

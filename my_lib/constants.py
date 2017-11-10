@@ -97,8 +97,8 @@ sipRegStatus = False
 
 # ### time: ###
 ICON_RELOAD = .3
-HIDINIT_TIME = 4.
-PHONEINIT_TIME = 3.
+HIDINIT_TIME = 3. # 4
+PHONEINIT_TIME = HIDINIT_TIME + .2 # 3
 
 # ### variables & constatnts: ###
 main_state = 0

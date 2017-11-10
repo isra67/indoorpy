@@ -20,4 +20,4 @@ amixer cset numid=$VOLUMEID $VOL%
 amixer cset numid=$AGCID 0
 alsactl store
 
-sync
+sync &

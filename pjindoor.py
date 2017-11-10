@@ -550,9 +550,11 @@ class BasicDisplay:
 
 	dbn = DBUS_PLAYERNAME + str(self.screenIndex)
 	status = get_info('%s %s status' % (DBUSCONTROL_SCRIPT, dbn)).split('\n')
-	try: p = int(status[1].split(' ')[1])  # check if position > 0
-	except: p = 0
-	if p < 0:
+	try: pos = int(status[1].split(' ')[1])  # check if position > 0
+	except: pos = 0
+	try: paused = str(status[2].split(' ')[1]).lower() != 'false'  # check if paused == false
+	except: paused = True
+	if pos < 0 or paused:
 	    sendNodeInfo('[***]VIDEO: %d ERROR' % (self.screenIndex))
 	    Logger.warning('%s: (%d): %r' % (whoami(), self.screenIndex, status))
 	    mainLayout.restart_player_window(self.screenIndex)
